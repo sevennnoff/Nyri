@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+"""Report Caps Lock state to the shell: prints "1" or "0" on each change.
+
+niri does not expose modifier state, so this reads the keyboards that have a
+Caps Lock LED straight from evdev (the user is in the `input` group), reacts
+to KEY_CAPSLOCK only — every other event is dropped on the spot — and reads
+the LED to learn the resulting state. It blocks on the devices; nothing polls.
+"""
+import os, select, struct, sys, time
+from pathlib import Path
+
+EVENT = struct.Struct("llHHi")          # struct input_event on 64-bit
+EV_KEY, KEY_CAPSLOCK = 1, 58
+
+leds = sorted(Path("/sys/class/leds").glob("*::capslock"))
+devices = {}
+for led in leds:
+    for ev in (led / "device").glob("event*"):
+        try:
+            devices[os.open(f"/dev/input/{ev.name}", os.O_RDONLY | os.O_NONBLOCK)] = led
+        except OSError:
+            pass
+
+def state():
+    return "1" if any((l / "brightness").read_text().strip() != "0" for l in leds) else "0"
+
+if not devices:
+    sys.exit(0)
+
+last = state()
+print(last, flush=True)
+while True:
+    ready, _, _ = select.select(list(devices), [], [])
+    changed = False
+    for fd in ready:
+        try:
+            data = os.read(fd, EVENT.size * 64)
+        except BlockingIOError:
+            continue
+        for off in range(0, len(data) - EVENT.size + 1, EVENT.size):
+            _, _, etype, code, value = EVENT.unpack_from(data, off)
+            if etype == EV_KEY and code == KEY_CAPSLOCK and value == 1:
+                changed = True
+    if changed:
+        time.sleep(0.04)                 # the LED follows the key a moment later
+        now = state()
+        if now != last:
+            last = now
+            print(now, flush=True)

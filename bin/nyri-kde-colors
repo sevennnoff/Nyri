@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+"""Write a KDE color scheme from the shell's palette and apply it.
+
+Qt apps run with QT_QPA_PLATFORMTHEME=kde, so they read kdeglobals. The scheme
+alternates between two names because plasma-apply-colorscheme ignores a
+request for the scheme that is already active, even if its file changed.
+"""
+import json, os, subprocess, sys
+from pathlib import Path
+
+theme = Path(sys.argv[1] if len(sys.argv) > 1 else
+             Path(os.environ.get("NYRI_STATE", Path.home() / ".local/state/nyri")) / "theme.json")
+c = json.loads(theme.read_text())["colors"]
+
+def rgb(name):
+    h = c[name].lstrip("#")
+    return ",".join(str(int(h[i:i + 2], 16)) for i in (0, 2, 4))
+
+def block(section, bg, bg_alt, fg="on_surface", fg_inactive="on_surface_variant"):
+    return f"""[{section}]
+BackgroundNormal={rgb(bg)}
+BackgroundAlternate={rgb(bg_alt)}
+ForegroundNormal={rgb(fg)}
+ForegroundInactive={rgb(fg_inactive)}
+ForegroundActive={rgb("primary")}
+ForegroundLink={rgb("primary")}
+ForegroundVisited={rgb("tertiary")}
+ForegroundNegative={rgb("error")}
+ForegroundNeutral={rgb("secondary")}
+ForegroundPositive={rgb("tertiary")}
+DecorationFocus={rgb("primary")}
+DecorationHover={rgb("primary")}
+"""
+
+schemes = Path.home() / ".local/share/color-schemes"
+schemes.mkdir(parents=True, exist_ok=True)
+current = subprocess.run(["kreadconfig6", "--group", "General", "--key", "ColorScheme"],
+                         capture_output=True, text=True).stdout.strip()
+name = "NyriMaterialB" if current == "NyriMaterialA" else "NyriMaterialA"
+
+text = "\n".join([
+    block("Colors:Window", "surface", "surface_container_low"),
+    block("Colors:View", "surface_container_low", "surface_container"),
+    block("Colors:Button", "surface_container_high", "surface_container_highest"),
+    block("Colors:Selection", "primary", "primary_container", "on_primary", "on_primary_container"),
+    block("Colors:Tooltip", "inverse_surface", "inverse_surface", "inverse_on_surface", "inverse_on_surface"),
+    block("Colors:Complementary", "surface_container_lowest", "surface_container_low"),
+    block("Colors:Header", "surface_container", "surface_container_high"),
+    block("Colors:Header][Inactive", "surface", "surface_container_low"),
+    """[ColorEffects:Inactive]
+ChangeSelectionColor=false
+Enable=false
+
+[ColorEffects:Disabled]
+ColorAmount=0
+ColorEffect=0
+ContrastAmount=0.65
+ContrastEffect=1
+IntensityAmount=0.1
+IntensityEffect=2
+""",
+    f"""[General]
+ColorScheme={name}
+Name=Nyri Material
+shadeSortColumn=true
+
+[KDE]
+contrast=4
+
+[WM]
+activeBackground={rgb("surface_container")}
+activeForeground={rgb("on_surface")}
+activeBlend={rgb("surface_container")}
+inactiveBackground={rgb("surface")}
+inactiveForeground={rgb("on_surface_variant")}
+inactiveBlend={rgb("surface")}
+""",
+])
+(schemes / f"{name}.colors").write_text(text)
+subprocess.run(["plasma-apply-colorscheme", name], capture_output=True)

@@ -1,0 +1,125 @@
+#!/usr/bin/env python3
+"""Put the repo's config/ over ~/.config — as an overlay, or for real.
+
+    nyri-link overlay DIR     build DIR as ~/.config with the repo on top
+                              (what bin/nyri-nested points XDG_CONFIG_HOME at)
+    nyri-link install         link the repo into ~/.config, backing up what
+                              it replaces to ~/.config-nyri-backup/<time>/
+    nyri-link uninstall       remove those links and restore the last backup
+    nyri-link status          show what is linked and what is not
+
+Directories listed in OWN are linked whole. Everything else is merged: a repo
+file replaces its counterpart, but the rest of that directory (fish history
+helpers, kitty themes, other Quickshell configs...) is left alone.
+"""
+import os, shutil, sys, time
+from pathlib import Path
+
+NYRI = Path(__file__).resolve().parent.parent
+REPO = NYRI / "config"
+HOME_CFG = Path.home() / ".config"
+BACKUPS = Path.home() / ".config-nyri-backup"
+OWN = {"niri", "fuzzel", "quickshell/nyri"}
+
+
+def leaves(rel=Path(".")):
+    """Repo paths to link: owned dirs whole, other dirs recursed, files as is."""
+    for entry in sorted((REPO / rel).iterdir()):
+        r = (rel / entry.name)
+        key = r.as_posix().lstrip("./")
+        if entry.is_dir() and key not in OWN:
+            yield from leaves(r)
+        else:
+            yield Path(key)
+
+
+def overlay(target: Path):
+    if target.exists() or target.is_symlink():
+        shutil.rmtree(target) if target.is_dir() and not target.is_symlink() else target.unlink()
+    target.mkdir(parents=True)
+    repo_leaves = list(leaves())
+
+    def place(rel: Path):
+        dst = target / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        # The parent may be a mirror of a real dir: fill in its real siblings.
+        dst.symlink_to(REPO / rel)
+
+    # Mirror every real directory that the repo merges into, entry by entry.
+    merged_dirs = {p.parent for p in repo_leaves if p.parent != Path(".")}
+    merged_dirs |= {d for p in merged_dirs for d in p.parents if d != Path(".")}
+    for real in sorted(HOME_CFG.iterdir()):
+        if Path(real.name) not in merged_dirs:
+            if not (REPO / real.name).exists():
+                (target / real.name).symlink_to(real)
+    for d in sorted(merged_dirs, key=lambda p: len(p.parts)):
+        (target / d).mkdir(parents=True, exist_ok=True)
+        real = HOME_CFG / d
+        if real.is_dir():
+            for child in real.iterdir():
+                rel = d / child.name
+                if not (REPO / rel).exists() and rel not in merged_dirs:
+                    (target / rel).symlink_to(child)
+    for rel in repo_leaves:
+        place(rel)
+
+
+def install():
+    stamp = BACKUPS / time.strftime("%Y%m%d-%H%M%S")
+    for rel in leaves():
+        dst, src = HOME_CFG / rel, REPO / rel
+        if dst.is_symlink() and dst.resolve() == src.resolve():
+            continue
+        if dst.exists() or dst.is_symlink():
+            (stamp / rel).parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(dst), stamp / rel)
+            print(f"backed up  ~/.config/{rel}")
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.symlink_to(src)
+        print(f"linked     ~/.config/{rel}")
+    if stamp.exists():
+        print(f"\nbackup: {stamp}")
+
+
+def uninstall():
+    for rel in leaves():
+        dst = HOME_CFG / rel
+        if dst.is_symlink() and str(os.readlink(dst)).startswith(str(REPO)):
+            dst.unlink()
+            print(f"unlinked   ~/.config/{rel}")
+    stamps = sorted(BACKUPS.iterdir()) if BACKUPS.exists() else []
+    if not stamps:
+        return
+    last = stamps[-1]
+    for f in sorted(last.rglob("*")):
+        rel = f.relative_to(last)
+        dst = HOME_CFG / rel
+        if f.is_dir() and not f.is_symlink():
+            continue
+        if not dst.exists() and not dst.is_symlink():
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(f), dst)
+            print(f"restored   ~/.config/{rel}")
+    print(f"\nrestored from {last}")
+
+
+def status():
+    for rel in leaves():
+        dst = HOME_CFG / rel
+        ok = dst.is_symlink() and dst.resolve() == (REPO / rel).resolve()
+        print(("linked    " if ok else "NOT linked"), f"~/.config/{rel}")
+
+
+if __name__ == "__main__":
+    cmd = sys.argv[1] if len(sys.argv) > 1 else "status"
+    if cmd == "overlay":
+        overlay(Path(sys.argv[2]))
+    elif cmd == "install":
+        install()
+    elif cmd == "uninstall":
+        uninstall()
+    elif cmd == "status":
+        status()
+    else:
+        print(__doc__)
+        sys.exit(2)

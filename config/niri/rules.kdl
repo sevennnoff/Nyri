@@ -1,0 +1,53 @@
+// Shape: tiled windows get the M3 "large increased" corner (20dp), floating
+// ones are dialogs and get "extra large" (28dp).
+
+window-rule {
+    geometry-corner-radius 20
+    clip-to-geometry true
+}
+
+window-rule {
+    match is-floating=true
+    geometry-corner-radius 28
+    shadow {
+        softness 40
+        spread 4
+        offset x=0 y=10
+    }
+}
+
+window-rule {
+    match app-id=r#"^org\.pulseaudio\.pavucontrol$"#
+    match app-id=r#"^nm-connection-editor$"#
+    match app-id=r#"^blueman-manager$"#
+    match app-id=r#"^org\.gnome\.Calculator$"#
+    match app-id=r#"^qalculate-gtk$"#
+    match title=r#"^Picture-in-Picture$"#
+    open-floating true
+}
+
+// Steam's toast notifications: bottom-right corner, not the middle of the screen.
+window-rule {
+    match app-id="steam" title=r#"^notificationtoasts_\d+_desktop$"#
+    default-floating-position x=10 y=10 relative-to="bottom-right"
+}
+
+// The shell's own windows (settings, wallpapers): ordinary tiled columns.
+window-rule {
+    match title=r#"^Nyri · Настройки$"#
+    match title=r#"^Nyri · Обои$"#
+    default-column-width { proportion 0.66667; }
+}
+
+window-rule {
+    match app-id=r#"^org\.keepassxc\.KeePassXC$"#
+    match app-id=r#"^org\.gnome\.World\.Secrets$"#
+    block-out-from "screen-capture"
+}
+
+// The shell's wallpaper sits in the overview backdrop, so zooming out shows
+// the wallpaper behind the workspaces instead of a flat color.
+layer-rule {
+    match namespace="^nyri-wallpaper$"
+    place-within-backdrop true
+}

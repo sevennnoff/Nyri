@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Switch the real session from iNiR to nyri — or back.
+#
+#   nyri-install           check what is missing, render the theme, link the
+#                          configs (with a backup), stop iNiR from starting
+#   nyri-install --undo    unlink, restore the backup, bring iNiR back
+#
+# Takes effect at the next login (log out, log back in).
+set -euo pipefail
+
+NYRI="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+bold() { printf '\033[1m%s\033[0m\n' "$*"; }
+
+if [[ ${1:-} == --undo ]]; then
+    bold "Unlinking nyri, restoring the backup"
+    "$NYRI/bin/nyri-link" uninstall
+    systemctl --user enable inir.service 2>/dev/null && echo "iNiR will start again at login"
+    bold "Done. Log out and back in."
+    exit 0
+fi
+
+bold "Checking dependencies"
+missing=()
+for cmd in niri qs matugen jq fuzzel cliphist wl-paste wl-copy grim slurp wf-recorder hyprpicker \
+           brightnessctl wpctl playerctl tesseract hyprlock curl notify-send gdbus \
+           kreadconfig6 plasma-apply-colorscheme wlsunset qalc; do
+    command -v "$cmd" >/dev/null || missing+=("$cmd")
+done
+# Read the font list once: `fc-list | grep -q` dies of SIGPIPE under pipefail
+# and reports fonts that are there as missing.
+fonts="$(fc-list : family)"
+for font in "Rubik" "Material Symbols Rounded" "JetBrainsMono Nerd Font"; do
+    grep -qF "$font" <<<"$fonts" || missing+=("font: $font")
+done
+if ((${#missing[@]})); then
+    printf '  missing: %s\n' "${missing[@]}"
+    echo "  (the shell still runs; the features that need these will not)"
+else
+    echo "  all there"
+fi
+
+bold "Rendering the theme from the current wallpaper"
+"$NYRI/bin/nyri-theme"
+
+bold "Linking configs (replaced files go to ~/.config-nyri-backup/)"
+"$NYRI/bin/nyri-link" install
+
+bold "Stopping iNiR from starting with niri"
+systemctl --user disable inir.service 2>/dev/null && echo "  inir.service disabled" || echo "  inir.service was not enabled"
+
+bold "Done. Log out and back in to start nyri. Undo any time: nyri-install --undo"

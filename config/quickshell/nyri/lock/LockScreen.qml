@@ -1,0 +1,636 @@
+import QtQuick
+import QtQuick.Effects
+import Quickshell
+import Quickshell.Wayland
+import Quickshell.Io
+import Quickshell.Services.Pam
+import Quickshell.Services.UPower
+import qs.theme
+import qs.services
+import qs.widgets
+
+// ext-session-lock: if the shell dies while locked, niri keeps the screen
+// locked. The password is checked by PAM ("login" stack, same as swaylock).
+//
+// Two states, like a phone. At rest: a huge clock with the date and weather
+// under it — nothing to type into. Touch a key or the mouse and it wakes: the
+// clock shrinks, your shape (the avatar) and the password pill rise in under
+// it, the whole group staying centred; power buttons appear below. Left alone for a while it falls asleep again.
+// Unlocking plays everything out first, then drops the lock.
+Scope {
+    id: root
+
+    property string buffer: ""
+    property bool checking: false
+    property bool failed: false
+    property bool unlocking: false
+    property bool awake: false
+    function type(text) {
+        root.failed = false;
+        root.buffer = text;
+        if (text.length) wake();
+    }
+
+    function submit() {
+        if (checking || buffer === "")
+            return;
+        checking = true;
+        // The test window never asks the real PAM: every wrong try there
+        // would count towards pam_faillock and could lock the real account.
+        // It plays a check that always fails; ipc unlockNested lets it in.
+        if (Panels.nested) fakeCheck.restart();
+        else pam.start();
+    }
+
+    Timer {
+        id: fakeCheck
+        interval: 1600
+        onTriggered: {
+            root.checking = false;
+            root.type("");
+            root.failed = true;
+            root.wake();
+        }
+    }
+
+    function wake() {
+        awake = true;
+        doze.restart();
+    }
+
+    function power(cmd) {
+        if (Panels.nested) console.log("nested: skipped", cmd.join(" "));
+        else Quickshell.execDetached(cmd);
+    }
+
+    // Each lock starts at rest.
+    Connections {
+        target: Lock
+        function onUnlockRequested() { if (Panels.nested && Lock.locked) root.unlocking = true; }
+        function onLockedChanged() {
+            if (Lock.locked) {
+                root.awake = false;
+                root.unlocking = false;
+                root.failed = false;
+            }
+        }
+    }
+
+    // Nobody around: back to rest (the typed part is kept).
+    Timer {
+        id: doze
+        interval: 20000
+        onTriggered: if (!root.checking && root.buffer === "") root.awake = false
+    }
+
+    // Should the exit spring never report settling, unlock anyway.
+    Timer {
+        running: root.unlocking
+        interval: 1500
+        onTriggered: { root.unlocking = false; Lock.locked = false; }
+    }
+
+    PamContext {
+        id: pam
+        config: "login"
+        onPamMessage: { if (responseRequired) respond(root.buffer) }
+        onCompleted: result => {
+            root.checking = false;
+            if (result === PamResult.Success) {
+                root.unlocking = true;     // play out, then Lock.locked = false
+                root.buffer = "";
+            } else {
+                root.type("");             // clears the buffer (and `failed`)...
+                root.failed = true;        // ...so set the outcome after it
+                root.wake();
+            }
+        }
+    }
+
+    WlSessionLock {
+        locked: Lock.locked
+
+        WlSessionLockSurface {
+            id: surface
+            color: Colors.m3surface
+
+            // ── Motion ──────────────────────────────────────────────────
+            // Flipped a frame after creation, so the entrance always plays.
+            property bool ready: false
+            Timer { running: true; interval: 16; onTriggered: surface.ready = true }
+            Component.onCompleted: input.forceActiveFocus()
+
+            SpringValue {
+                id: enter
+                target: surface.ready && !root.unlocking ? 1 : 0
+                damping: root.unlocking ? 1.0 : 0.78
+                stiffness: root.unlocking ? 260 : 170
+                epsilon: 0.002
+                onRunningChanged: if (!running && root.unlocking && value < 0.01) { root.unlocking = false; Lock.locked = false; }
+            }
+            SpringValue { id: wakeS; target: root.awake && !root.unlocking ? 1 : 0; damping: 0.74; stiffness: 260 }
+
+            readonly property real e: Math.max(0, Math.min(1, enter.value))
+            readonly property real w: wakeS.value
+            readonly property real wc: Math.max(0, Math.min(1, w))
+            readonly property bool wide: width > height
+
+            // Checking the password: everything steps back, a loading
+            // indicator takes the centre.
+            SpringValue { id: checkS; target: root.checking ? 1 : 0; damping: 0.72; stiffness: 420 }
+            readonly property real dim: 1 - 0.75 * Math.max(0, Math.min(1, checkS.value))
+
+            // ── Background: the wallpaper blurs in as the lock comes down ──
+            Image {
+                id: wall
+                anchors.fill: parent
+                source: Colors.wallpaper ? "file://" + Colors.wallpaper : ""
+                fillMode: Image.PreserveAspectCrop
+                sourceSize: Qt.size(surface.width, surface.height)
+            }
+
+            MultiEffect {
+                anchors.fill: parent
+                source: wall
+                blurEnabled: true
+                blur: 1
+                blurMax: 64
+                autoPaddingEnabled: false
+                opacity: surface.e
+                scale: 1 + 0.06 * surface.e
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                color: Colors.m3scrim
+                opacity: (0.35 + 0.15 * surface.wc) * surface.e
+            }
+
+            // Any movement wakes it (ignoring the pointer's first report).
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                property point first: Qt.point(-1, -1)
+                onPositionChanged: m => {
+                    if (first.x < 0) { first = Qt.point(m.x, m.y); return; }
+                    if (Math.abs(m.x - first.x) + Math.abs(m.y - first.y) > 12) root.wake();
+                }
+                onClicked: { root.wake(); input.forceActiveFocus(); }
+            }
+
+            SystemClock { id: clock; precision: SystemClock.Minutes }
+
+            // ── Clock ───────────────────────────────────────────────────
+            // At rest: hours stacked over minutes, huge. Awake: the minutes
+            // swing up beside the hours, a colon fades in between, and the
+            // whole thing shrinks — one continuous move on the wake spring.
+            Item {
+                id: clockBox
+
+                readonly property real hw: hours.width
+                readonly property real mw: minutes.width
+                readonly property real lh: hours.height
+                readonly property real overlap: 64          // stacked lines tuck together
+                readonly property real gapH: 70             // room for the colon
+                readonly property real stackW: Math.max(hw, mw)
+                readonly property real rowW: hw + gapH + mw
+                readonly property real t: surface.w
+                readonly property real awakeScale: 0.5
+
+                // Whatever is centred — clock and date at rest, plus the
+                // password pill when awake — is centred as one group.
+                readonly property real groupH: height * scale + 12 + glance.height + (40 + auth.height) * surface.wc
+
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: stackW + (rowW - stackW) * t
+                height: (2 * lh - overlap) + (lh - (2 * lh - overlap)) * t
+                y: (surface.height - groupH) / 2
+                // Coming and going the clock flies at you: big and fading.
+                scale: (1 - (1 - awakeScale) * t) * (1 + 0.35 * (1 - surface.e))
+                transformOrigin: Item.Top
+                opacity: surface.e * surface.dim
+
+                RollingText {
+                    id: hours
+                    x: (clockBox.stackW - width) / 2 * (1 - clockBox.t)
+                    pixelSize: 210
+                    weight: 700
+                    color: Colors.m3primary
+                    speed: "slow"
+                    text: Qt.formatTime(clock.date, "HH")
+                }
+
+                MText {
+                    x: clockBox.hw + (clockBox.gapH - width) / 2
+                    y: (clockBox.lh - height) / 2 - 12
+                    opacity: Math.max(0, Math.min(1, clockBox.t * 2 - 1))
+                    font.pixelSize: 180
+                    font.variableAxes: ({ "wght": 700 })
+                    color: Colors.m3onSurfaceVariant
+                    text: ":"
+                }
+
+                RollingText {
+                    id: minutes
+                    x: (clockBox.stackW - width) / 2 * (1 - clockBox.t) + (clockBox.hw + clockBox.gapH) * clockBox.t
+                    y: (clockBox.lh - clockBox.overlap) * (1 - clockBox.t)
+                    pixelSize: 210
+                    weight: 700
+                    color: Colors.m3primaryContainer
+                    speed: "slow"
+                    text: Qt.formatTime(clock.date, "mm")
+                }
+            }
+
+            // Date and weather, riding under the clock.
+            Row {
+                id: glance
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: clockBox.y + clockBox.height * clockBox.scale + 12
+                spacing: 12
+                opacity: surface.e * surface.dim
+
+                MText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    textStyle: Type.titleLarge
+                    font.variableAxes: ({ "wght": 550 })
+                    color: Colors.m3onSurface
+                    text: {
+                        const s = clock.date.toLocaleDateString(Qt.locale("ru_RU"), "dddd, d MMMM");
+                        return s.charAt(0).toUpperCase() + s.slice(1);
+                    }
+                }
+                Rectangle {
+                    visible: Weather.ready
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 5; height: 5; radius: 2.5
+                    color: Colors.m3outline
+                }
+                MIcon {
+                    visible: Weather.ready
+                    anchors.verticalCenter: parent.verticalCenter
+                    icon: Weather.ready ? Weather.describe(Weather.current.code, Weather.current.day).icon : ""
+                    size: 26
+                    fill: 1
+                    color: Colors.m3primary
+                }
+                MText {
+                    visible: Weather.ready
+                    anchors.verticalCenter: parent.verticalCenter
+                    textStyle: Type.titleLarge
+                    font.variableAxes: ({ "wght": 550 })
+                    color: Colors.m3onSurface
+                    text: Weather.ready ? Weather.current.temp + "° · " + Weather.describe(Weather.current.code, Weather.current.day).text : ""
+                }
+            }
+
+            // ── Top right: battery, layout ─────────────────────────────
+            Row {
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.margins: 24
+                spacing: 12
+                opacity: surface.e
+
+                MText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    textStyle: Type.labelLargeEmph
+                    color: Colors.m3onSurfaceVariant
+                    text: Niri.layoutShort
+                }
+                Row {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: UPower.displayDevice?.isLaptopBattery ?? false
+                    spacing: 6
+                    readonly property real level: {
+                        const p = UPower.displayDevice?.percentage ?? 0;
+                        return p > 1 ? p / 100 : p;
+                    }
+                    readonly property bool charging: UPower.displayDevice?.state === UPowerDeviceState.Charging
+                    MIcon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: parent.charging
+                        icon: "bolt"; size: 16; fill: 1
+                        color: Colors.m3primary
+                    }
+                    BatteryPill {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 40; height: 20
+                        level: parent.level
+                        charging: parent.charging
+                    }
+                }
+            }
+
+            // ── Awake: the password pill ───────────────────────────────
+            Column {
+                id: auth
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: glance.y + glance.height + 40 + (1 - surface.w) * 60
+                spacing: 16
+                opacity: surface.wc * surface.dim
+                visible: opacity > 0.01
+                enabled: root.awake
+
+                Rectangle {
+                    id: field
+
+                    property real shake: shakeS.value
+
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: 360
+                    height: 64
+                    radius: height / 2
+                    color: root.failed ? Colors.m3errorContainer : Colors.m3surfaceContainerHigh
+                    transform: Translate { x: field.shake }
+
+                    Behavior on color { ColorAnim {} }
+
+                    // A spring kicked sideways: it rings out on its own.
+                    SpringValue { id: shakeS; target: 0; damping: 0.22; stiffness: 900; epsilon: 0.05 }
+                    Connections {
+                        target: root
+                        function onFailedChanged() {
+                            if (root.failed) { shakeS.velocity = 900; shakeS.running = true; }
+                        }
+                    }
+
+                    MIcon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        x: 22
+                        icon: root.failed ? "error" : "lock"
+                        fill: 1
+                        color: root.failed ? Colors.m3onErrorContainer : Colors.m3onSurfaceVariant
+                    }
+
+                    // Each character is a small M3 shape that springs in.
+                    PasswordDots {
+                        anchors.centerIn: parent
+                        length: root.buffer.length
+                    }
+
+                    FlowText {
+                        anchors.centerIn: parent
+                        visible: root.buffer === ""
+                        textStyle: Type.bodyLarge
+                        color: root.failed ? Colors.m3onErrorContainer : Colors.m3onSurfaceVariant
+                        text: root.checking ? "Проверяю…" : root.failed ? "Неверный пароль" : "Пароль"
+                    }
+
+                    // Enter, as a button.
+                    Rectangle {
+                        id: go
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.right: parent.right
+                        anchors.rightMargin: 8
+                        width: 48
+                        height: 48
+                        radius: goLayer.pressed ? Shape.medium : height / 2
+                        color: root.buffer !== "" ? Colors.m3primary : "transparent"
+                        Behavior on radius { SpatialAnim { speed: "fast" } }
+                        Behavior on color { ColorAnim {} }
+
+                        MIcon {
+                            anchors.centerIn: parent
+                            icon: "arrow_forward"
+                            color: root.buffer !== "" ? Colors.m3onPrimary : Colors.m3onSurfaceVariant
+                        }
+                        StateLayer {
+                            id: goLayer
+                            radius: go.radius
+                            color: Colors.m3onPrimary
+                            onClicked: root.submit()
+                        }
+                    }
+                }
+
+                // Caps Lock is the usual reason a right password fails.
+                Rectangle {
+                    id: capsChip
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    readonly property bool on: Toggles.capsLock
+                    width: capsRow.implicitWidth + 28
+                    height: 36 * capsIn.value
+                    radius: 18
+                    color: Colors.m3secondaryContainer
+                    opacity: Math.min(1, capsIn.value)
+                    visible: capsIn.value > 0.02
+                    clip: true
+                    SpringValue { id: capsIn; target: capsChip.on ? 1 : 0; damping: 0.7; stiffness: 400 }
+
+                    Row {
+                        id: capsRow
+                        anchors.centerIn: parent
+                        spacing: 6
+                        MIcon { anchors.verticalCenter: parent.verticalCenter; icon: "keyboard_capslock"; size: 18; fill: 1; color: Colors.m3onSecondaryContainer }
+                        MText { anchors.verticalCenter: parent.verticalCenter; textStyle: Type.labelLargeEmph; color: Colors.m3onSecondaryContainer; text: "Caps Lock включён" }
+                    }
+                }
+            }
+
+            // ── Checking: the M3 Expressive morphing indicator, contained in
+            // its rounded square, in the middle of the screen ─────────────
+            LoadingIndicator {
+                anchors.centerIn: parent
+                width: 120
+                height: 120
+                running: root.checking
+                visible: checkS.value > 0.01
+                opacity: Math.min(1, checkS.value)
+                scale: 0.6 + 0.4 * checkS.value
+            }
+
+            // Resting hint.
+            MText {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 40
+                textStyle: Type.labelLarge
+                color: Colors.m3onSurfaceVariant
+                opacity: (1 - surface.wc) * surface.e * 0.9
+                text: "Начните печатать, чтобы разблокировать"
+            }
+
+            // ── Bottom left: who is locked, and a shape that answers ──
+            Row {
+                x: 32
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 32 + (1 - surface.e) * -40
+                spacing: 14
+                opacity: surface.e
+
+                // Avatar: an M3 cookie; a burst in error red on a wrong password.
+                Item {
+                    id: avatar
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 64
+                    height: 64
+
+                    // Your shape. It only answers a wrong password; the check
+                    // itself plays in the middle of the screen.
+                    MaterialShape {
+                        anchors.fill: parent
+                        shape: root.failed ? "softBurst" : "cookie9Sided"
+                        color: root.failed ? Colors.m3errorContainer : Colors.m3primaryContainer
+                    }
+
+                    MText {
+                        anchors.centerIn: parent
+                        visible: !face.visible
+                        textStyle: Type.headlineMedium
+                        font.variableAxes: ({ "wght": 700 })
+                        color: root.failed ? Colors.m3onErrorContainer : Colors.m3onPrimaryContainer
+                        text: (Quickshell.env("USER") || "?").charAt(0).toUpperCase()
+                    }
+
+                    // ~/.face, if there is one, clipped to a circle inside.
+                    // Probe quietly: most people have no ~/.face.
+                    FileView {
+                        id: faceFile
+                        path: Quickshell.env("HOME") + "/.face"
+                        printErrors: false
+                    }
+                    Image {
+                        id: face
+                        anchors.centerIn: parent
+                        width: 48; height: 48
+                        source: faceFile.loaded ? "file://" + faceFile.path : ""
+                        visible: status === Image.Ready
+                        fillMode: Image.PreserveAspectCrop
+                        sourceSize: Qt.size(96, 96)
+                        layer.enabled: visible
+                        layer.effect: MultiEffect {
+                            maskEnabled: true
+                            maskSource: faceMask
+                        }
+                    }
+                    Rectangle { id: faceMask; width: 48; height: 48; radius: 24; visible: false; layer.enabled: true }
+                }
+
+
+                Column {
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 0
+
+                    MText {
+                        textStyle: Type.titleMediumEmph
+                        color: Colors.m3onSurface
+                        text: Quickshell.env("USER") ?? ""
+                    }
+                    // Only when there is something to say.
+                    MText {
+                        readonly property bool say: root.failed
+                        textStyle: Type.labelMedium
+                        color: root.failed ? Colors.m3error : Colors.m3onSurfaceVariant
+                        text: root.failed ? "Неверный пароль" : ""
+                        height: say ? implicitHeight : 0
+                        opacity: say ? 1 : 0
+                        Behavior on height { SpatialAnim { speed: "fast" } }
+                        Behavior on opacity { EffectAnim {} }
+                    }
+                }
+            }
+
+            // ── Bottom right: power. Reboot and power off ask once more. ──
+            Row {
+                id: powerRow
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.margins: 32
+                spacing: 10
+                opacity: surface.wc
+                visible: opacity > 0.01
+                enabled: root.awake
+                layoutDirection: Qt.RightToLeft
+
+                property string arming: ""
+                Timer { id: disarm; interval: 3500; onTriggered: powerRow.arming = "" }
+
+                Repeater {
+                    model: [
+                        { id: "poweroff", icon: "power_settings_new", ask: "Выключить?", cmd: ["systemctl", "poweroff"] },
+                        { id: "reboot", icon: "restart_alt", ask: "Перезагрузить?", cmd: ["systemctl", "reboot"] },
+                        { id: "suspend", icon: "bedtime", ask: "", cmd: ["systemctl", "suspend"] }
+                    ]
+
+                    Rectangle {
+                        id: pb
+                        required property var modelData
+                        required property int index
+                        readonly property bool armed: powerRow.arming === modelData.id
+                        SpringValue { id: pbGrow; target: pb.armed ? 1 : 0; damping: 0.62; stiffness: 600 }
+
+                        width: 56 + (askText.implicitWidth + 12) * Math.max(0, pbGrow.value)
+                        height: 56
+                        radius: pbLayer.pressed ? Shape.medium : height / 2
+                        color: pb.armed ? Colors.m3errorContainer : Colors.m3surfaceContainerHigh
+                        clip: true
+                        transform: Translate { y: (1 - surface.wc) * (30 + pb.index * 12) }
+
+                        Behavior on radius { SpatialAnim { speed: "fast" } }
+                        Behavior on color { ColorAnim {} }
+
+                        MIcon {
+                            x: (56 - size) / 2
+                            anchors.verticalCenter: parent.verticalCenter
+                            size: 24
+                            icon: pb.modelData.icon
+                            fill: pb.armed ? 1 : 0
+                            color: pb.armed ? Colors.m3onErrorContainer : Colors.m3onSurfaceVariant
+                        }
+                        MText {
+                            id: askText
+                            x: 50
+                            anchors.verticalCenter: parent.verticalCenter
+                            textStyle: Type.labelLargeEmph
+                            color: Colors.m3onErrorContainer
+                            opacity: Math.max(0, Math.min(1, pbGrow.value * 1.6 - 0.5))
+                            text: pb.modelData.ask
+                        }
+                        StateLayer {
+                            id: pbLayer
+                            radius: pb.radius
+                            color: pb.armed ? Colors.m3onErrorContainer : Colors.m3onSurface
+                            onClicked: {
+                                root.wake();
+                                if (pb.modelData.ask && !pb.armed) {
+                                    powerRow.arming = pb.modelData.id;
+                                    disarm.restart();
+                                    return;
+                                }
+                                powerRow.arming = "";
+                                root.power(pb.modelData.cmd);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // The real input: invisible, always focused.
+            TextInput {
+                id: input
+                width: 0
+                height: 0
+                opacity: 0
+                focus: true
+                echoMode: TextInput.Password
+                enabled: !root.checking && !root.unlocking
+                onTextChanged: root.type(text)
+                onAccepted: root.submit()
+                Keys.onPressed: event => {
+                    if (event.key === Qt.Key_Escape) {
+                        if (root.buffer !== "") text = "";
+                        else root.awake = false;
+                        event.accepted = true;
+                        return;
+                    }
+                    root.wake();
+                }
+                Connections {
+                    target: root
+                    function onBufferChanged() { if (root.buffer === "") input.text = "" }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,22 @@
+# Rendered by bin/nyri-theme. matugen resolves relative paths against
+# this file's directory.
+[config]
+
+[templates.niri]
+input_path = "templates/niri.kdl"
+output_path = "../config/niri/colors.kdl"
+
+
+[templates.fuzzel]
+input_path = "templates/fuzzel.ini"
+output_path = "../config/fuzzel/colors.ini"
+
+[templates.gtk3]
+input_path = "templates/gtk.css"
+output_path = "~/.config/gtk-3.0/gtk.css"
+
+[templates.gtk4]
+input_path = "templates/gtk.css"
+output_path = "~/.config/gtk-4.0/gtk.css"
+
+

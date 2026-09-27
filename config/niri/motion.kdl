@@ -1,0 +1,106 @@
+// M3 Expressive motion scheme, taken 1:1 from Compose's MotionScheme.expressive().
+// niri springs have unit mass, so damping ratio and stiffness map directly.
+//
+//   spatial  fast     damping 0.6   stiffness 800   small things: toasts, focus
+//   spatial  default  damping 0.7   stiffness 420   window and view movement
+//   spatial  slow     damping 0.72  stiffness 240   whole-screen: overview
+//
+// (Compose's default/slow use 0.8; these are a touch bouncier on purpose, and
+// match the shell's curves in theme/Motion.qml.)
+//   effects  *        damping 1.0  (no bounce)     opacity and color only
+//
+// Exits never bounce: M3 leaves on an accelerating curve.
+
+animations {
+    workspace-switch {
+        spring damping-ratio=0.7 stiffness=420 epsilon=0.0001
+    }
+
+    horizontal-view-movement {
+        spring damping-ratio=0.7 stiffness=420 epsilon=0.0001
+    }
+
+    window-movement {
+        spring damping-ratio=0.7 stiffness=420 epsilon=0.0001
+    }
+
+    window-resize {
+        spring damping-ratio=0.9 stiffness=700 epsilon=0.0001
+    }
+
+    // Open: an M3 Expressive container transform. The window grows from 86%
+    // on the fast spatial spring (so it overshoots and settles) while its
+    // corners morph from nearly a pill down to the 20px window corner.
+    window-open {
+        spring damping-ratio=0.65 stiffness=700 epsilon=0.0001
+        custom-shader r"
+            float nyri_rrect(vec2 p, vec2 half_size, float r) {
+                vec2 q = abs(p) - half_size + vec2(r);
+                return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
+            }
+
+            vec4 open_color(vec3 coords_geo, vec3 size_geo) {
+                float p = niri_progress;
+                float c = niri_clamped_progress;
+                float scale = 0.86 + 0.14 * p;
+
+                vec2 uv = (coords_geo.xy - vec2(0.5)) / scale + vec2(0.5);
+                vec3 tex = niri_geo_to_tex * vec3(uv, 1.0);
+                vec4 color = texture2D(niri_tex, tex.st);
+
+                vec2 size = size_geo.xy;
+                float radius = mix(min(min(size.x, size.y) * 0.5, 96.0), 20.0, clamp(p, 0.0, 1.0));
+                float d = nyri_rrect((uv - vec2(0.5)) * size, size * 0.5, radius);
+                float mask = clamp(0.5 - d, 0.0, 1.0);
+
+                return color * mask * smoothstep(0.0, 0.35, c);
+            }
+        "
+    }
+
+    // Close: no bounce (M3 exits accelerate away). Shrinks a little, corners
+    // round up again, fades out.
+    window-close {
+        duration-ms 180
+        curve "ease-out-quad"
+        custom-shader r"
+            float nyri_rrect(vec2 p, vec2 half_size, float r) {
+                vec2 q = abs(p) - half_size + vec2(r);
+                return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
+            }
+
+            vec4 close_color(vec3 coords_geo, vec3 size_geo) {
+                float c = niri_clamped_progress;
+                float scale = 1.0 - 0.1 * c;
+
+                vec2 uv = (coords_geo.xy - vec2(0.5)) / scale + vec2(0.5);
+                vec3 tex = niri_geo_to_tex * vec3(uv, 1.0);
+                vec4 color = texture2D(niri_tex, tex.st);
+
+                vec2 size = size_geo.xy;
+                float radius = mix(20.0, min(min(size.x, size.y) * 0.5, 72.0), c);
+                float d = nyri_rrect((uv - vec2(0.5)) * size, size * 0.5, radius);
+                float mask = clamp(0.5 - d, 0.0, 1.0);
+
+                return color * mask * (1.0 - c);
+            }
+        "
+    }
+
+    overview-open-close {
+        spring damping-ratio=0.72 stiffness=240 epsilon=0.0001
+    }
+
+    config-notification-open-close {
+        spring damping-ratio=0.6 stiffness=800 epsilon=0.001
+    }
+
+    exit-confirmation-open-close {
+        spring damping-ratio=0.6 stiffness=800 epsilon=0.01
+    }
+
+    screenshot-ui-open {
+        duration-ms 200
+        curve "ease-out-quad"
+    }
+}

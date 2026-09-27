@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# Build the Material 3 palette from a wallpaper and render every template.
+#
+#   nyri-theme [wallpaper]        (default: the last one used, else wallpapers/bauhaus.png)
+#   nyri-theme --schemes          key colours of every scheme -> $NYRI_STATE/schemes.json
+#
+#   NYRI_SCHEME  matugen scheme   (default: the last one used, else scheme-content,
+#                                  which keeps the wallpaper's own hue)
+#   NYRI_MODE    dark | light     (default: the last one used, else dark)
+#   NYRI_STATE   where state lives (default ~/.local/state/nyri); the palette
+#                for the shell goes to $NYRI_STATE/theme.json
+#
+# In the nested test session (NYRI_NESTED=1) only theme.json is written:
+# niri, fuzzel, GTK, Qt and the terminal belong to the real session.
+set -euo pipefail
+
+NYRI="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+STATE="${NYRI_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/nyri}"
+NESTED="${NYRI_NESTED:-}"
+mkdir -p "$STATE"
+
+arg="${1:-}"
+[[ $arg == --schemes ]] && arg=""
+wall="${arg:-$(cat "$STATE/wallpaper" 2>/dev/null || echo "$NYRI/wallpapers/bauhaus.png")}"
+wall="$(readlink -f "$wall")"
+mode="${NYRI_MODE:-$(cat "$STATE/mode" 2>/dev/null || echo dark)}"
+scheme="${NYRI_SCHEME:-$(cat "$STATE/scheme" 2>/dev/null || echo scheme-content)}"
+[[ -f $wall ]] || { echo "nyri-theme: no such wallpaper: $wall" >&2; exit 1; }
+
+cd "$NYRI"
+
+# --schemes: every scheme's key colours for this wallpaper and mode, for the
+# swatches in settings. Cached in $STATE/schemes.json; nothing else changes.
+if [[ ${1:-} == --schemes ]]; then
+    wall="$(cat "$STATE/wallpaper" 2>/dev/null || echo "$NYRI/wallpapers/bauhaus.png")"
+    {
+        printf '{"wallpaper":%s,"mode":%s,"schemes":{' "$(jq -Rn --arg w "$wall" '$w')" "$(jq -Rn --arg m "$mode" '$m')"
+        first=1
+        for s in scheme-content scheme-tonal-spot scheme-vibrant scheme-expressive scheme-fidelity \
+                 scheme-fruit-salad scheme-rainbow scheme-neutral scheme-monochrome; do
+            [[ $first ]] || printf ','
+            first=
+            printf '"%s":' "$s"
+            matugen -c matugen/palette-only.toml image "$wall" -t "$s" -m "$mode" --prefer saturation -q -j hex \
+              | jq -c '[.colors.primary.default.color, .colors.secondary_container.default.color, .colors.surface_container_high.default.color]'
+        done
+        printf '}}\n'
+    } > "$STATE/schemes.json.tmp"
+    mv "$STATE/schemes.json.tmp" "$STATE/schemes.json"
+    exit 0
+fi
+
+config=matugen/config.toml
+[[ -n $NESTED ]] && config=matugen/palette-only.toml
+matugen -c "$config" image "$wall" \
+    -t "$scheme" -m "$mode" \
+    --prefer saturation -q -j hex \
+  | jq --arg wall "$wall" --arg mode "$mode" --arg scheme "$scheme" '{
+        wallpaper: $wall,
+        mode: $mode,
+        scheme: $scheme,
+        colors: (.colors | map_values(.default.color))
+    }' > "$STATE/theme.json.tmp"
+
+# Atomic swap so the shell's file watcher never sees a half-written file.
+mv "$STATE/theme.json.tmp" "$STATE/theme.json"
+echo "$wall" > "$STATE/wallpaper"
+echo "$mode" > "$STATE/mode"
+echo "$scheme" > "$STATE/scheme"
+[[ -n $NESTED ]] && exit 0
+
+# GTK follows through gtk.css (a matugen template) plus the dark/light hint;
+# Qt through a KDE color scheme; the terminal through the color files its
+# (iNiR-installed) config already reads. All cheap, all in the background.
+gsettings set org.gnome.desktop.interface color-scheme "prefer-$mode" 2>/dev/null
+gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk3$([[ $mode == dark ]] && echo -dark)" 2>/dev/null
+"$NYRI/bin/nyri-kde-colors" "$STATE/theme.json" &>/dev/null &
+"$NYRI/bin/nyri-term-colors" "$STATE/theme.json" &>/dev/null &

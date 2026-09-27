@@ -1,0 +1,174 @@
+#!/usr/bin/env bash
+# One entry point for every shell action a keybind can trigger.
+#
+# niri binds call `nyri <action>` and never change. What stands behind an
+# action does: today most are stand-ins (fuzzel, grim, wf-recorder); as the
+# Quickshell shell grows its own surfaces, the case below switches to
+# `qs -c nyri ipc call ...` and the binds stay exactly as they are.
+set -uo pipefail
+
+NYRI="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+SHOTS="$HOME/Pictures/Screenshots"
+CLIPS="$HOME/Videos/Recordings"
+
+todo() { notify-send -a nyri "Nyri" "$1 — ещё не сделано"; }
+
+# Ask the running shell. Fails (so the caller can fall back) when it is down.
+shell() { qs -c nyri ipc call nyri "$@" &>/dev/null; }
+
+menu() { fuzzel --dmenu --prompt "$1  " "${@:2}"; }
+
+region() {
+    case "${1:-screenshot}" in
+        screenshot)
+            niri msg action screenshot ;;
+        full)
+            niri msg action screenshot-screen ;;
+        menu)
+            # While recording, the same key stops it.
+            pkill -INT -x wf-recorder && exit 0
+            shell toggle snip || niri msg action screenshot ;;
+        edit)
+            local geom; geom="$(slurp)" || exit 0
+            grim -g "$geom" - | swappy -f - ;;
+        ocr)
+            local geom text
+            geom="$(slurp)" || exit 0
+            text="$(grim -g "$geom" - | tesseract - - -l "$(ocr_langs)" 2>/dev/null)"
+            printf '%s' "$text" | wl-copy
+            notify-send -a nyri "Текст скопирован" "${text:0:120}" ;;
+        record)
+            record "" ;;
+        recordWithSound)
+            record "--audio" ;;
+        search)
+            lens ;;
+    esac
+}
+
+# tesseract fails outright on a missing language, so use only installed ones.
+ocr_langs() {
+    local have; have="$(tesseract --list-langs 2>/dev/null)"
+    grep -qx rus <<<"$have" && echo "eng+rus" || echo "eng"
+}
+
+# Same key starts and stops a recording. The shell shows a red chip while it
+# runs; when it stops, the file is offered as a notification.
+record() {
+    if pkill -INT -x wf-recorder; then
+        return
+    fi
+    local geom file
+    geom="$(slurp)" || exit 0
+    mkdir -p "$CLIPS"
+    file="$CLIPS/$(date +%Y-%m-%d_%H-%M-%S).mp4"
+    shell recording true
+    (
+        wf-recorder $1 -g "$geom" -f "$file" &>/dev/null
+        shell recording false
+        a=$(notify-send -a "Запись экрана" -i video-x-generic -A open=Открыть -A folder=Папка \
+            "Запись сохранена" "${file##*/}")
+        case "$a" in open) xdg-open "$file" ;; folder) xdg-open "$CLIPS" ;; esac
+    ) &
+    disown
+}
+
+# Google Lens on a screen region. The image goes to litterbox.catbox.moe
+# (public, deleted after 1 hour) because Lens only takes a URL.
+lens() {
+    local geom tmp url
+    geom="$(slurp)" || exit 0
+    tmp="$(mktemp --suffix=.png)"
+    grim -g "$geom" "$tmp"
+    url="$(curl -sf -F reqtype=fileupload -F time=1h -F "fileToUpload=@$tmp" \
+        https://litterbox.catbox.moe/resources/internals/api.php)"
+    rm -f "$tmp"
+    if [[ $url == https://* ]]; then
+        xdg-open "https://lens.google.com/uploadbyurl?url=$url"
+    else
+        notify-send -a nyri -u critical "Поиск по области" "Не удалось загрузить картинку"
+    fi
+}
+
+# Pick a color anywhere on screen; copies the hex.
+picker() {
+    local c; c="$(hyprpicker -a -f hex 2>/dev/null)" || exit 0
+    [[ -n $c ]] && notify-send -a "Пипетка" -i color-select "$c" "Скопирован в буфер обмена"
+}
+
+clipboard() {
+    local pick; pick="$(cliphist list | menu "󰅌")" || exit 0
+    cliphist decode <<<"$pick" | wl-copy
+}
+
+wallpaper() {
+    local pick
+    pick="$(find "$NYRI/wallpapers" "$HOME/Pictures/Wallpapers" -maxdepth 1 -type f \
+                \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \) 2>/dev/null \
+            | while read -r f; do printf '%s\t%s\n' "${f##*/}" "$f"; done \
+            | menu "󰸉" --with-nth=1 --accept-nth=2)" || exit 0
+    "$NYRI/bin/nyri-theme" "$pick"
+}
+
+session() {
+    local pick
+    pick="$(printf '%s\n' "󰌾  Заблокировать" "󰤄  Сон" "󰍃  Выйти" "󰜉  Перезагрузить" "󰐥  Выключить" \
+            | menu "" --lines=5 --width=24)" || exit 0
+    case "$pick" in
+        *Заблокировать) lock ;;
+        *Сон)           lock & sleep 0.5; systemctl suspend ;;
+        *Выйти)         niri msg action quit --skip-confirmation ;;
+        *Перезагрузить) systemctl reboot ;;
+        *Выключить)     systemctl poweroff ;;
+    esac
+}
+
+lock() { pidof hyprlock >/dev/null || hyprlock; }
+
+audio() {
+    case "$1" in
+        volumeUp)   wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+ ;;
+        volumeDown) wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- ;;
+        mute)       wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle ;;
+        micMute)    wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle ;;
+    esac
+}
+
+brightness() {
+    case "$1" in
+        increment) brightnessctl -q -e4 -n2 set 5%+ ;;
+        decrement) brightnessctl -q -e4 -n2 set 5%- ;;
+    esac
+    shell osd brightness
+}
+
+mpris() {
+    case "$1" in
+        playPause) playerctl play-pause ;;
+        next)      playerctl next ;;
+        previous)  playerctl previous ;;
+    esac
+}
+
+action="${1:-}"; shift || true
+case "$action" in
+    terminal)   exec kitty ;;
+    browser)    exec zen-browser ;;
+    launcher)   shell toggle launcher || exec fuzzel ;;
+    clipboard)  shell toggle clipboard || clipboard ;;
+    region)     region "$@" ;;
+    wallpaper)  shell toggle wallpaper || wallpaper ;;
+    session)    shell toggle session || session ;;
+    lock)       shell lock || lock ;;
+    cheatsheet) niri msg action show-hotkey-overlay ;;
+    switcher)   shell switcher "${1:-next}" || niri msg action focus-window-previous ;;
+    audio)      audio "$@" ;;
+    brightness) brightness "$@" ;;
+    mpris)      mpris "$@" ;;
+    crosshair)  shell crosshair || todo "Прицел" ;;
+    picker)     picker ;;
+    settings)   shell settings || todo "Настройки" ;;
+    sidebar)    shell toggle control || todo "Правая панель" ;;
+    panels)     shell autohide || todo "Автоскрытие панели" ;;
+    *)          echo "usage: nyri <action> [args]" >&2; exit 2 ;;
+esac

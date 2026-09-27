@@ -1,0 +1,741 @@
+#!/usr/bin/env python3
+"""Flat vector wallpapers with swappable palettes (after the wally app).
+
+    nyri-wall styles                                 JSON list of styles
+    nyri-wall palettes                               JSON list of palettes
+    nyri-wall make STYLE PALETTE SEED OUT.svg [--size WxH] [--grid]
+    nyri-wall thumbs PALETTE SEED DIR [--grid]       every style as DIR/<style>.svg
+    nyri-wall apply STYLE PALETTE SEED [--grid]      render, save, recolor the desktop
+
+PALETTE is a palette name, or a colour — "#7c4dff" (light) or "#7c4dff/dark"
+— to build the whole palette from that one hue. --grid adds graph paper.
+
+A wallpaper is a pure function of (style, palette, seed, size): no effects,
+no gradients, just shapes — so any palette can be swapped in later. `apply`
+writes $NYRI_DATA/walls/<style>-<palette>-<seed>.{svg,png} (NYRI_DATA
+defaults to ~/.local/share/nyri; the PNG is what matugen reads) and runs
+nyri-theme on it.
+"""
+import colorsys, json, math, os, random, subprocess, sys
+from pathlib import Path
+
+W, H = 2880, 1800
+
+# ── Palettes: [background, colors…], the same set as wally ─────────────────
+def P(group, name, *c):
+    return {"group": group, "name": name, "colors": ["#%06x" % (v & 0xFFFFFF) for v in c]}
+
+PALETTES = [
+    P("Классика", "Терракота", 0xF3C6A0, 0x6B3F24, 0xE97A2F, 0xD8603B, 0xF7D7B8),
+    P("Классика", "Шалфей", 0xA8DEC2, 0x2F8F72, 0x25483E, 0xDDEFE3, 0x60B492),
+    P("Классика", "Океан", 0x2D5C9A, 0x8CC3E4, 0x5B95CB, 0x1A2C52, 0x4579B9),
+    P("Классика", "Пион", 0xF2A7D3, 0x6A3A6C, 0x8E5A99, 0xE8A9A2, 0xF7C6E0),
+    P("Классика", "Пыль", 0x6A8CA5, 0x4D6E86, 0xD88A8D, 0xE7CF9C, 0x9CC6D4),
+    P("Классика", "Лагуна", 0x1F4F55, 0xE05A48, 0x8FB9C1, 0x1B8A80, 0xE8B85E),
+    P("Классика", "Полночь", 0x265459, 0x8FB2B6, 0x183E43, 0xEDDCC8, 0xD7784A),
+    P("Классика", "Лес", 0x4E6A5C, 0x3B5446, 0xC8DDC0, 0x82BF66, 0xE3B055),
+    P("Классика", "Ретро", 0x0F5F6E, 0xEC7462, 0xEFC07C, 0xA7D9DC, 0x4DB7B8, 0xEE9A2E),
+    P("Классика", "Радуга", 0x071820, 0xE3162D, 0xD65A1A, 0xD88A22, 0x3F6B58, 0x1F2B55, 0x1E6BA6, 0x1488B5),
+    P("Классика", "Пустыня", 0xA9D6E8, 0xF0B888, 0xF08A5E, 0x4863AE, 0x4F6A48, 0xB5CB78, 0x97A8EE),
+    P("Пастель", "Зефир", 0xFFF4EC, 0xF6C1C7, 0xC9B6F2, 0xB5E3D8, 0xFFD99A),
+    P("Пастель", "Мята", 0xE9F4EE, 0x9ED2C0, 0x3E9C84, 0xF2A65A),
+    P("Пастель", "Лаванда", 0xF1EDFB, 0xB9A7E8, 0x8A76C8, 0xF4C5D8, 0xFFE3A3),
+    P("Пастель", "Персик", 0xFFE8DC, 0xFFB997, 0xF79A7B, 0xB8D8C9, 0x6F9C8D),
+    P("Пастель", "Лёд", 0xE6EEF6, 0x9CB8DE, 0x3A5A8C, 0xF08C7A),
+    P("Земля", "Песок", 0xF1E4CF, 0xC0643E, 0x2F4858, 0x86A69D, 0xE2A55B),
+    P("Земля", "Кофе", 0x3B2A22, 0xD9A77A, 0x8C5A3C, 0xF1D7B8, 0xB86B45),
+    P("Земля", "Олива", 0xE9E4D0, 0x6B7045, 0xA3A56A, 0x3F3A2A, 0xD08A45),
+    P("Земля", "Глина", 0xEAD7C3, 0xB5654A, 0x7A3E2E, 0xDDA27A, 0x4E6B63),
+    P("Земля", "Осень", 0x2E2420, 0xD2692A, 0xE8A33D, 0x8E3B2E, 0xF3E1C4),
+    P("Яркие", "Неон", 0x0D0B1E, 0xFF3D8B, 0x7B5CFF, 0x00E0C6, 0xFFE14D),
+    P("Яркие", "Поп", 0xFFF3D6, 0xFF5A36, 0x2451FF, 0xFFC21A, 0x101010),
+    P("Яркие", "Тропики", 0x003B46, 0xFF7A59, 0x2EC4B6, 0xFFD166, 0xEF476F),
+    P("Яркие", "Конфета", 0xFFE0F0, 0xFF4FA3, 0x7C4DFF, 0x00C2FF, 0xFFD000),
+    P("Ночь", "Ночь", 0x0B2A4D, 0x9FB8EC, 0x5B8FF0, 0x2B3E66, 0x3C4D78),
+    P("Ночь", "Слива", 0x2A1B35, 0xB78CD8, 0x5E3D7A, 0xF4D8A8, 0xF0A3B5),
+    P("Ночь", "Глубина", 0x071A24, 0x1D5C63, 0x2F8F8A, 0x9FD8CB, 0xF2B36B),
+    P("Ночь", "Уголь", 0x141414, 0x3A3A3A, 0x6B6B6B, 0xD9D4CC, 0xE0634A),
+    P("Моно", "Графит", 0x8A8A8A, 0x4A4A4A, 0x6E6E6E, 0xA9A9A9, 0xA99F7A),
+    P("Моно", "Бумага", 0xF4EFE6, 0x2B2926, 0x9A958E, 0xD9D4CC, 0x5A5652),
+    P("Моно", "Индиго", 0x1B2140, 0x2E3A73, 0x5163B5, 0x8FA0E8, 0xD6DDFB),
+    P("Моно", "Роза", 0xFBE6EA, 0xE9A1B0, 0xC96079, 0x8C3350, 0x52182D),
+]
+
+STYLES = [
+    ("bauhaus", "Баухаус", "grid_view"),
+    ("arches", "Арки", "architecture"),
+    ("waves", "Волны", "waves"),
+    ("hills", "Пейзаж", "landscape"),
+    ("pebbles", "Галька", "bubble_chart"),
+    ("ribbons", "Ленты", "gesture"),
+    ("shapes", "Формы M3", "interests"),
+    ("rainbow", "Радуга", "looks"),
+    ("dots", "Точки", "blur_on"),
+    ("cosmos", "Космос", "public"),
+    ("truchet", "Трюше", "texture"),
+    ("memphis", "Мемфис", "celebration"),
+    ("sunset", "Закат", "wb_twilight"),
+    ("peaks", "Горы", "filter_hdr"),
+    ("flowers", "Цветы", "local_florist"),
+    ("rings", "Кольца", "radio_button_checked"),
+    ("stripes", "Полосы", "line_weight"),
+    ("garden", "Сад", "yard"),
+    ("objects", "Предметы", "category"),
+    ("pair", "Пара", "join_inner"),
+]
+
+
+def hexrgb(h):
+    return tuple(int(h[i:i + 2], 16) / 255 for i in (1, 3, 5))
+
+
+def rgbhex(r, g, b):
+    return "#%02x%02x%02x" % tuple(round(max(0, min(1, v)) * 255) for v in (r, g, b))
+
+
+def shift(hex_, dl):
+    """Same colour, a little lighter or darker (for the grid lines)."""
+    h, l, s_ = colorsys.rgb_to_hls(*hexrgb(hex_))
+    return rgbhex(*colorsys.hls_to_rgb(h, max(0, min(1, l + dl)), s_))
+
+
+def custom_palette(spec):
+    """'#7c4dff' or '#7c4dff/dark': everything from one hue — a pale or deep
+    background and four tones of the same colour, a touch of hue drift so it
+    is not flat."""
+    base, _, variant = spec.partition("/")
+    h, _, s_ = colorsys.rgb_to_hls(*hexrgb(base))
+    s_ = max(0.35, s_)
+    def tone(l, sat, dh=0.0):
+        return rgbhex(*colorsys.hls_to_rgb((h + dh) % 1, l, min(1, sat)))
+    if variant == "dark":
+        return [tone(0.1, s_ * 0.45), tone(0.28, s_ * 0.7, -0.01), tone(0.46, s_ * 0.85), tone(0.66, s_ * 0.9, 0.015), tone(0.84, s_ * 0.6, 0.02)]
+    return [tone(0.9, s_ * 0.55), tone(0.22, s_ * 0.65, -0.01), tone(0.42, s_ * 0.85), tone(0.62, s_ * 0.9, 0.015), tone(0.78, s_ * 0.75, 0.02)]
+
+
+def luminance(hex_):
+    r, g, b = (int(hex_[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+# ── Path helpers ────────────────────────────────────────────────────────────
+def f(v):
+    return f"{v:.1f}"
+
+
+def smooth(points, closed=True):
+    """Catmull-Rom through the points, as cubic Béziers."""
+    n = len(points)
+    pts = points if closed else [points[0]] + points + [points[-1]]
+    d = f"M{f(points[0][0])},{f(points[0][1])}"
+    rng = range(n) if closed else range(1, len(pts) - 2)
+    for i in rng:
+        p0, p1, p2, p3 = (pts[(i - 1) % len(pts)], pts[i % len(pts)], pts[(i + 1) % len(pts)], pts[(i + 2) % len(pts)])
+        c1 = (p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6)
+        c2 = (p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6)
+        d += f" C{f(c1[0])},{f(c1[1])} {f(c2[0])},{f(c2[1])} {f(p2[0])},{f(p2[1])}"
+    return d + (" Z" if closed else "")
+
+
+def polar(cx, cy, radius_fn, steps=96, rot=0.0):
+    pts = []
+    for i in range(steps):
+        t = 2 * math.pi * i / steps
+        r = radius_fn(t)
+        pts.append((cx + r * math.cos(t + rot), cy + r * math.sin(t + rot)))
+    return smooth(pts)
+
+
+class Canvas:
+    def __init__(self, w, h, palette, grid=False):
+        self.w, self.h = w, h
+        self.bg = palette[0]
+        self.fg = palette[1:]
+        self.parts = []
+        self.grid = grid
+
+    def add(self, s):
+        self.parts.append(s)
+
+    def rect(self, x, y, w, h, c, r=0):
+        self.add(f'<rect x="{f(x)}" y="{f(y)}" width="{f(w)}" height="{f(h)}" rx="{f(r)}" fill="{c}"/>')
+
+    def circle(self, x, y, r, c):
+        self.add(f'<circle cx="{f(x)}" cy="{f(y)}" r="{f(r)}" fill="{c}"/>')
+
+    def path(self, d, c, extra=""):
+        self.add(f'<path d="{d}" fill="{c}"{extra}/>')
+
+    def grid_lines(self):
+        """Graph paper behind everything, a shade off the background (wally)."""
+        step = min(self.w, self.h) / 14
+        col = shift(self.bg, -0.05 if luminance(self.bg) > 0.5 else 0.06)
+        sw = max(1.5, min(self.w, self.h) / 600)
+        d = "".join(f"M{f(x)},0V{self.h}" for x in [i * step for i in range(1, int(self.w / step) + 1)])
+        d += "".join(f"M0,{f(y)}H{self.w}" for y in [i * step for i in range(1, int(self.h / step) + 1)])
+        return f'<path d="{d}" stroke="{col}" stroke-width="{f(sw)}" fill="none"/>'
+
+    def svg(self):
+        return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.w} {self.h}" width="{self.w}" height="{self.h}">'
+                f'<rect width="{self.w}" height="{self.h}" fill="{self.bg}"/>' + (self.grid_lines() if self.grid else "")
+                + "".join(self.parts) + "</svg>")
+
+
+# ── Styles ──────────────────────────────────────────────────────────────────
+def bauhaus(c, r):
+    cols = r.choice([6, 7, 8, 9])
+    s = c.w / cols
+    rows = math.ceil(c.h / s)
+    oy = (c.h - rows * s) / 2
+    colors = [c.bg] + c.fg
+    for j in range(rows):
+        for i in range(cols):
+            x, y = i * s, oy + j * s
+            base = r.choice(colors)
+            ink = r.choice([k for k in colors if k != base])
+            c.rect(x - 0.75, y - 0.75, s + 1.5, s + 1.5, base)
+            # Shapes whose edge lies on the tile border are drawn a hair
+            # larger, so antialiasing never shows a seam between tiles.
+            mark = len(c.parts)
+            kind = r.choice(["circle", "ring", "half", "quarter", "tri", "circle", "quarter", "half"])
+            cx, cy = x + s / 2, y + s / 2
+            if kind == "circle":
+                c.circle(cx, cy, s * 0.36, ink)
+            elif kind == "ring":
+                c.circle(cx, cy, s * 0.4, ink)
+                c.circle(cx, cy, s * 0.18, r.choice([k for k in colors if k != ink]))
+            elif kind == "half":
+                d = r.choice([0, 90, 180, 270])
+                c.add(f'<path transform="rotate({d} {f(cx)} {f(cy)})" d="M{f(x)},{f(y + s)} A{f(s / 2)},{f(s / 2)} 0 0 1 {f(x + s)},{f(y + s)} Z" fill="{ink}"/>')
+            elif kind == "quarter":
+                d = r.choice([0, 90, 180, 270])
+                c.add(f'<path transform="rotate({d} {f(cx)} {f(cy)})" d="M{f(x)},{f(y + s)} L{f(x)},{f(y)} A{f(s)},{f(s)} 0 0 1 {f(x + s)},{f(y + s)} Z" fill="{ink}"/>')
+            elif kind == "tri":
+                d = r.choice([0, 90, 180, 270])
+                c.add(f'<path transform="rotate({d} {f(cx)} {f(cy)})" d="M{f(x)},{f(y)} L{f(x + s)},{f(y + s)} L{f(x)},{f(y + s)} Z" fill="{ink}"/>')
+            elif kind == "halves":
+                ink2 = r.choice([k for k in colors if k != base])
+                c.add(f'<path d="M{f(x)},{f(cy)} A{f(s / 4)},{f(s / 4)} 0 0 1 {f(cx)},{f(cy)} Z" fill="{ink}"/>')
+                c.add(f'<path d="M{f(cx)},{f(cy)} A{f(s / 4)},{f(s / 4)} 0 0 0 {f(x + s)},{f(cy)} Z" fill="{ink2}"/>')
+            k = (s + 2) / s
+            inner = "".join(c.parts[mark:])
+            del c.parts[mark:]
+            if inner:
+                c.add(f'<g transform="translate({f(cx)} {f(cy)}) scale({k:.4f}) translate({f(-cx)} {f(-cy)})">{inner}</g>')
+
+
+def arches(c, r):
+    cols = r.choice([5, 6])
+    unit = c.w / cols
+    rows = math.ceil(c.h / unit) + 2
+    bands = r.choice([4, 5])
+    for j in range(rows):
+        off = unit / 2 if j % 2 else 0
+        for i in range(-1, cols + 1):
+            cx = i * unit + unit / 2 + off
+            base = (j + 1) * unit * 0.95 - unit * 0.3
+            seq = r.sample(c.fg, len(c.fg))
+            for b in range(bands):
+                rad = unit / 2 * (1 - b / bands)
+                col = seq[b % len(seq)] if b < bands - 1 else c.bg
+                c.path(f"M{f(cx - rad)},{f(base + unit)} L{f(cx - rad)},{f(base)} A{f(rad)},{f(rad)} 0 0 1 {f(cx + rad)},{f(base)} L{f(cx + rad)},{f(base + unit)} Z", col)
+
+
+def waves(c, r):
+    top = 0.12
+    if r.random() < 0.5:                      # a sun sinking behind the swell
+        top = 0.38
+        c.circle(c.w * r.uniform(0.2, 0.8), c.h * r.uniform(0.3, 0.36), c.h * r.uniform(0.11, 0.16), r.choice(c.fg))
+    n = r.choice([5, 6, 7, 8])
+    colors = (c.fg * 3)[:n]
+    for k in range(n):
+        y = c.h * (top + (1 - top) * k / n)
+        amp = c.h * r.uniform(0.02, 0.06)
+        freq = r.choice([1, 1.5, 2])
+        ph = r.uniform(0, 2 * math.pi)
+        pts = [(x, y + amp * math.sin(ph + freq * 2 * math.pi * x / c.w)) for x in [c.w * t / 12 for t in range(-1, 14)]]
+        d = smooth(pts, closed=False)
+        d += f" L{f(c.w + 40)},{f(c.h + 40)} L{f(-40)},{f(c.h + 40)} Z"
+        c.path(d, colors[k])
+
+
+def hills(c, r):
+    sun = r.choice(c.fg)
+    sx, sy, sr = c.w * r.uniform(0.2, 0.8), c.h * r.uniform(0.3, 0.45), c.h * r.uniform(0.14, 0.2)
+    c.circle(sx, sy, sr, sun)
+    layers = [k for k in c.fg if k != sun] or c.fg
+    layers = sorted(layers, key=luminance, reverse=luminance(c.bg) < 0.5)
+    while len(layers) < 4:
+        layers = layers + layers[-1:]
+    for k, col in enumerate(layers[:4]):
+        base = c.h * (0.5 + 0.13 * k)
+        amp = c.h * r.uniform(0.05, 0.12)
+        ph = r.uniform(0, 6)
+        pts = [(x, base - amp * (0.6 * math.sin(ph + 2 * math.pi * x / c.w * r.uniform(0.8, 1.4)) + 0.4 * math.sin(ph * 2 + 5 * math.pi * x / c.w)))
+               for x in [c.w * t / 10 for t in range(-1, 12)]]
+        d = smooth(pts, closed=False) + f" L{f(c.w + 40)},{f(c.h + 40)} L{f(-40)},{f(c.h + 40)} Z"
+        c.path(d, col)
+    cloud = max(c.fg, key=luminance) if luminance(c.bg) < 0.5 else max([c.bg] + c.fg, key=luminance)
+    for _ in range(r.choice([2, 3])):
+        cx, cy, w = c.w * r.uniform(0.1, 0.9), c.h * r.uniform(0.12, 0.3), c.w * r.uniform(0.09, 0.14)
+        if abs(cx - sx) < sr + w * 0.7:          # keep clouds off the sun
+            cx = (sx + sr + w) % c.w if sx < c.w / 2 else max(w, sx - sr - w)
+        # A flat cloud: a rounded base with three puffs on top.
+        h = w * 0.2
+        c.rect(cx - w / 2, cy, w, h, cloud, h / 2)
+        for fx, fr in ((0.3, 0.22), (0.52, 0.3), (0.74, 0.18)):
+            c.circle(cx - w / 2 + w * fx, cy + h * 0.2, w * fr * 0.62, cloud)
+
+
+def pebbles(c, r):
+    placed = []
+    tries = 0
+    while len(placed) < 14 and tries < 900:
+        tries += 1
+        rad = c.h * r.uniform(0.09, 0.2)
+        x, y = r.uniform(-rad * 0.3, c.w + rad * 0.3), r.uniform(-rad * 0.3, c.h + rad * 0.3)
+        if all(math.hypot(x - px, y - py) > (rad + pr) * 0.92 for px, py, pr in placed):
+            placed.append((x, y, rad))
+            phases = [r.uniform(0, 6) for _ in range(3)]
+            fn = lambda t, rad=rad, ph=phases: rad * (1 + 0.08 * math.sin(2 * t + ph[0]) + 0.05 * math.sin(3 * t + ph[1]) + 0.03 * math.sin(5 * t + ph[2]))
+            col = r.choice(c.fg)
+            c.path(polar(x, y, fn, 48, r.uniform(0, 6)), col)
+            if r.random() < 0.3:                 # a pebble inside a pebble
+                inner = r.choice([k for k in [c.bg] + c.fg if k != col])
+                c.path(polar(x + rad * 0.08, y - rad * 0.05, lambda t, fn=fn: fn(t) * 0.5, 48, r.uniform(0, 6)), inner)
+    for _ in range(r.choice([0, 12, 24])):     # grit
+        c.circle(r.uniform(0, c.w), r.uniform(0, c.h), c.h * r.uniform(0.004, 0.008), r.choice(c.fg))
+
+
+def ribbons(c, r):
+    n = r.choice([4, 5, 6])
+    tilt = r.uniform(-16, 16)
+    c.add(f'<g transform="rotate({f(tilt)} {f(c.w / 2)} {f(c.h / 2)}) scale(1.25) translate({f(-c.w * 0.1)} {f(-c.h * 0.1)})">')
+    for k in range(n):
+        width = c.h * r.uniform(0.09, 0.15)
+        y0 = c.h * (0.1 + 0.8 * k / max(1, n - 1)) + c.h * r.uniform(-0.05, 0.05)
+        amp, freq, ph = c.h * r.uniform(0.08, 0.16), r.uniform(0.7, 1.3), r.uniform(0, 6)
+        pts = [(c.w * t / 6, y0 + amp * math.sin(ph + freq * t)) for t in range(-1, 8)]
+        c.add(f'<path d="{smooth(pts, closed=False)}" fill="none" stroke="{c.fg[k % len(c.fg)]}" stroke-width="{f(width)}" stroke-linecap="round"/>')
+    c.add("</g>")
+
+
+def shapes(c, r):
+    def cookie(n, a):
+        return lambda t, R: R * (1 + a * math.cos(n * t))
+
+    kinds = [cookie(9, 0.07), cookie(4, 0.14), cookie(8, 0.06), cookie(12, 0.04), cookie(6, 0.1), cookie(4, 0.26), None, "pill", "arch"]
+    placed = []
+    tries = 0
+    while len(placed) < 12 and tries < 900:
+        tries += 1
+        R = c.h * r.uniform(0.1, 0.22)
+        x, y = r.uniform(-R * 0.4, c.w + R * 0.4), r.uniform(-R * 0.4, c.h + R * 0.4)
+        if not all(math.hypot(x - px, y - py) > (R + pr) * 0.95 for px, py, pr in placed):
+            continue
+        placed.append((x, y, R))
+        col = r.choice(c.fg)
+        kind = r.choice(kinds)
+        rot = r.uniform(0, 360)
+        if kind is None:
+            c.circle(x, y, R, col)
+        elif kind == "pill":
+            c.add(f'<rect transform="rotate({f(rot)} {f(x)} {f(y)})" x="{f(x - R)}" y="{f(y - R * 0.5)}" width="{f(2 * R)}" height="{f(R)}" rx="{f(R * 0.5)}" fill="{col}"/>')
+        elif kind == "arch":
+            c.add(f'<path transform="rotate({f(rot)} {f(x)} {f(y)})" d="M{f(x - R)},{f(y + R)} L{f(x - R)},{f(y)} A{f(R)},{f(R)} 0 0 1 {f(x + R)},{f(y)} L{f(x + R)},{f(y + R)} Z" fill="{col}"/>')
+        else:
+            c.path(polar(x, y, lambda t, k=kind, R=R: k(t, R) * 0.92, 120, math.radians(rot)), col)
+
+
+def rainbow(c, r):
+    corner = r.choice([(0, c.h), (c.w, c.h), (c.w / 2, c.h), (0, 0)])
+    n = r.choice([6, 7, 8])
+    maxr = math.hypot(c.w, c.h) * r.uniform(0.7, 0.95)
+    seq = (c.fg * 3)[:n]
+    for k in range(n):
+        c.circle(corner[0], corner[1], maxr * (1 - k / (n + 1)), seq[k])
+    c.circle(corner[0], corner[1], maxr / (n + 1), c.bg)
+
+
+def dots(c, r):
+    cols = 24
+    s = c.w / cols
+    rows = math.ceil(c.h / s)
+    fx, fy = r.uniform(0.2, 0.8) * c.w, r.uniform(0.2, 0.8) * c.h
+    ink = c.fg[:3]
+    maxd = math.hypot(c.w, c.h)
+    hexgrid = r.random() < 0.5
+    for j in range(rows + 1):
+        for i in range(cols + 1):
+            x, y = i * s + (s / 2 if hexgrid and j % 2 else 0), j * s
+            d = math.hypot(x - fx, y - fy) / maxd
+            if d > 0.42:                          # one ripple only: nothing strays into the corners
+                continue
+            k = 0.5 + 0.5 * math.cos(d * math.pi * 2.4)
+            rad = s * 0.45 * k
+            if rad > s * 0.06:
+                c.circle(x, y, rad, ink[(i + j) % len(ink)] if len(ink) > 1 else ink[0])
+
+
+def cosmos(c, r):
+    for _ in range(90):
+        x, y, s = r.uniform(0, c.w), r.uniform(0, c.h), r.uniform(3, 9)
+        c.circle(x, y, s, c.fg[-1])
+    for _ in range(r.choice([2, 3])):
+        R = c.h * r.uniform(0.1, 0.3)
+        x, y = c.w * r.uniform(0.1, 0.9), c.h * r.uniform(0.15, 0.85)
+        col = r.choice(c.fg)
+        tilt = r.uniform(-25, 25)
+        ring = r.choice([k for k in c.fg if k != col])
+        # Ring behind, planet, then the front half of the ring.
+        c.add(f'<ellipse transform="rotate({f(tilt)} {f(x)} {f(y)})" cx="{f(x)}" cy="{f(y)}" rx="{f(R * 1.8)}" ry="{f(R * 0.42)}" fill="none" stroke="{ring}" stroke-width="{f(R * 0.12)}"/>')
+        c.circle(x, y, R, col)
+        c.add(f'<path transform="rotate({f(tilt)} {f(x)} {f(y)})" d="M{f(x - R * 1.8)},{f(y)} A{f(R * 1.8)},{f(R * 0.42)} 0 0 0 {f(x + R * 1.8)},{f(y)}" fill="none" stroke="{ring}" stroke-width="{f(R * 0.12)}"/>')
+    x, y, R = c.w * r.uniform(0.6, 0.9), c.h * r.uniform(0.15, 0.35), c.h * 0.08
+    c.circle(x, y, R, c.fg[0])
+    c.circle(x + R * 0.35, y - R * 0.2, R * 0.85, c.bg)
+
+
+def truchet(c, r):
+    """Quarter discs in opposite corners of each cell: they join into
+    ribbons and pools across the grid."""
+    cols = r.choice([10, 12, 14])
+    s = c.w / cols
+    rows = math.ceil(c.h / s)
+    oy = (c.h - rows * s) / 2
+    a, b = r.sample(c.fg, 2) if len(c.fg) > 1 else (c.fg[0], c.bg)
+    for j in range(rows):
+        for i in range(cols):
+            x, y = i * s, oy + j * s
+            c.rect(x - 0.75, y - 0.75, s + 1.5, s + 1.5, a)
+            flip = r.random() < 0.5
+            corners = [(x, y), (x + s, y + s)] if flip else [(x + s, y), (x, y + s)]
+            for (qx, qy) in corners:
+                c.circle(qx, qy, s / 2, b)
+    # A few accent dots in cell centres.
+    accent = [k for k in c.fg if k not in (a, b)] or [c.bg]
+    for _ in range(cols):
+        i, j = r.randrange(cols), r.randrange(rows)
+        c.circle(i * s + s / 2, oy + j * s + s / 2, s * 0.14, r.choice(accent))
+
+
+def memphis(c, r):
+    """Eighties confetti: squiggles, zigzags, triangles, dots, half moons."""
+    placed = []
+    items = 0
+    tries = 0
+    u = c.h / 14
+    while items < 34 and tries < 3000:
+        tries += 1
+        x, y = r.uniform(0, c.w), r.uniform(0, c.h)
+        if not all(math.hypot(x - px, y - py) > u * 2.6 for px, py in placed):
+            continue
+        placed.append((x, y))
+        items += 1
+        col = r.choice(c.fg)
+        rot = r.uniform(0, 360)
+        kind = r.choice(["squiggle", "zigzag", "tri", "nyri", "moon", "ring", "bar"])
+        t = f' transform="rotate({f(rot)} {f(x)} {f(y)})"'
+        sw = u * 0.28
+        if kind == "squiggle":
+            pts = [(x - 1.6 * u + k * u * 0.4, y + (u * 0.35 if k % 2 else -u * 0.35)) for k in range(9)]
+            c.add(f'<path{t} d="{smooth(pts, closed=False)}" fill="none" stroke="{col}" stroke-width="{f(sw)}" stroke-linecap="round"/>')
+        elif kind == "zigzag":
+            d = "M" + " L".join(f"{f(x - 1.4 * u + k * u * 0.4)},{f(y + (u * 0.3 if k % 2 else -u * 0.3))}" for k in range(8))
+            c.add(f'<path{t} d="{d}" fill="none" stroke="{col}" stroke-width="{f(sw)}" stroke-linecap="round" stroke-linejoin="round"/>')
+        elif kind == "tri":
+            R = u * 0.9
+            d = "M" + " L".join(f"{f(x + R * math.cos(a))},{f(y + R * math.sin(a))}" for a in (0, 2.094, 4.189)) + " Z"
+            c.add(f'<path{t} d="{d}" fill="{col}" stroke="{col}" stroke-width="{f(u * 0.25)}" stroke-linejoin="round"/>')
+        elif kind == "nyri":
+            for dx in range(3):
+                for dy in range(3):
+                    c.circle(x + (dx - 1) * u * 0.55, y + (dy - 1) * u * 0.55, u * 0.12, col)
+        elif kind == "moon":
+            R = u * 0.9
+            c.add(f'<path{t} d="M{f(x - R)},{f(y)} A{f(R)},{f(R)} 0 0 1 {f(x + R)},{f(y)} Z" fill="{col}"/>')
+        elif kind == "ring":
+            c.add(f'<circle cx="{f(x)}" cy="{f(y)}" r="{f(u * 0.7)}" fill="none" stroke="{col}" stroke-width="{f(sw)}"/>')
+        else:
+            c.add(f'<rect{t} x="{f(x - u)}" y="{f(y - u * 0.18)}" width="{f(2 * u)}" height="{f(u * 0.36)}" rx="{f(u * 0.18)}" fill="{col}"/>')
+
+
+def sunset(c, r):
+    """Retro sun sliced by the sky bands, sinking into still water."""
+    ink = sorted(c.fg, key=luminance)
+    dark_bg = luminance(c.bg) < 0.5
+    sun = ink[-1] if dark_bg else ink[0] if luminance(ink[0]) < luminance(c.bg) - 0.25 else ink[-1]
+    rest = [k for k in c.fg if k != sun] or [c.bg]
+    sky = [c.bg] + sorted(rest, key=luminance, reverse=not dark_bg)[:2]
+    horizon = c.h * r.uniform(0.6, 0.66)
+    # Water: far from the sun in tone, and not the band right above it.
+    water = max([k for k in [c.bg] + c.fg if k not in (sun, sky[-1])] or rest, key=lambda k: abs(luminance(k) - luminance(sun)))
+    band_h = horizon / len(sky)
+    for k, col in enumerate(sky):
+        c.rect(0, k * band_h, c.w, band_h + 1, col)
+    cx, R = c.w * r.uniform(0.35, 0.65), c.h * r.uniform(0.24, 0.3)
+    c.circle(cx, horizon, R, sun)
+    # Slices through the lower sun, in whatever sky band lies behind them.
+    y = horizon - R * 0.6
+    for k in range(5):
+        gap = R * 0.03 * (k + 1.5)
+        band = sky[min(len(sky) - 1, int(y // band_h))]
+        c.rect(cx - R - 2, y, 2 * R + 4, gap, band)
+        y += gap + R * 0.08
+    c.rect(0, horizon, c.w, c.h - horizon + 1, water)
+    for k in range(6):                       # reflection
+        w = 2 * R * (0.9 - k * 0.13)
+        yy = horizon + c.h * 0.035 + k * c.h * 0.045
+        c.rect(cx - w / 2, yy, w, c.h * 0.014, sun, c.h * 0.007)
+
+
+def peaks(c, r):
+    """Sharp ranges one behind another, snow on the far peaks, a moon."""
+    layers = sorted(c.fg, key=luminance, reverse=luminance(c.bg) < 0.5)
+    while len(layers) < 4:
+        layers.append(layers[-1])
+    snow = max([c.bg] + c.fg, key=luminance)
+    moon = snow if luminance(c.bg) < 0.5 else layers[0]
+    c.circle(c.w * r.uniform(0.15, 0.85), c.h * r.uniform(0.14, 0.26), c.h * 0.07, moon)
+    for k, col in enumerate(layers[:4]):
+        base = c.h * (0.5 + 0.14 * k)
+        n = r.choice([3, 4, 5]) + k
+        step = c.w * 1.1 / n
+        pts = []
+        for i in range(n + 1):
+            x = -c.w * 0.05 + i * step
+            peak = (x + step * r.uniform(0.3, 0.7), base - c.h * r.uniform(0.14, 0.3) / (1 + k * 0.35))
+            valley = (x + step, base - c.h * r.uniform(0.0, 0.06))
+            pts += [peak, valley]
+        d = f"M{f(-c.w * 0.05)},{f(c.h + 10)} L{f(-c.w * 0.05)},{f(base)} " + " ".join(f"L{f(x)},{f(y)}" for x, y in pts) + f" L{f(c.w * 1.1)},{f(c.h + 10)} Z"
+        c.path(d, col)
+        if k < 2:                            # snow caps on the far ranges
+            prev = (-c.w * 0.05, base)
+            for i in range(0, len(pts) - 1, 2):
+                (px, py), (vx, vy) = pts[i], pts[i + 1]
+                lx, ly = prev
+                t = 0.24
+                a = (px + (lx - px) * t, py + (ly - py) * t)
+                b = (px + (vx - px) * t, py + (vy - py) * t)
+                m = (px + (a[0] + b[0] - 2 * px) * 0.25, (a[1] + b[1]) / 2 + (b[1] - py) * 0.1)
+                c.path(f"M{f(px)},{f(py)} L{f(b[0])},{f(b[1])} L{f(m[0])},{f(m[1])} L{f(a[0])},{f(a[1])} Z", snow)
+                prev = (vx, vy)
+
+
+def flowers(c, r):
+    """A few big M3 flowers, some cut by the edges, each with a centre."""
+    placed = []
+    tries = 0
+    while len(placed) < 7 and tries < 800:
+        tries += 1
+        R = c.h * r.uniform(0.18, 0.34)
+        x, y = r.uniform(-R * 0.3, c.w + R * 0.3), r.uniform(-R * 0.3, c.h + R * 0.3)
+        if not all(math.hypot(x - px, y - py) > (R + pr) * 0.8 for px, py, pr in placed):
+            continue
+        placed.append((x, y, R))
+        petals, depth = r.choice([(5, 0.22), (6, 0.2), (8, 0.14), (4, 0.3)])
+        col = r.choice(c.fg)
+        c.path(polar(x, y, lambda t, R=R, n=petals, a=depth: R * (1 - a + a * abs(math.cos(n * t / 2)) ** 0.7), 160, r.uniform(0, 6)), col)
+        c.circle(x, y, R * 0.3, r.choice([k for k in [c.bg] + c.fg if k != col]))
+
+
+def rings(c, r):
+    """Big concentric rings from two or three centres, overlapping."""
+    k = r.choice([2, 3])
+    # Spread the centres across the width so no half is left empty.
+    centres = [(c.w * (i + r.uniform(0.2, 0.8)) / k, c.h * r.uniform(0.1, 0.9)) for i in range(k)]
+    for (x, y) in centres:
+        n = r.choice([5, 6, 7])
+        R = c.h * r.uniform(0.45, 0.75)
+        seq = r.sample(c.fg, len(c.fg))
+        for k in range(n):
+            c.circle(x, y, R * (1 - k / n), seq[k % len(seq)] if k % 2 == 0 else c.bg)
+
+
+def stripes(c, r):
+    """Fat rounded bars on a diagonal, in runs of different lengths."""
+    ang = r.choice([-30, 30, -45, 45])
+    w = c.h * r.uniform(0.07, 0.1)
+    step = w * 1.5
+    L = math.hypot(c.w, c.h)
+    g = []
+    y = -L / 2
+    k = 0
+    while y < L / 2:
+        x = -L / 2
+        while x < L / 2:
+            seg = r.uniform(0.15, 0.5) * L
+            if r.random() < 0.8:
+                g.append(f'<rect x="{f(x)}" y="{f(y)}" width="{f(seg)}" height="{f(w)}" rx="{f(w / 2)}" fill="{c.fg[k % len(c.fg)]}"/>')
+            x += seg + w
+            k += 1
+        y += step
+    c.add(f'<g transform="translate({f(c.w / 2)} {f(c.h / 2)}) rotate({ang})">' + "".join(g) + "</g>")
+
+
+def garden(c, r):
+    """Flowers on thin stems standing on a strip of ground, a low sun."""
+    ink = sorted(c.fg, key=luminance)
+    stem = ink[0] if luminance(c.bg) > 0.5 else ink[-1]
+    ground_y = c.h * r.uniform(0.76, 0.84)
+    if r.random() < 0.6:
+        hill = [(x, ground_y - c.h * r.uniform(0.04, 0.12)) for x in [c.w * t / 5 for t in range(-1, 7)]]
+        c.path(smooth(hill, closed=False) + f" L{f(c.w + 40)},{f(c.h + 40)} L{f(-40)},{f(c.h + 40)} Z", r.choice(c.fg))
+    if r.random() < 0.6:
+        c.circle(c.w * r.uniform(0.12, 0.88), c.h * r.uniform(0.12, 0.24), c.h * r.uniform(0.07, 0.11), r.choice(c.fg))
+    n = r.choice([5, 6, 7, 8])
+    heads = [c.fg[i % len(c.fg)] for i in range(n)]
+    r.shuffle(heads)
+    for i in range(n):
+        x = c.w * (0.08 + 0.84 * (i + r.uniform(-0.3, 0.3)) / (n - 1))
+        hgt = c.h * r.uniform(0.2, 0.46)
+        bend = hgt * r.uniform(-0.14, 0.14)
+        sw = c.h * r.uniform(0.012, 0.018)
+        top = (x + bend, ground_y - hgt)
+        c.add(f'<path d="M{f(x)},{f(ground_y + 40)} Q{f(x + bend * 0.2)},{f(ground_y - hgt * 0.5)} {f(top[0])},{f(top[1])}" fill="none" stroke="{stem}" stroke-width="{f(sw)}" stroke-linecap="round"/>')
+        for _ in range(r.choice([1, 2])):              # leaves
+            k = r.uniform(0.3, 0.6)
+            lx, ly = x + bend * k * k, ground_y - hgt * k
+            side = r.choice([-1, 1])
+            L = c.h * r.uniform(0.06, 0.09)
+            c.add(f'<rect transform="rotate({f(side * r.uniform(-50, -25))} {f(lx)} {f(ly)})" x="{f(lx if side > 0 else lx - L)}" y="{f(ly - L * 0.18)}" width="{f(L)}" height="{f(L * 0.36)}" rx="{f(L * 0.18)}" fill="{stem}"/>')
+        R = c.h * r.uniform(0.06, 0.11)
+        petals, depth = r.choice([(5, 0.25), (6, 0.2), (8, 0.14), (12, 0.08)])
+        col = heads[i]
+        c.path(polar(top[0], top[1], lambda t, R=R, n=petals, a=depth: R * (1 - a + a * abs(math.cos(n * t / 2)) ** 0.7), 120, r.uniform(0, 6)), col)
+        c.circle(top[0], top[1], R * r.uniform(0.25, 0.35), r.choice([k for k in [c.bg] + c.fg if k != col]))
+    c.rect(-20, ground_y, c.w + 40, c.h - ground_y + 20, stem if r.random() < 0.3 else r.choice(c.fg))
+
+
+def objects(c, r):
+    """Mid-century still life: split discs with an orbit ring, and small
+    doodles — hooks, beans, striped bars, dots — scattered between."""
+    light = max([c.bg] + c.fg, key=luminance)
+    u = c.h
+    for (a, b, rad) in ((0.1, 0.8, 0.22), (0.86, 0.26, 0.28)):
+        x, y = c.w * a + c.w * r.uniform(-0.04, 0.04), c.h * b + c.h * r.uniform(-0.05, 0.05)
+        c1, c2 = r.sample(c.fg, 2) if len(c.fg) > 1 else (c.fg[0], c.bg)
+        R = u * rad
+        rot = r.uniform(0, 360)
+        c.add(f'<g transform="rotate({f(rot)} {f(x)} {f(y)})">'
+              f'<path d="M{f(x - R)},{f(y)} A{f(R)},{f(R)} 0 0 1 {f(x + R)},{f(y)} Z" fill="{c1}"/>'
+              f'<path d="M{f(x - R)},{f(y)} A{f(R)},{f(R)} 0 0 0 {f(x + R)},{f(y)} Z" fill="{c2}"/></g>')
+        c.add(f'<circle cx="{f(x)}" cy="{f(y)}" r="{f(R * 2.4)}" fill="none" stroke="{light}" stroke-opacity="0.55" stroke-width="{f(u * 0.005)}"/>')
+    placed = []
+    tries = 0
+    while len(placed) < 11 and tries < 900:
+        tries += 1
+        x, y = c.w * r.uniform(0.22, 0.74), c.h * r.uniform(0.1, 0.9)
+        if not all(math.hypot(x - px, y - py) > u * 0.16 for px, py in placed):
+            continue
+        placed.append((x, y))
+        col = r.choice(c.fg)
+        other = r.choice([k for k in [c.bg] + c.fg if k != col])
+        rot = r.uniform(0, 360)
+        t = f' transform="rotate({f(rot)} {f(x)} {f(y)})"'
+        k = u * r.uniform(0.9, 1.2)
+        kind = r.randrange(5)
+        if kind == 0:     # hook with balls on the ends
+            pts = [(x - 0.07 * k, y + 0.1 * k), (x - 0.07 * k, y - 0.03 * k), (x, y - 0.1 * k), (x + 0.07 * k, y - 0.03 * k), (x + 0.07 * k, y + 0.05 * k)]
+            c.add(f'<path{t} d="{smooth(pts, closed=False)}" fill="none" stroke="{col}" stroke-width="{f(k * 0.04)}" stroke-linecap="round"/>')
+            c.add(f'<g{t}><circle cx="{f(pts[0][0])}" cy="{f(pts[0][1])}" r="{f(k * 0.028)}" fill="{other}"/><circle cx="{f(pts[-1][0])}" cy="{f(pts[-1][1])}" r="{f(k * 0.028)}" fill="{other}"/></g>')
+        elif kind == 1:   # bean with a dot
+            pts = [(x - 0.08 * k, y + 0.02 * k), (x, y - 0.025 * k), (x + 0.08 * k, y - 0.01 * k)]
+            c.add(f'<path{t} d="{smooth(pts, closed=False)}" fill="none" stroke="{col}" stroke-width="{f(k * 0.07)}" stroke-linecap="round"/>')
+            c.add(f'<circle{t} cx="{f(x + 0.07 * k)}" cy="{f(y - 0.01 * k)}" r="{f(k * 0.018)}" fill="{other}"/>')
+        elif kind == 2:   # bar with a stripe
+            c.add(f'<g{t}><rect x="{f(x - 0.0375 * k)}" y="{f(y - 0.14 * k)}" width="{f(0.075 * k)}" height="{f(0.28 * k)}" rx="{f(0.0375 * k)}" fill="{col}"/>'
+                  f'<rect x="{f(x + 0.04 * k)}" y="{f(y - 0.14 * k)}" width="{f(0.024 * k)}" height="{f(0.28 * k)}" rx="{f(0.012 * k)}" fill="{other}"/></g>')
+        elif kind == 3:
+            c.circle(x, y, k * r.uniform(0.025, 0.045), col)
+        else:             # a small cookie
+            c.path(polar(x, y, lambda t, R=k * 0.1: R * (1 + 0.1 * math.cos(6 * t)), 72, math.radians(rot)), col)
+
+
+def pair(c, r):
+    """Two big scalloped shapes in opposite corners, bridged by a capsule
+    with a bead on it."""
+    ax, ay = c.w * r.uniform(0.18, 0.32), c.h * r.uniform(0.68, 0.92)
+    bx, by = c.w * r.uniform(0.66, 0.8), c.h * r.uniform(0.08, 0.32)
+    ca, cb = r.sample(c.fg, 2) if len(c.fg) > 1 else (c.fg[0], c.bg)
+    ang = math.degrees(math.atan2(by - ay, bx - ax))
+    dist = math.hypot(bx - ax, by - ay)
+    cc = r.choice([k for k in c.fg if k not in (ca, cb)] or [c.bg])
+    L, T = dist * r.uniform(0.5, 0.65), c.h * r.uniform(0.2, 0.28)
+    mx, my = (ax + bx) / 2, (ay + by) / 2
+    for (x, y, col, n) in ((ax, ay, ca, r.choice([9, 12])), (bx, by, cb, r.choice([7, 9, 12]))):
+        R = c.h * r.uniform(0.42, 0.55)
+        c.path(polar(x, y, lambda t, R=R, n=n: R * (1 + 0.07 * math.cos(n * t)), 160, r.uniform(0, 6)), col)
+    c.add(f'<rect transform="rotate({f(ang)} {f(mx)} {f(my)})" x="{f(mx - L / 2)}" y="{f(my - T / 2)}" width="{f(L)}" height="{f(T)}" rx="{f(T / 2)}" fill="{cc}"/>')
+    k = r.uniform(0.25, 0.45)
+    c.circle(ax + (bx - ax) * (0.5 + k * 0.5), ay + (by - ay) * (0.5 + k * 0.5), c.h * r.uniform(0.11, 0.15), r.choice([k2 for k2 in [c.bg] + c.fg if k2 not in (cc, cb)] or [c.bg]))
+
+
+RENDER = {"bauhaus": bauhaus, "arches": arches, "waves": waves, "hills": hills, "pebbles": pebbles,
+          "ribbons": ribbons, "shapes": shapes, "rainbow": rainbow, "dots": dots, "cosmos": cosmos,
+          "truchet": truchet, "memphis": memphis, "sunset": sunset, "peaks": peaks, "flowers": flowers,
+          "rings": rings, "stripes": stripes, "garden": garden, "objects": objects, "pair": pair}
+
+
+def palette_by_name(name):
+    if name.startswith("#"):
+        return custom_palette(name)
+    for p in PALETTES:
+        if p["name"] == name:
+            return p["colors"]
+    raise SystemExit(f"nyri-wall: no palette {name!r}")
+
+
+def make(style, palette, seed, w=W, h=H, grid=False):
+    c = Canvas(w, h, palette_by_name(palette), grid)
+    RENDER[style](c, random.Random(f"{style}:{seed}"))
+    return c.svg()
+
+
+def main(argv):
+    cmd = argv[1] if len(argv) > 1 else ""
+    grid = "--grid" in argv
+    argv = [a for a in argv if a != "--grid"]
+    if cmd == "styles":
+        print(json.dumps([{"id": i, "title": t, "icon": ic} for i, t, ic in STYLES], ensure_ascii=False))
+    elif cmd == "palettes":
+        print(json.dumps(PALETTES, ensure_ascii=False))
+    elif cmd == "make":
+        style, pal, seed, out = argv[2:6]
+        w, h = W, H
+        if "--size" in argv:
+            w, h = map(int, argv[argv.index("--size") + 1].split("x"))
+        tmp = out + ".tmp"
+        Path(tmp).write_text(make(style, pal, seed, w, h, grid))
+        os.replace(tmp, out)
+    elif cmd == "thumbs":
+        # Every style in one palette, small, for the picker's style strip.
+        pal, seed, out = argv[2:5]
+        Path(out).mkdir(parents=True, exist_ok=True)
+        for sid, _, _ in STYLES:
+            tmp = Path(out) / f"{sid}.svg.tmp"
+            tmp.write_text(make(sid, pal, seed, 960, 600, grid))
+            os.replace(tmp, Path(out) / f"{sid}.svg")
+    elif cmd == "apply":
+        style, pal, seed = argv[2:5]
+        walls = Path(os.environ.get("NYRI_DATA", Path.home() / ".local/share/nyri")) / "walls"
+        walls.mkdir(parents=True, exist_ok=True)
+        if pal.startswith("#"):
+            tag = "c" + pal[1:].replace("/", "-")
+        else:
+            tag = "p%02d" % next(i for i, p in enumerate(PALETTES) if p["name"] == pal)
+        stem = walls / f"{style}-{tag}-{seed}{'-grid' if grid else ''}"
+        stem.with_suffix(".svg").write_text(make(style, pal, seed, grid=grid))
+        subprocess.run(["resvg", "--width", str(W), str(stem.with_suffix(".svg")), str(stem.with_suffix(".png"))], check=True)
+        (walls / "current.json").write_text(json.dumps({"style": style, "palette": pal, "seed": seed, "grid": grid}, ensure_ascii=False))
+        nyri = Path(__file__).resolve().parent
+        subprocess.run([str(nyri / "nyri-theme"), str(stem.with_suffix(".png"))], check=True)
+        print(stem.with_suffix(".png"))
+    else:
+        print(__doc__)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

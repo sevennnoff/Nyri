@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Run the nyri session in a window inside the current niri session.
+#
+# XDG_CONFIG_HOME points at an overlay built by bin/nyri-link: ~/.config with
+# the repo's files on top (merged per file, owned dirs whole).
+# So the nested session is exactly "real life with Nyri applied", and the
+# real ~/.config is never touched.
+#
+#   --own-bus   run on a private D-Bus session bus. Needed to test anything that
+#               owns a well-known name the real shell already holds
+#               (notifications, tray watcher). Host apps and players are then
+#               invisible to the nested shell.
+set -euo pipefail
+
+NYRI="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+OVERLAY="${XDG_RUNTIME_DIR:-/tmp}/nyri-xdg"
+
+# Its own state and data: a scratch copy of the real ones, made fresh each
+# run, so nothing the test window does (settings, wallpapers, screen time)
+# reaches the real session. nyri-theme only writes theme.json there.
+TEST="${XDG_RUNTIME_DIR:-/tmp}/nyri-test"
+REAL_STATE="${XDG_STATE_HOME:-$HOME/.local/state}/nyri"
+REAL_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/nyri"
+rm -rf "$TEST"
+mkdir -p "$TEST/state" "$TEST/data/walls"
+cp -a "$REAL_STATE/." "$TEST/state/" 2>/dev/null || true
+cp -a "$REAL_DATA/walls/current.json" "$TEST/data/walls/" 2>/dev/null || true
+export NYRI_STATE="$TEST/state" NYRI_DATA="$TEST/data"
+# cliphist keeps its history in the cache dir: the test clipboard stays apart.
+export XDG_CACHE_HOME="$TEST/cache"
+[[ -f $NYRI_STATE/theme.json ]] || NYRI_NESTED=1 "$NYRI/bin/nyri-theme"
+
+"$NYRI/bin/nyri-link" overlay "$OVERLAY"
+
+wrap=()
+if [[ ${1:-} == --own-bus ]]; then
+    wrap=(dbus-run-session --)
+    shift
+fi
+
+exec "${wrap[@]}" env XDG_CONFIG_HOME="$OVERLAY" NYRI_NESTED=1 niri "$@"

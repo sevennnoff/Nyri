@@ -1,0 +1,5 @@
+# Used by bin/nyri-theme in the nested test session: compute the palette,
+# render no templates (niri, fuzzel and GTK belong to the real session).
+[config]
+
+[templates]
