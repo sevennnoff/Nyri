@@ -40,6 +40,10 @@ Variants {
         // Taller than the exclusive zone so island shadows are not cut off;
         // the mask keeps that extra strip click-through.
         implicitHeight: stripHeight + 16
+        // Pinned: reserve exactly the strip. Auto-hide: reserve nothing, so
+        // windows get the full height (a zone of 0 alone is not enough —
+        // the default mode derives the zone from the window's own height).
+        exclusionMode: autohide ? ExclusionMode.Ignore : ExclusionMode.Normal
         exclusiveZone: autohide ? 0 : stripHeight
         color: "transparent"
 
