@@ -19,9 +19,13 @@ shell() { qs -c nyri ipc call nyri "$@" &>/dev/null; }
 menu() { fuzzel --dmenu --prompt "$1  " "${@:2}"; }
 
 region() {
+    # $2: an area already picked ("x,y wxh", from the capture menu);
+    # without it the tools ask with slurp themselves.
+    local geom="${2:-}"
     case "${1:-screenshot}" in
         screenshot)
-            niri msg action screenshot ;;
+            [[ -n $geom ]] || { niri msg action screenshot; return; }
+            shot "$geom" ;;
         full)
             niri msg action screenshot-screen ;;
         menu)
@@ -29,21 +33,36 @@ region() {
             pkill -INT -x wf-recorder && exit 0
             shell toggle snip || niri msg action screenshot ;;
         edit)
-            local geom; geom="$(slurp)" || exit 0
+            [[ -n $geom ]] || geom="$(slurp)" || exit 0
             grim -g "$geom" - | swappy -f - ;;
         ocr)
-            local geom text
-            geom="$(slurp)" || exit 0
+            local text
+            [[ -n $geom ]] || geom="$(slurp)" || exit 0
             text="$(grim -g "$geom" - | tesseract - - -l "$(ocr_langs)" 2>/dev/null)"
             printf '%s' "$text" | wl-copy
             notify-send -a nyri "Текст скопирован" "${text:0:120}" ;;
         record)
-            record "" ;;
+            record "" "$geom" ;;
         recordWithSound)
-            record "--audio" ;;
+            record "--audio" "$geom" ;;
         search)
-            lens ;;
+            lens "$geom" ;;
     esac
+}
+
+# A picked area to a file in ~/Pictures/Screenshots and the clipboard.
+shot() {
+    local file
+    mkdir -p "$SHOTS"
+    file="$SHOTS/$(date '+%Y-%m-%d %H-%M-%S').png"
+    grim -g "$1" "$file" || exit 1
+    wl-copy --type image/png < "$file"
+    (
+        a=$(notify-send -a "Снимок экрана" -i "$file" -A open=Открыть -A folder=Папка \
+            "Снимок в буфере" "${file##*/}")
+        case "$a" in open) xdg-open "$file" ;; folder) xdg-open "$SHOTS" ;; esac
+    ) &
+    disown
 }
 
 # tesseract fails outright on a missing language, so use only installed ones.
@@ -58,8 +77,8 @@ record() {
     if pkill -INT -x wf-recorder; then
         return
     fi
-    local geom file
-    geom="$(slurp)" || exit 0
+    local geom="${2:-}" file
+    [[ -n $geom ]] || geom="$(slurp)" || exit 0
     mkdir -p "$CLIPS"
     file="$CLIPS/$(date +%Y-%m-%d_%H-%M-%S).mp4"
     shell recording true
@@ -76,8 +95,8 @@ record() {
 # Google Lens on a screen region. The image goes to litterbox.catbox.moe
 # (public, deleted after 1 hour) because Lens only takes a URL.
 lens() {
-    local geom tmp url
-    geom="$(slurp)" || exit 0
+    local geom="${1:-}" tmp url
+    [[ -n $geom ]] || geom="$(slurp)" || exit 0
     tmp="$(mktemp --suffix=.png)"
     grim -g "$geom" "$tmp"
     url="$(curl -sf -F reqtype=fileupload -F time=1h -F "fileToUpload=@$tmp" \

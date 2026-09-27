@@ -32,7 +32,10 @@ PanelWindow {
     }
 
     screen: Panels.screen
-    visible: open || progress > 0.001
+    // `hidden`: gone at once, no exit animation (the capture menu hides
+    // itself this way right before the screen is grabbed).
+    property bool hidden: false
+    visible: (open || progress > 0.001) && !hidden
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
     exclusionMode: ExclusionMode.Ignore
