@@ -20,7 +20,8 @@ binds {
     Mod+Alt+L allow-when-locked=true hotkey-overlay-title="Блокировка" { spawn-sh "~/nyri/bin/nyri lock"; }
     XF86PowerOff allow-when-locked=true hotkey-overlay-title="Блокировка" { spawn-sh "~/nyri/bin/nyri lock"; }
     Mod+Ctrl+Shift+L allow-when-locked=true hotkey-overlay-title="Блокировка" { spawn-sh "~/nyri/bin/nyri lock"; }
-    Mod+Shift+S hotkey-overlay-title="Скриншот области" { spawn-sh "~/nyri/bin/nyri region screenshot"; }
+    // Also what the PrtSc key sends on laptops that copy Windows (Win+Shift+S).
+    Mod+Shift+S hotkey-overlay-title="Снимок или запись" { spawn-sh "~/nyri/bin/nyri region menu"; }
     Mod+Shift+X hotkey-overlay-title="Текст с экрана (OCR)" { spawn-sh "~/nyri/bin/nyri region ocr"; }
     Mod+Shift+A hotkey-overlay-title="Поиск по области" { spawn-sh "~/nyri/bin/nyri region search"; }
     Ctrl+Shift+S hotkey-overlay-title="Меню скриншота" { spawn-sh "~/nyri/bin/nyri region menu"; }

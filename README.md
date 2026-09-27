@@ -108,7 +108,8 @@ git clone https://github.com/yzewe/Nyri ~/nyri
 | Mod+Tab | Обзор |
 | Print | Меню снимка и записи; при записи — остановить |
 | Shift+Print | Записать область |
-| Mod+Shift+S / X / A | Снимок области / текст с экрана / Google Lens |
+| Mod+Shift+S | Меню снимка и записи (то же, что Print) |
+| Mod+Shift+X / A | Текст с экрана / Google Lens по области |
 | Mod+Shift+R | Запись со звуком |
 | Mod+Shift+C | Пипетка |
 | Mod+Shift+W | Прятать панель |
