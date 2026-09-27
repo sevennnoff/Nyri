@@ -43,7 +43,12 @@ Variants {
         // Pinned: reserve exactly the strip. Auto-hide: reserve nothing, so
         // windows get the full height (a zone of 0 alone is not enough —
         // the default mode derives the zone from the window's own height).
-        exclusionMode: autohide ? ExclusionMode.Ignore : ExclusionMode.Normal
+        // A bar created straight in auto-hide still got a zone from niri;
+        // switching the mode once it is on screen releases it, so it starts
+        // in the normal mode and lets go a moment later.
+        property bool settled: false
+        Timer { running: true; interval: 600; onTriggered: bar.settled = true }
+        exclusionMode: autohide && settled ? ExclusionMode.Ignore : ExclusionMode.Normal
         exclusiveZone: autohide ? 0 : stripHeight
         color: "transparent"
 
