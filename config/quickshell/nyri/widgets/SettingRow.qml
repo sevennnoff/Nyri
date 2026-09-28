@@ -15,19 +15,24 @@ Rectangle {
     property alias below: extra.data
     signal clicked
 
+    property var choices: []
+    property var choice
+    signal chosen(var v)
+    readonly property bool choosing: choices.length > 0
+
     readonly property real outer: Shape.largeIncreased
     readonly property real inner: Shape.extraSmall
 
     width: parent?.width ?? 0
     SpringValue {
         id: extraH
-        target: extra.implicitHeight > 0 ? extra.implicitHeight + 12 : 0
+        target: extra.implicitHeight > 0 ? extra.implicitHeight + 16 : 0
         damping: 0.74; stiffness: 420; epsilon: 0.2
         onTargetChanged: if (!root.born) { value = target; velocity = 0; running = false; }
     }
     height: Math.max(72, head.height + 24) + Math.max(0, extraH.value)
     clip: extraH.running
-    color: Colors.m3surfaceContainer
+    color: choosing ? "transparent" : Colors.m3surfaceContainer
     topLeftRadius: first ? outer : inner
     topRightRadius: first ? outer : inner
     bottomLeftRadius: last ? outer : inner
@@ -56,8 +61,27 @@ Rectangle {
         return null;
     }
 
+    function flash() { glow.restart(); }
+    Rectangle {
+        id: glowRect
+        anchors.fill: parent
+        topLeftRadius: root.topLeftRadius
+        topRightRadius: root.topRightRadius
+        bottomLeftRadius: root.bottomLeftRadius
+        bottomRightRadius: root.bottomRightRadius
+        color: Colors.m3primary
+        opacity: 0
+        SequentialAnimation on opacity {
+            id: glow
+            running: false
+            loops: 2
+            NumberAnimation { to: 0.22; duration: 260; easing.type: Easing.OutCubic }
+            NumberAnimation { to: 0; duration: 420; easing.type: Easing.InOutCubic }
+        }
+    }
+
     StateLayer {
-        visible: root.clickable || root.switchItem !== null
+        visible: (root.clickable || root.switchItem !== null) && !root.choosing
         topLeftRadius: root.topLeftRadius
         topRightRadius: root.topRightRadius
         bottomLeftRadius: root.bottomLeftRadius
@@ -74,8 +98,7 @@ Rectangle {
 
         MIcon {
             id: ico
-            y: texts.height > titleText.height * 2.4 ? texts.y + (titleText.height - height) / 2
-                                                      : (parent.height - height) / 2
+            y: (parent.height - height) / 2
             visible: root.icon !== ""
             icon: root.icon
             size: 24
@@ -119,8 +142,16 @@ Rectangle {
 
     Column {
         id: extra
-        x: root.icon !== "" ? 16 + 24 + 16 : 16
-        y: head.y + head.height + 4
-        width: parent.width - x - 16
+        x: 16
+        y: head.y + head.height + 8
+        width: parent.width - 32
+
+        SegmentedButtons {
+            width: parent.width
+            visible: root.choosing
+            options: root.choices
+            value: root.choice
+            onSelected: v => root.chosen(v)
+        }
     }
 }

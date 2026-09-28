@@ -12,7 +12,7 @@ Column {
         SettingRow {
             icon: "hourglass_top"
             title: "Считать время в приложениях"
-            subtitle: "Только когда окно в фокусе и ты за ноутбуком. Хранится локально, 60 дней"
+            subtitle: "60 дней"
             MSwitch { checked: Config.o.screenTime.enabled; onToggled: c => Config.o.screenTime.enabled = c }
         }
 

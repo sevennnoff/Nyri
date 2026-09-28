@@ -21,9 +21,9 @@ Surface {
 
     property var origin: null
     function openFrom(tile, pageId) {
-        const pt = tile.mapToItem(card, 0, 0);
-        origin = { x: pt.x, y: pt.y, w: tile.width, h: tile.height, radius: tile.checked ? tile.height / 2 : Shape.largeIncreased,
-                   color: tile.checked ? Colors.m3primary : Colors.m3surfaceContainerHighest,
+        const pt = tile.mapToItem(flick.contentItem, 0, 0);
+        origin = { x: pt.x, y: pt.y, w: tile.width, h: tile.height, radius: tile.checked || !tile.label ? tile.height / 2 : Shape.largeIncreased,
+                   color: tile.checked ? Colors.m3primary : tile.label ? Colors.m3surfaceContainerHighest : Colors.m3secondaryContainer,
                    ink: tile.checked ? Colors.m3onPrimary : Colors.m3onSurface, icon: tile.icon, label: tile.label };
         page = pageId;
     }
@@ -49,40 +49,6 @@ Surface {
         defaultFromX: parent.width - 12 - 200
         defaultFromW: 200
 
-        Rectangle {
-            id: morph
-            readonly property var o: root.origin
-            readonly property real t: Math.max(0, Math.min(1.04, slide.value))
-            readonly property real fade: slide.value > 0.55 ? Math.max(0, 1 - (slide.value - 0.55) / 0.4) : 1
-            visible: o !== null && slide.value > 0.005 && slide.value < 0.995
-            z: 5
-            x: o ? o.x + (16 - o.x) * t : 0
-            y: o ? o.y + (16 - o.y) * t : 0
-            width: o ? o.w + (card.width - 32 - o.w) * t : 0
-            height: o ? o.h + (Math.min(card.height - 32, 360) - o.h) * t : 0
-            radius: o ? o.radius + (Shape.large - o.radius) * Math.min(1, t) : 0
-            color: o ? Qt.tint(o.color, Qt.alpha(Colors.m3surfaceContainer, Math.min(1, t))) : "transparent"
-            opacity: fade
-
-            MIcon {
-                x: 18 + (44 - 18) * morph.t
-                y: (morph.o ? morph.o.h / 2 : 0) - size / 2 + (24 - (morph.o ? morph.o.h / 2 : 0)) * morph.t
-                icon: morph.o?.icon ?? ""
-                size: 22
-                fill: 1
-                color: morph.o ? Qt.tint(morph.o.ink, Qt.alpha(Colors.m3onSurface, Math.min(1, morph.t))) : "transparent"
-                opacity: 1 - Math.min(1, morph.t * 1.4)
-            }
-            MText {
-                x: 52 + (56 - 52) * morph.t
-                y: (morph.o ? morph.o.h / 2 - 10 : 0) + (12 - (morph.o ? morph.o.h / 2 - 10 : 0)) * morph.t
-                font.pixelSize: 14 + 8 * Math.min(1, morph.t)
-                font.variableAxes: ({ "wght": 600 - 150 * Math.min(1, morph.t) })
-                color: morph.o ? Qt.tint(morph.o.ink, Qt.alpha(Colors.m3onSurface, Math.min(1, morph.t))) : "transparent"
-                text: morph.o?.label ?? ""
-            }
-        }
-
         Flickable {
             id: flick
             anchors.fill: parent
@@ -92,12 +58,33 @@ Surface {
 
             contentHeight: root.page === "main" ? content.implicitHeight : sub.implicitHeight
 
+            Item {
+                id: frame
+                readonly property var o: root.origin
+                readonly property real t: Math.max(0, Math.min(1, slide.value))
+                readonly property real tt: Math.max(0, slide.value)
+                visible: sub.active && slide.value > 0.005
+                x: o ? o.x * (1 - t) : 0
+                y: o ? o.y * (1 - t) : 0
+                width: o ? o.w + (flick.width - o.w) * tt : flick.width
+                height: o ? o.h + (sub.implicitHeight - o.h) * tt : sub.implicitHeight
+                clip: o !== null && slide.value < 0.995
+
+                Rectangle {
+                    anchors.fill: parent
+                    visible: frame.o !== null
+                    radius: frame.o ? frame.o.radius + (Shape.large - frame.o.radius) * frame.t : 0
+                    color: frame.o ? Qt.tint(frame.o.color, Qt.alpha(Colors.m3surfaceContainer, Math.min(1, frame.t * 1.3))) : "transparent"
+                    opacity: 1 - Math.max(0, (slide.value - 0.75) / 0.25)
+                }
+
             Loader {
                 id: sub
-                width: parent.width
+                width: flick.width
                 active: root.page !== "main" || slide.value > 0.01
-                x: root.origin ? 0 : (1 - slide.value) * 48
-                opacity: root.origin ? Math.max(0, Math.min(1, slide.value * 2.2 - 1.1)) : slide.value
+                x: frame.o ? -frame.x : (1 - slide.value) * 48
+                y: frame.o ? -frame.y : 0
+                opacity: frame.o ? Math.max(0, Math.min(1, (slide.value - 0.35) / 0.45)) : slide.value
                 visible: opacity > 0.01
                 source: ({ audio: "AudioPage.qml", wifi: "WifiPage.qml", bt: "BtPage.qml", privacy: "PrivacyPage.qml" })[root.shownPage] ?? ""
                 onLoaded: item.width = Qt.binding(() => sub.width)
@@ -107,13 +94,14 @@ Surface {
                     function onBack() { root.page = "main" }
                 }
             }
+            }
 
             Column {
                 id: content
                 width: parent.width
                 spacing: 12
                 x: root.origin ? 0 : -slide.value * 48
-                opacity: root.origin ? Math.max(0, 1 - slide.value * 1.8) : 1 - slide.value
+                opacity: root.origin ? Math.max(0, 1 - slide.value * 1.4) : 1 - slide.value
                 scale: root.origin ? 1 - 0.04 * slide.value : 1
                 visible: opacity > 0.01
 
@@ -197,9 +185,10 @@ Surface {
                             }
 
                             IconButton {
+                                id: soundBtn
                                 anchors.verticalCenter: parent.verticalCenter
                                 icon: "tune"
-                                onClicked: root.page = "audio"
+                                onClicked: root.openFrom(soundBtn, "audio")
                             }
                         }
 
@@ -312,20 +301,6 @@ Surface {
                         onDetailsClicked: root.openFrom(privacyTile, "privacy")
                         onClicked: Config.o.privacy.mode = !Config.o.privacy.mode
                         onSecondaryClicked: root.openFrom(privacyTile, "privacy")
-                    }
-
-                    Tile {
-                        id: audioTile
-                        width: parent.cell
-                        icon: Audio.muted ? "volume_off" : "speaker_group"
-                        label: "Звук"
-                        visible: root.tileOn("audio")
-                        sublabel: Audio.label(Audio.sink)
-                        checked: false
-                        details: true
-                        onDetailsClicked: root.openFrom(audioTile, "audio")
-                        onClicked: root.openFrom(audioTile, "audio")
-                        onSecondaryClicked: root.openFrom(audioTile, "audio")
                     }
 
                     Tile {

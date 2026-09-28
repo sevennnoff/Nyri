@@ -34,16 +34,13 @@ Column {
             icon: "speed"
             title: "Режим питания"
 
-            below: SegmentedButtons {
-                width: parent.width
-                value: Power.profile
-                options: [
+            choice: Power.profile
+            choices: [
                     { value: PowerProfile.PowerSaver, label: "Экономия", icon: "eco" },
                     { value: PowerProfile.Balanced, label: "Баланс", icon: "balance" },
                     { value: PowerProfile.Performance, label: "Мощность", icon: "bolt" }
                 ]
-                onSelected: v => PowerProfiles.profile = v
-            }
+            onChosen: v => PowerProfiles.profile = v
         }
     }
 
@@ -61,45 +58,6 @@ Column {
             title: "Блокировать при входе"
             subtitle: "Экран блокировки сразу после логина"
             MSwitch { checked: Config.o.idle.lockOnLogin; onToggled: c => Config.o.idle.lockOnLogin = c }
-        }
-    }
-
-    ListGroup {
-        width: parent.width
-        title: "Экран блокировки"
-
-        SettingRow {
-            icon: "schedule"
-            title: "Часы"
-            subtitle: "Столбиком — огромные, пока не тронешь; строкой — сразу в одну линию"
-            below: SegmentedButtons {
-                width: parent.width
-                value: Config.o.lock.clock
-                options: [{ value: "stack", label: "Столбиком" }, { value: "row", label: "Строкой" }]
-                onSelected: v => Config.o.lock.clock = v
-            }
-        }
-        SettingRow {
-            icon: "partly_cloudy_day"
-            title: "Погода под часами"
-            MSwitch { checked: Config.o.lock.weather; onToggled: c => Config.o.lock.weather = c }
-        }
-        SettingRow {
-            icon: "bubble_chart"
-            title: "Что происходит"
-            subtitle: "Запись, таймеры, музыка — пилюлями сверху"
-            MSwitch { checked: Config.o.lock.live; onToggled: c => Config.o.lock.live = c }
-        }
-        SettingRow {
-            icon: "account_circle"
-            title: "Аватар и имя"
-            subtitle: "Слева снизу"
-            MSwitch { checked: Config.o.lock.user; onToggled: c => Config.o.lock.user = c }
-        }
-        SettingRow {
-            icon: "blur_on"
-            title: "Размытые обои"
-            MSwitch { checked: Config.o.lock.blur; onToggled: c => Config.o.lock.blur = c }
         }
     }
 }

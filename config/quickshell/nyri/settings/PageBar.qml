@@ -283,35 +283,26 @@ Column {
             icon: "style"
             title: "Стиль"
             subtitle: "Островки, сплошная полоса или отдельный чип на каждую кнопку статуса"
-            below: SegmentedButtons {
-                width: parent.width
-                value: Config.o.bar.style
-                options: [{ value: "islands", label: "Островки" }, { value: "strip", label: "Полоса" }, { value: "chips", label: "Чипы" }]
-                onSelected: v => Config.o.bar.style = v
-            }
+            choice: Config.o.bar.style
+            choices: [{ value: "islands", label: "Островки" }, { value: "strip", label: "Полоса" }, { value: "chips", label: "Чипы" }]
+            onChosen: v => Config.o.bar.style = v
         }
 
         SettingRow {
             icon: "vertical_split"
             title: "Где"
             subtitle: "Меню и шторка вырастают из панели, где бы она ни была"
-            below: SegmentedButtons {
-                width: parent.width
-                value: Config.o.bar.position
-                options: [{ value: "top", label: "Сверху", icon: "vertical_align_top" }, { value: "bottom", label: "Снизу", icon: "vertical_align_bottom" }]
-                onSelected: v => Config.o.bar.position = v
-            }
+            choice: Config.o.bar.position
+            choices: [{ value: "top", label: "Сверху", icon: "vertical_align_top" }, { value: "bottom", label: "Снизу", icon: "vertical_align_bottom" }]
+            onChosen: v => Config.o.bar.position = v
         }
 
         SettingRow {
             icon: "view_week"
             title: "Рабочие столы"
-            below: SegmentedButtons {
-                width: parent.width
-                value: Config.o.bar.workspaces
-                options: [{ value: "pills", label: "Пилюли" }, { value: "numbers", label: "Цифры" }, { value: "dots", label: "Точки" }]
-                onSelected: v => Config.o.bar.workspaces = v
-            }
+            choice: Config.o.bar.workspaces
+            choices: [{ value: "pills", label: "Пилюли" }, { value: "numbers", label: "Цифры" }, { value: "dots", label: "Точки" }]
+            onChosen: v => Config.o.bar.workspaces = v
         }
 
         SettingRow {
@@ -366,54 +357,6 @@ Column {
             title: "Название трека"
             subtitle: "На острове музыки"
             MSwitch { checked: Config.o.bar.mediaTitle; onToggled: c => Config.o.bar.mediaTitle = c }
-        }
-    }
-
-    ListGroup {
-        width: parent.width
-        title: "Док"
-
-        SettingRow {
-            icon: "dock_to_bottom"
-            title: "Док снизу"
-            subtitle: "Закреплённые и открытые приложения. Перетащи иконку вверх — открепится"
-            MSwitch { checked: Config.o.dock.enabled; onToggled: c => Config.o.dock.enabled = c }
-        }
-        SettingRow {
-            visible: Config.o.dock.enabled
-            icon: "unfold_less"
-            title: "Прятать док"
-            subtitle: "Появляется у нижнего края и на пустом столе; иначе окна его не заходят"
-            MSwitch { checked: Config.o.dock.autohide; onToggled: c => Config.o.dock.autohide = c }
-        }
-        SettingRow {
-            visible: Config.o.dock.enabled
-            icon: "zoom_in"
-            title: "Увеличение под курсором"
-            MSwitch { checked: Config.o.dock.magnify; onToggled: c => Config.o.dock.magnify = c }
-        }
-        SettingRow {
-            visible: Config.o.dock.enabled
-            icon: "apps"
-            title: "Открытые приложения"
-            subtitle: "Показывать и те, что не закреплены"
-            MSwitch { checked: Config.o.dock.running; onToggled: c => Config.o.dock.running = c }
-        }
-        SettingRow {
-            visible: Config.o.dock.enabled
-            icon: "photo_size_select_large"
-            title: "Размер иконок"
-            below: Row {
-                width: parent.width
-                spacing: 12
-                MSlider {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width - 60
-                    value: (Config.o.dock.size - 36) / 36
-                    onMoved: v => Config.o.dock.size = Math.round(36 + v * 36)
-                }
-                MText { anchors.verticalCenter: parent.verticalCenter; textStyle: Type.labelLargeEmph; color: Colors.m3primary; text: Config.o.dock.size + " px" }
-            }
         }
     }
 }

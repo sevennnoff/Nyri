@@ -26,7 +26,11 @@ Column {
             const vis = [];
             for (let i = 0; i < children.length; i++)
                 if (children[i].visible && children[i].isRow) vis.push(children[i]);
-            vis.forEach((c, i) => { c.first = i === 0; c.last = i === vis.length - 1; });
+            vis.forEach((c, i) => {
+                const prev = vis[i - 1], next = vis[i + 1];
+                c.first = !prev || prev.choosing || c.choosing;
+                c.last = !next || next.choosing || c.choosing;
+            });
         }
         onChildrenChanged: Qt.callLater(restyle)
         Component.onCompleted: Qt.callLater(restyle)

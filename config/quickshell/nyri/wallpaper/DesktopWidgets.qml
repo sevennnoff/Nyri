@@ -195,7 +195,7 @@ Item {
                 width: cur?.width ?? 0
                 height: cur?.height ?? 0
                 opacity: Math.min(1, root.stage(0))
-                scale: 0.6 + 0.4 * root.stage(0)
+                scale: 0.6 + 0.4 * Math.min(1, root.stage(0))
                 transformOrigin: Item.TopLeft
 
                 Component {

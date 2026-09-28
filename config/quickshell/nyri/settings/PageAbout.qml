@@ -58,6 +58,61 @@ Column {
 
     ListGroup {
         width: parent.width
+        title: "Погода"
+
+        SettingRow {
+            id: cityRow
+            icon: "location_on"
+            title: "Город"
+            subtitle: Config.o.weather.city + " · " + Config.o.weather.lat.toFixed(2) + ", " + Config.o.weather.lon.toFixed(2)
+
+            below: Row {
+                width: parent.width
+                spacing: 8
+
+                SearchField {
+                    id: city
+                    width: parent.width - 56
+                    icon: "search"
+                    placeholder: "Найти город"
+                    input.onAccepted: find.clicked()
+                }
+
+                IconButton {
+                    id: find
+                    anchors.verticalCenter: parent.verticalCenter
+                    icon: "arrow_forward"
+                    style: "filled"
+                    size: 48
+                    onClicked: if (city.text.trim()) geo.lookup(city.text.trim())
+                }
+            }
+
+            Process {
+                id: geo
+                function lookup(name) {
+                    command = ["curl", "-s", "--max-time", "10", "https://geocoding-api.open-meteo.com/v1/search?count=1&language=ru&name=" + encodeURIComponent(name)];
+                    running = true;
+                }
+                stdout: StdioCollector {
+                    onStreamFinished: {
+                        try {
+                            const r = JSON.parse(text).results?.[0];
+                            if (!r) { cityRow.subtitle = "Не нашёл такой город"; return; }
+                            Config.o.weather.city = r.name;
+                            Config.o.weather.lat = r.latitude;
+                            Config.o.weather.lon = r.longitude;
+                            city.text = "";
+                            Weather.refresh();
+                        } catch (e) {}
+                    }
+                }
+            }
+        }
+    }
+
+    ListGroup {
+        width: parent.width
         title: "Система"
 
         SettingRow { icon: "grid_view"; title: "niri"; subtitle: page.info.niri ?? "" }
