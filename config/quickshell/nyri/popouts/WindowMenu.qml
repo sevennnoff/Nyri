@@ -5,15 +5,12 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// Opens from the window title: what this window is, what you can do with it,
-// and how long you have spent in the app today.
 Surface {
     id: root
 
     name: "window"
     keyboard: false
 
-    // Snapshot on open, so the menu does not retarget if focus moves.
     property var win: null
     readonly property var entry: win ? DesktopEntries.heuristicLookup(win.app_id) : null
     readonly property string appName: Apps.nameFor(win?.app_id)
@@ -84,7 +81,6 @@ Surface {
                 }
             }
 
-            // Actions: an M3 Expressive button group, icon over label.
             Row {
                 width: parent.width
                 spacing: 6
@@ -138,7 +134,6 @@ Surface {
                 }
             }
 
-            // Move to another workspace.
             Column {
                 width: parent.width
                 spacing: 8
@@ -185,7 +180,6 @@ Surface {
                 }
             }
 
-            // Screen time for this app.
             Rectangle {
                 width: parent.width
                 height: 56

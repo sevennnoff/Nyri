@@ -1,14 +1,11 @@
 import QtQuick
 import qs.theme
 
-// M3 Expressive icon button. Round at rest; while pressed the corners pull in
-// toward a squircle (the Expressive "shape morph on press"). Toggleable ones
-// also morph when selected.
 Item {
     id: root
 
     property string icon
-    property string style: "standard"      // standard | tonal | filled | outlined
+    property string style: "standard"
     property bool toggle: false
     property bool checked: false
     property int size: 40
@@ -17,7 +14,6 @@ Item {
     signal clicked
 
     readonly property bool active: toggle ? checked : style === "filled"
-    // A filled toggle that is off falls back to tonal, never to a bare icon.
     readonly property bool tonal: style === "tonal" || (style === "filled" && !active)
     readonly property color fg: active ? Colors.m3onPrimary
                               : tonal ? Colors.m3onSecondaryContainer

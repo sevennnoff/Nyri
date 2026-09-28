@@ -1,10 +1,6 @@
 import QtQuick
 import qs.theme
 
-// Shows or hides one child with M3 Expressive motion instead of popping:
-// the width opens on a spring (a touch past, then settles), the content
-// scales up from the middle and fades in once there is room for it. Closing
-// runs the same in reverse. Neighbours in a Row slide along with the width.
 Item {
     id: root
 

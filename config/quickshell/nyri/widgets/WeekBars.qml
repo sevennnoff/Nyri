@@ -1,12 +1,11 @@
 import QtQuick
 import qs.theme
 
-// Last 7 days as full-round bars; today is primary and labelled.
 Row {
     id: root
 
-    property var values: []            // 7 numbers, oldest first (seconds)
-    property var labels: []            // 7 short weekday names
+    property var values: []
+    property var labels: []
     property int barHeight: 120
     readonly property real peak: Math.max(3600, ...values)
 

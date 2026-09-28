@@ -3,19 +3,11 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// One draggable widget on the desk. Grab it anywhere and move it — a tap
-// still reaches the buttons inside, only a real drag moves it. On release it
-// springs into place: the nearest grid cell when the grid is on, otherwise
-// right where it was dropped. Positions persist in settings.
-//
-// Right click: a menu above the widget with its looks (`variantNames`) and
-// "remove"; picking a look swaps it in with a quick squash-and-spring.
-// The chosen look is persisted too.
 Item {
     id: root
 
     required property string key
-    required property Item desk             // the DesktopWidgets root
+    required property Item desk
     property real defaultX: 56
     property real defaultY: 112
     default property alias body: holder.data
@@ -25,7 +17,7 @@ Item {
 
     property string title: ""
     property var variantNames: []
-    property var looks: []                 // one Component per look, for the menu's previews
+    property var looks: []
     readonly property int variantCount: Math.max(1, variantNames.length)
     readonly property int variant: (Config.o.desktop.variants?.[key] ?? 0) % variantCount
     signal menuRequested
@@ -37,14 +29,11 @@ Item {
         swapS.value = 0;
         swapS.running = true;
     }
-    // Swap: squashes to 0.9 and springs back past 1.
     SpringValue { id: swapS; target: 1; damping: 0.5; stiffness: 420 }
     readonly property real homeX: clampX(saved ? saved.x : defaultX)
     readonly property real homeY: clampY(saved ? saved.y : defaultY)
     readonly property bool dragging: drag.active || fake.active
 
-    // A scripted drag for demo videos: glides from home to (toX, toY) as if
-    // held, then drops (snapping and saving like a real one).
     QtObject {
         id: fake
         property bool active: false
@@ -58,7 +47,6 @@ Item {
     function demoDrag(toX, toY) {
         fake.x = homeX;
         fake.y = homeY;
-        // The demo pointer holds the widget where it touched it.
         fake.offX = Demo.x - (homeX + desk.shiftX);
         fake.offY = Demo.y - (homeY + desk.shiftY);
         Demo.holding = true;
@@ -89,7 +77,6 @@ Item {
         Config.o.desktop.positions = p;
     }
 
-    // Where it would land if dropped now.
     readonly property real dropX: clampX(snap(heldX))
     readonly property real dropY: clampY(snap(heldY))
 
@@ -105,14 +92,12 @@ Item {
     height: shown ? child?.height ?? 0 : 0
     visible: shown
 
-    // Follows the pointer exactly while dragged; springs home otherwise.
     SpringValue { id: sx; target: root.dragging ? root.heldX : root.homeX; damping: 0.62; stiffness: root.dragging ? 2400 : 300; epsilon: 0.1 }
     SpringValue { id: sy; target: root.dragging ? root.heldY : root.homeY; damping: 0.62; stiffness: root.dragging ? 2400 : 300; epsilon: 0.1 }
     x: sx.value + desk.shiftX
     y: sy.value + desk.shiftY
     z: dragging ? 10 : 0
 
-    // Lifted while held: a little bigger, a shadow underneath.
     SpringValue { id: lift; target: root.dragging ? 1 : 0; damping: 0.6; stiffness: 500 }
     scale: (1 + 0.04 * lift.value) * (0.9 + 0.1 * swapS.value)
     opacity: Math.min(1, 0.3 + 0.7 * swapS.value)

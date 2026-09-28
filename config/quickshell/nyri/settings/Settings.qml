@@ -5,12 +5,9 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// The settings app: an ordinary tiled window (see rules.kdl), created on
-// Mod+I and destroyed when closed.
 Scope {
     id: root
 
-    // State lives in Panels, so any menu (and IPC) can open it.
     readonly property bool open: Panels.settingsOpen
 
     readonly property var pages: [
@@ -46,12 +43,10 @@ Scope {
                 onActivated: Panels.settingsOpen = false
             }
 
-            // Ctrl+Tab / Ctrl+Shift+Tab or Alt+1..6 to move between pages.
             function step(n) {
                 const i = root.pages.findIndex(p => p.id === Panels.settingsPage);
                 Panels.settingsPage = root.pages[(i + n + root.pages.length) % root.pages.length].id;
             }
-            // Page Up/Down, Home/End scroll the page with a fling.
             Shortcut { sequence: "PgDown"; onActivated: flick.flick(0, -2600) }
             Shortcut { sequence: "PgUp"; onActivated: flick.flick(0, 2600) }
             Shortcut { sequence: "Home"; onActivated: flick.contentY = -flick.topMargin }
@@ -66,9 +61,6 @@ Scope {
                 }
             }
 
-            // ── Navigation ────────────────────────────────────────────────
-            // Wide window: a navigation drawer. Narrow (a tiled column): an M3
-            // navigation rail — icon in a pill, label underneath.
             readonly property bool compact: width < 860
 
             Item {
@@ -160,11 +152,6 @@ Scope {
                 }
             }
 
-            // ── Page ──────────────────────────────────────────────────────
-            // M3 large top app bar: the page title starts big above the
-            // content; scrolling shrinks it and slides it up into a bar that
-            // tints in behind it. The content scrolls right to the container's
-            // rounded edge.
             ClippingRectangle {
                 id: pageBox
                 x: nav.width
@@ -193,8 +180,6 @@ Scope {
                         source: "Page" + Panels.settingsPage.charAt(0).toUpperCase() + Panels.settingsPage.slice(1) + ".qml"
                         onSourceChanged: flick.contentY = -flick.topMargin
 
-                        // M3 shared axis (Y): each new page rises 40px into
-                        // place on a spring while it fades in.
                         property real enter: 1
                         opacity: Math.min(1, enter * 1.4)
                         y: (1 - enter) * 40
@@ -203,8 +188,6 @@ Scope {
                     }
                 }
 
-                // The bar: transparent at the top, a tonal surface once the
-                // content runs under it.
                 Rectangle {
                     width: parent.width
                     height: pageBox.headH

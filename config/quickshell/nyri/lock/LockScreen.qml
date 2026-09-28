@@ -9,14 +9,6 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// ext-session-lock: if the shell dies while locked, niri keeps the screen
-// locked. The password is checked by PAM ("login" stack, same as swaylock).
-//
-// Two states, like a phone. At rest: a huge clock with the date and weather
-// under it — nothing to type into. Touch a key or the mouse and it wakes: the
-// clock shrinks, your shape (the avatar) and the password pill rise in under
-// it, the whole group staying centred; power buttons appear below. Left alone for a while it falls asleep again.
-// Unlocking plays everything out first, then drops the lock.
 Scope {
     id: root
 
@@ -35,9 +27,6 @@ Scope {
         if (checking || buffer === "")
             return;
         checking = true;
-        // The test window never asks the real PAM: every wrong try there
-        // would count towards pam_faillock and could lock the real account.
-        // It plays a check that always fails; ipc unlockNested lets it in.
         if (Panels.nested) fakeCheck.restart();
         else pam.start();
     }
@@ -63,7 +52,6 @@ Scope {
         else Quickshell.execDetached(cmd);
     }
 
-    // Each lock starts at rest.
     Connections {
         target: Lock
         function onUnlockRequested() { if (Panels.nested && Lock.locked) root.unlocking = true; }
@@ -76,14 +64,12 @@ Scope {
         }
     }
 
-    // Nobody around: back to rest (the typed part is kept).
     Timer {
         id: doze
         interval: 20000
         onTriggered: if (!root.checking && root.buffer === "") root.awake = false
     }
 
-    // Should the exit spring never report settling, unlock anyway.
     Timer {
         running: root.unlocking
         interval: 1500
@@ -97,11 +83,11 @@ Scope {
         onCompleted: result => {
             root.checking = false;
             if (result === PamResult.Success) {
-                root.unlocking = true;     // play out, then Lock.locked = false
+                root.unlocking = true;
                 root.buffer = "";
             } else {
-                root.type("");             // clears the buffer (and `failed`)...
-                root.failed = true;        // ...so set the outcome after it
+                root.type("");
+                root.failed = true;
                 root.wake();
             }
         }
@@ -114,8 +100,6 @@ Scope {
             id: surface
             color: Colors.m3surface
 
-            // ── Motion ──────────────────────────────────────────────────
-            // Flipped a frame after creation, so the entrance always plays.
             property bool ready: false
             Timer { running: true; interval: 16; onTriggered: surface.ready = true }
             Component.onCompleted: input.forceActiveFocus()
@@ -135,12 +119,9 @@ Scope {
             readonly property real wc: Math.max(0, Math.min(1, w))
             readonly property bool wide: width > height
 
-            // Checking the password: everything steps back, a loading
-            // indicator takes the centre.
             SpringValue { id: checkS; target: root.checking ? 1 : 0; damping: 0.72; stiffness: 420 }
             readonly property real dim: 1 - 0.75 * Math.max(0, Math.min(1, checkS.value))
 
-            // ── Background: the wallpaper blurs in as the lock comes down ──
             Image {
                 id: wall
                 anchors.fill: parent
@@ -166,7 +147,6 @@ Scope {
                 opacity: (0.35 + 0.15 * surface.wc) * surface.e
             }
 
-            // Any movement wakes it (ignoring the pointer's first report).
             MouseArea {
                 anchors.fill: parent
                 hoverEnabled: true
@@ -180,32 +160,25 @@ Scope {
 
             SystemClock { id: clock; precision: SystemClock.Minutes }
 
-            // ── Clock ───────────────────────────────────────────────────
-            // At rest: hours stacked over minutes, huge. Awake: the minutes
-            // swing up beside the hours, a colon fades in between, and the
-            // whole thing shrinks — one continuous move on the wake spring.
             Item {
                 id: clockBox
 
                 readonly property real hw: hours.width
                 readonly property real mw: minutes.width
                 readonly property real lh: hours.height
-                readonly property real overlap: 64          // stacked lines tuck together
-                readonly property real gapH: 70             // room for the colon
+                readonly property real overlap: 64
+                readonly property real gapH: 70
                 readonly property real stackW: Math.max(hw, mw)
                 readonly property real rowW: hw + gapH + mw
                 readonly property real t: surface.w
                 readonly property real awakeScale: 0.5
 
-                // Whatever is centred — clock and date at rest, plus the
-                // password pill when awake — is centred as one group.
                 readonly property real groupH: height * scale + 12 + glance.height + (40 + auth.height) * surface.wc
 
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: stackW + (rowW - stackW) * t
                 height: (2 * lh - overlap) + (lh - (2 * lh - overlap)) * t
                 y: (surface.height - groupH) / 2
-                // Coming and going the clock flies at you: big and fading.
                 scale: (1 - (1 - awakeScale) * t) * (1 + 0.35 * (1 - surface.e))
                 transformOrigin: Item.Top
                 opacity: surface.e * surface.dim
@@ -242,7 +215,6 @@ Scope {
                 }
             }
 
-            // Date and weather, riding under the clock.
             Row {
                 id: glance
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -284,7 +256,6 @@ Scope {
                 }
             }
 
-            // ── Top right: battery, layout ─────────────────────────────
             Row {
                 anchors.top: parent.top
                 anchors.right: parent.right
@@ -322,7 +293,6 @@ Scope {
                 }
             }
 
-            // ── Awake: the password pill ───────────────────────────────
             Column {
                 id: auth
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -346,7 +316,6 @@ Scope {
 
                     Behavior on color { ColorAnim {} }
 
-                    // A spring kicked sideways: it rings out on its own.
                     SpringValue { id: shakeS; target: 0; damping: 0.22; stiffness: 900; epsilon: 0.05 }
                     Connections {
                         target: root
@@ -363,7 +332,6 @@ Scope {
                         color: root.failed ? Colors.m3onErrorContainer : Colors.m3onSurfaceVariant
                     }
 
-                    // Each character is a small M3 shape that springs in.
                     PasswordDots {
                         anchors.centerIn: parent
                         length: root.buffer.length
@@ -377,7 +345,6 @@ Scope {
                         text: root.checking ? "Проверяю…" : root.failed ? "Неверный пароль" : "Пароль"
                     }
 
-                    // Enter, as a button.
                     Rectangle {
                         id: go
                         anchors.verticalCenter: parent.verticalCenter
@@ -404,7 +371,6 @@ Scope {
                     }
                 }
 
-                // Caps Lock is the usual reason a right password fails.
                 Rectangle {
                     id: capsChip
                     anchors.horizontalCenter: parent.horizontalCenter
@@ -428,8 +394,6 @@ Scope {
                 }
             }
 
-            // ── Checking: the M3 Expressive morphing indicator, contained in
-            // its rounded square, in the middle of the screen ─────────────
             LoadingIndicator {
                 anchors.centerIn: parent
                 width: 120
@@ -440,7 +404,6 @@ Scope {
                 scale: 0.6 + 0.4 * checkS.value
             }
 
-            // Resting hint.
             MText {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
@@ -451,7 +414,6 @@ Scope {
                 text: "Начните печатать, чтобы разблокировать"
             }
 
-            // ── Bottom left: who is locked, and a shape that answers ──
             Row {
                 x: 32
                 anchors.bottom: parent.bottom
@@ -459,15 +421,12 @@ Scope {
                 spacing: 14
                 opacity: surface.e
 
-                // Avatar: an M3 cookie; a burst in error red on a wrong password.
                 Item {
                     id: avatar
                     anchors.verticalCenter: parent.verticalCenter
                     width: 64
                     height: 64
 
-                    // Your shape. It only answers a wrong password; the check
-                    // itself plays in the middle of the screen.
                     MaterialShape {
                         anchors.fill: parent
                         shape: root.failed ? "softBurst" : "cookie9Sided"
@@ -483,8 +442,6 @@ Scope {
                         text: (Quickshell.env("USER") || "?").charAt(0).toUpperCase()
                     }
 
-                    // ~/.face, if there is one, clipped to a circle inside.
-                    // Probe quietly: most people have no ~/.face.
                     FileView {
                         id: faceFile
                         path: Quickshell.env("HOME") + "/.face"
@@ -507,7 +464,6 @@ Scope {
                     Rectangle { id: faceMask; width: 48; height: 48; radius: 24; visible: false; layer.enabled: true }
                 }
 
-
                 Column {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 0
@@ -517,7 +473,6 @@ Scope {
                         color: Colors.m3onSurface
                         text: Quickshell.env("USER") ?? ""
                     }
-                    // Only when there is something to say.
                     MText {
                         readonly property bool say: root.failed
                         textStyle: Type.labelMedium
@@ -531,7 +486,6 @@ Scope {
                 }
             }
 
-            // ── Bottom right: power. Reboot and power off ask once more. ──
             Row {
                 id: powerRow
                 anchors.right: parent.right
@@ -606,7 +560,6 @@ Scope {
                 }
             }
 
-            // The real input: invisible, always focused.
             TextInput {
                 id: input
                 width: 0

@@ -4,15 +4,12 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// Signature M3 Expressive touch: the button *is* a shape, and it morphs
-// (cookie -> sunny, and flatter still while pressed) instead of just tinting.
 Item {
     id: root
 
     implicitWidth: 40
     implicitHeight: 40
 
-    // Startup: the first thing to land.
     property real intro: 0
     scale: intro
     SpatialAnim on intro { from: 0; to: 1; speed: "slow" }

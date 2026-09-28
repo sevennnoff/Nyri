@@ -1,9 +1,6 @@
 import QtQuick
 import qs.theme
 
-// Quick-settings tile. Off: a rounded rectangle on the container. On: primary,
-// and the corners morph all the way to a pill — selection shown by shape as
-// well as color, as M3 Expressive asks.
 Item {
     id: root
 
@@ -11,7 +8,7 @@ Item {
     property string label
     property string sublabel: ""
     property bool checked: false
-    property bool details: false        // show a chevron that opens a detail page
+    property bool details: false
     signal clicked
     signal secondaryClicked
     signal detailsClicked
@@ -39,8 +36,6 @@ Item {
         }
     }
 
-    // Detail chevron: its own target at the trailing edge, split off by a
-    // hairline, like Android 16 quick settings.
     Item {
         id: more
         visible: root.details

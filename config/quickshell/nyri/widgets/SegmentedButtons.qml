@@ -1,12 +1,10 @@
 import QtQuick
 import qs.theme
 
-// M3 Expressive connected button group: segments share inner corners of 8dp,
-// and the selected one grows full-round corners and a check-free fill.
 Row {
     id: root
 
-    property var options: []            // [{ value, label, icon? }]
+    property var options: []
     property var value
     signal selected(var value)
 

@@ -1,13 +1,6 @@
 import QtQuick
 import qs.theme
 
-// M3 Expressive wavy progress: the played part is a sine wave that flows
-// toward the handle, the handle stands alone between two gaps, the rest is a
-// flat track ending in a stop dot. The wave lies flat when paused.
-//
-// Flowing is cheap: the wave is painted once, a wavelength longer than it
-// needs, and only slides under a clip — no repaint per frame. It flows only
-// while `flowing` (playing and on screen); otherwise nothing ticks.
 Item {
     id: root
 
@@ -28,11 +21,9 @@ Item {
     readonly property real pad: stroke / 2
     readonly property real mid: height / 2
     readonly property real split: pad + (width - 2 * pad) * Math.max(0, Math.min(1, value))
-    // Gaps measured between the round caps, not the line ends.
     readonly property real gap: 5 + stroke
     readonly property real waveEnd: split - gap
 
-    // ── Track, stop dot, handle ───────────────────────────────────────
     Canvas {
         id: track
         anchors.fill: parent
@@ -65,7 +56,6 @@ Item {
         }
     }
 
-    // ── The wave, sliding under a clip ─────────────────────────────────
     Item {
         id: clipBox
         x: root.pad
@@ -80,7 +70,6 @@ Item {
             height: parent.height
             x: -root.wavelength
 
-            // One wavelength per ~1.1 s, left to right, toward the handle.
             NumberAnimation on x {
                 id: flow
                 running: root.flowing && root.amplitude > 0.05 && clipBox.visible
@@ -105,11 +94,8 @@ Item {
                 ctx.stroke();
             }
         }
-
     }
 
-    // Round caps where the wave meets the clip edges, riding the sine, so
-    // the ends never look cut off.
     Rectangle {
         visible: clipBox.visible
         x: clipBox.x - width / 2

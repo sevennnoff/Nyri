@@ -6,8 +6,6 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// Battery and screen time, Android-style. Opens from the battery chip
-// (battery page) or the window title (screen-time page).
 Surface {
     id: root
 
@@ -22,7 +20,6 @@ Surface {
     }
     readonly property bool charging: dev?.state === UPowerDeviceState.Charging || dev?.state === UPowerDeviceState.PendingCharge
 
-    // Screen time snapshot; recomputed on open and each minute while open.
     property var today: ({})
     property var week: []
     property var weekLabels: []
@@ -124,7 +121,6 @@ Surface {
                 onSelected: v => { root.page = v; if (v === "usage") root.refreshUsage(); }
             }
 
-            // ── Battery ─────────────────────────────────────────────────
             Column {
                 width: parent.width
                 spacing: 16
@@ -133,7 +129,6 @@ Surface {
                 Row {
                     spacing: 18
 
-                    // A big version of the bar's battery pill.
                     BatteryPill {
                         width: 150
                         height: 72
@@ -184,7 +179,6 @@ Surface {
                     }
                 }
 
-                // Fixed stat cards: values update in place, nothing is rebuilt.
                 Row {
                     width: parent.width
                     spacing: 8
@@ -206,7 +200,6 @@ Surface {
                 }
             }
 
-            // ── Screen time ─────────────────────────────────────────────
             Column {
                 width: parent.width
                 spacing: 16

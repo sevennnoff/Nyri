@@ -4,14 +4,10 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 
-// Screen time per app, from niri focus events — nothing is polled. Time counts
-// for the focused app only while you are actually there: not idle for 2 min,
-// not locked. Stored per day, 60 days kept, in Paths.state.
-// The nested test session reads the data but never adds to it.
 Singleton {
     id: root
 
-    property var days: ({})             // "yyyy-MM-dd" -> { app_id: seconds }
+    property var days: ({})
     property string current: ""
     property real since: 0
 
@@ -22,7 +18,6 @@ Singleton {
         return Qt.formatDate(d, "yyyy-MM-dd");
     }
 
-    // Credit [from, to) to `app`, split at midnight.
     function credit(app, from, to) {
         const next = Object.assign({}, days);
         while (from < to) {
@@ -45,8 +40,6 @@ Singleton {
         since = now;
     }
 
-    // The nested session must not write: it would clobber the real session's
-    // file with its own stale copy.
     function save() {
         if (Panels.nested)
             return;
@@ -65,7 +58,6 @@ Singleton {
         since = Date.now();
     }
 
-    // Seconds per app for a day, including the segment still running today.
     function dayTotals(date) {
         const k = key(date);
         const out = Object.assign({}, days[k] ?? {});
@@ -94,7 +86,6 @@ Singleton {
         timeout: 120
     }
 
-    // Checkpoint long sessions so a crash loses at most five minutes.
     Timer {
         running: root.current !== ""
         interval: 300000

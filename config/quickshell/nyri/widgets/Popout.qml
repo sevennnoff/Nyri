@@ -2,26 +2,17 @@ import QtQuick
 import qs.theme
 import qs.services
 
-// An M3 Expressive container transform. The card grows out of the bar item
-// that opened it — position, size and corner radius all travel from the
-// island (a 40dp pill) to the full sheet on the surface's spring, overshoot
-// included — and the content fades in once the container has mostly opened.
-// Content is laid out at full size and revealed by the growing clip, never
-// scaled, so text stays crisp. The first column inside cascades in: each of
-// its sections rises and fades a beat after the one above.
 Card {
     id: root
 
     required property real progress
     default property alias content: inner.data
 
-    // Where it ends up.
     property real toX
     property real toY: 12 + 40 + 12
     property real toW
     property real toH
 
-    // Where it starts: the bar item, or a default when opened by keyboard.
     property real defaultFromX: toX + toW / 2 - 60
     property real defaultFromW: 120
     readonly property bool fromBar: Panels.anchorW > 0
@@ -43,8 +34,6 @@ Card {
     opacity: Math.min(1, p * 4)
     clip: true
 
-    // Reveal of the i-th section: starts once the container is ~30% open,
-    // each section 6% of the travel after the previous one.
     function stage(i) {
         return Math.max(0, Math.min(1, (p - 0.3 - i * 0.06) / 0.4));
     }

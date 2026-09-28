@@ -1,7 +1,6 @@
 import QtQuick
 import qs.theme
 
-// Pill-shaped hit target inside an island: content + state layer.
 Item {
     id: root
 
@@ -15,7 +14,6 @@ Item {
 
     implicitHeight: 32
 
-    // Press: a small springy squish (M3 Expressive "press" feedback).
     scale: squish.value
     SpringValue { id: squish; target: layer.pressed ? 0.92 : 1; damping: 0.5; stiffness: 900; epsilon: 0.001 }
     implicitWidth: row.implicitWidth + padding * 2

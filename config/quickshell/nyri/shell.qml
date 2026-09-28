@@ -1,7 +1,3 @@
-//@ pragma UseQApplication
-//@ pragma IconTheme Papirus-Dark
-//@ pragma Env QS_NO_RELOAD_POPUP=1
-
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -46,9 +42,6 @@ ShellRoot {
     ScreenCorners {}
     DemoPointer {}
 
-    // A QML mistake on save: the old shell keeps running; say so.
-    // Singletons are created on first use. Screen time has to count from
-    // login, not from the first time someone opens the dashboard.
     Component.onCompleted: ScreenTime.since
 
     Connections {
@@ -59,7 +52,6 @@ ShellRoot {
         }
     }
 
-    // `qs -c nyri ipc call nyri <fn> [arg]` — what bin/nyri calls.
     IpcHandler {
         target: "nyri"
 
@@ -69,10 +61,8 @@ ShellRoot {
         function osd(kind: string): void { Osd.show(kind); }
         function state(): string { return JSON.stringify({ panel: Panels.current, tab: Panels.tab, screen: Panels.screen?.name ?? null, output: Niri.focusedOutput, locked: Lock.locked, windows: Object.keys(Niri.windows).length, workspaces: Niri.workspaces.length, screenTime: { app: ScreenTime.current, away: ScreenTime.away, focused: Niri.focusedWindow?.app_id ?? null } }); }
         function lock(): void { Lock.lock(); }
-        // Test windows only (bin/nyri-nested): the real session never has NYRI_NESTED.
         function unlockNested(): void { if (Panels.nested) Lock.unlockRequested(); }
         function polkitDemo(): void { if (Panels.nested) polkit.showDemo(); }
-        // Scripted demos (tools/demo.sh), test window only.
         function demoPointer(x: real, y: real): void { if (!Demo.allowed) return; Demo.pointer = true; Demo.x = x; Demo.y = y; }
         function demoHidePointer(): void { Demo.pointer = false; }
         function demoClick(): void { if (Demo.allowed) Demo.clicks++; }

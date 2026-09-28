@@ -4,8 +4,6 @@ import Quickshell.Wayland
 import qs.theme
 import qs.services
 
-// A small M3-styled crosshair over everything, click-through (Super+G).
-// Mapped only while on.
 PanelWindow {
     screen: Panels.screen
     visible: Toggles.crosshair
@@ -22,7 +20,6 @@ PanelWindow {
         width: 40
         height: 40
 
-        // Four arms with a gap, outlined so they read on any background.
         Repeater {
             model: [[0, -1], [0, 1], [-1, 0], [1, 0]]
 

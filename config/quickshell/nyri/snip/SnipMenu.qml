@@ -4,15 +4,6 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// Print / Win+Shift+S / Ctrl+Shift+S: capture, the Windows way. The screen
-// dims and you drag out an area straight away; the M3 Expressive toolbar at
-// the bottom picks what happens to it (screenshot, draw on it, copy its text,
-// Google Lens, record it with or without sound). Letting go runs the picked
-// tool on that area; the round button runs it on the whole screen.
-// Keys: 1–6 or ←/→ pick a tool, Enter whole screen, Esc cancel.
-//
-// The menu is gone from the screen before anything is grabbed, so it never
-// ends up in the picture.
 Surface {
     id: root
 
@@ -26,11 +17,9 @@ Surface {
         { id: "record", icon: "videocam", label: "Запись", hint: "Выделите область — начнётся запись" },
         { id: "recordWithSound", icon: "mic", label: "Со звуком", hint: "Выделите область — запись со звуком" }
     ]
-    // Thin dividers after "Нарисовать" and after "Lens".
     readonly property var groupEnds: [1, 3]
     property int current: 0
 
-    // The area being dragged out, in this surface's coordinates.
     property real x0: 0
     property real y0: 0
     property real x1: 0
@@ -47,7 +36,6 @@ Surface {
         const geom = Math.round((s?.x ?? 0) + geomX) + "," + Math.round((s?.y ?? 0) + geomY)
                    + " " + Math.round(geomW) + "x" + Math.round(geomH);
         go.cmd = [Quickshell.env("HOME") + "/nyri/bin/nyri", "region", actions[current].id, geom];
-        // Off the screen at once (no exit animation), then grab.
         root.hidden = true;
         Panels.close();
         go.restart();
@@ -83,7 +71,6 @@ Surface {
         }
     }
 
-    // ── The dim, with a clear hole where the area is ─────────────────────
     Item {
         id: dim
         anchors.fill: parent
@@ -95,7 +82,6 @@ Surface {
         Rectangle { visible: root.hasSel; x: root.selX + root.selW; y: root.selY; width: parent.width - x; height: root.selH; color: dim.shade }
         Rectangle { visible: root.hasSel; x: 0; y: root.selY + root.selH; width: parent.width; height: parent.height - y; color: dim.shade }
 
-        // The area: a primary outline, round handles at the corners, the size.
         Rectangle {
             visible: root.hasSel
             x: root.selX - 1
@@ -141,7 +127,6 @@ Surface {
         }
     }
 
-    // Drag anywhere to pick the area; letting go runs the tool on it.
     MouseArea {
         anchors.fill: parent
         cursorShape: Qt.CrossCursor
@@ -154,7 +139,6 @@ Surface {
         }
     }
 
-    // ── The toolbar ──────────────────────────────────────────────────────
     Item {
         id: dock
         anchors.horizontalCenter: parent.horizontalCenter
@@ -164,7 +148,6 @@ Surface {
         opacity: root.fade * (root.dragging ? 0.35 : 1)
         Behavior on opacity { EffectAnim {} }
 
-        // What the picked tool does, riding above the toolbar.
         Rectangle {
             id: hint
             anchors.horizontalCenter: toolbar.horizontalCenter
@@ -211,7 +194,6 @@ Surface {
                             id: tool
                             readonly property bool on: root.current === slot.index
 
-                            // The picked tool unfolds into a labelled pill on a spring.
                             SpringValue { id: grow; target: tool.on ? 1 : 0; damping: 0.62; stiffness: 700 }
                             readonly property real g: Math.max(0, grow.value)
                             readonly property real enter: Math.max(0, Math.min(1, root.progress * 1.6 - slot.index * 0.08))
@@ -268,7 +250,6 @@ Surface {
             }
         }
 
-        // The whole screen with the picked tool.
         Card {
             id: fab
             anchors.right: parent.right

@@ -1,12 +1,10 @@
 import QtQuick
 import qs.theme
 
-// 24 h of battery level: a soft area under a round-joined line. Charging
-// stretches are drawn in secondary. Redraws only when the data changes.
 Canvas {
     id: root
 
-    property var points: []            // [{ t, v, charging }], oldest first
+    property var points: []
     readonly property real span: 86400000
 
     onPointsChanged: requestPaint()
@@ -23,7 +21,6 @@ Canvas {
         const X = t => Math.max(0, (t - (now - span)) / span) * w;
         const Y = v => 6 + (1 - v / 100) * (h - 12);
 
-        // Grid: 0, 50, 100.
         ctx.strokeStyle = Colors.m3outlineVariant;
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 5]);
@@ -39,7 +36,6 @@ Canvas {
         if (pts.length < 2)
             return;
 
-        // Area.
         ctx.beginPath();
         ctx.moveTo(X(pts[0].t), h);
         for (const p of pts) ctx.lineTo(X(p.t), Y(p.v));
@@ -51,7 +47,6 @@ Canvas {
         ctx.fillStyle = grad;
         ctx.fill();
 
-        // Line, segment by segment so charging can change color.
         ctx.lineWidth = 3;
         ctx.lineJoin = "round";
         ctx.lineCap = "round";
@@ -63,14 +58,12 @@ Canvas {
             ctx.stroke();
         }
 
-        // Now: a dot on the last value.
         const last = pts[pts.length - 1];
         ctx.fillStyle = Colors.m3primary;
         ctx.beginPath();
         ctx.arc(X(last.t), Y(last.v), 5, 0, Math.PI * 2);
         ctx.fill();
 
-        // Hour labels.
         ctx.fillStyle = Colors.m3onSurfaceVariant;
         ctx.font = "500 11px '" + Type.family + "'";
         ctx.textAlign = "center";

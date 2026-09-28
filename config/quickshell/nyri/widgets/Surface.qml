@@ -4,14 +4,6 @@ import Quickshell.Wayland
 import qs.theme
 import qs.services
 
-// A modal surface: exists only while shown (an unmapped surface costs niri
-// nothing, which matters for battery), covers the focused screen with an
-// invisible click-catcher so a click outside closes it, and drives `progress`
-// for its content's enter/exit motion.
-//
-//   progress is a live spring: opening springs past 1 and settles; closing
-//   is critically damped (no bounce). Interrupt either and it bends back
-//   from wherever it is, keeping its speed.
 PanelWindow {
     id: root
 
@@ -32,8 +24,6 @@ PanelWindow {
     }
 
     screen: Panels.screen
-    // `hidden`: gone at once, no exit animation (the capture menu hides
-    // itself this way right before the screen is grabbed).
     property bool hidden: false
     visible: (open || progress > 0.001) && !hidden
     color: "transparent"
@@ -43,7 +33,6 @@ PanelWindow {
     WlrLayershell.namespace: "nyri-" + name
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: open && keyboard ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-
 
     Rectangle {
         anchors.fill: parent

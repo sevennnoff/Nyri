@@ -12,8 +12,6 @@ Island {
     readonly property var win: Niri.focusedWindow
     readonly property var entry: win ? DesktopEntries.heuristicLookup(win.app_id) : null
 
-    // Titles change constantly (shell prompts, tabs); a bouncing island would
-    // be noise, so this one eases instead of springing.
     widthSpeed: "fast"
     padding: 6
     spacing: 8

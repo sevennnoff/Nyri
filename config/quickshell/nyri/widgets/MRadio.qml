@@ -1,7 +1,6 @@
 import QtQuick
 import qs.theme
 
-// M3 radio button: an outlined ring whose centre springs in when selected.
 Item {
     id: root
 

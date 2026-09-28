@@ -1,15 +1,11 @@
 import QtQuick
 import qs.theme
 
-// Password characters as small M3 shapes, one random shape per character.
-// The model only ever grows or shrinks at the end, so typing adds one shape
-// that springs in and backspace pops one out — the others never rebuild,
-// which is what made them flicker when the model was a plain number.
 Row {
     id: root
 
     property int length: 0
-    property int max: 14                 // beyond this only the newest show
+    property int max: 14
     property real size: 16
     property color color: Colors.m3primary
 
@@ -43,7 +39,6 @@ Row {
             height: root.size
             visible: shown
 
-            // Arrival: from nothing, a quarter turn, settle with a bounce.
             property bool born: false
             Component.onCompleted: Qt.callLater(() => slot.born = true)
             SpringValue { id: pop; target: slot.born ? 1 : 0; damping: 0.5; stiffness: 700 }

@@ -6,9 +6,6 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// Background apps, Windows-style: the first few sit on the bar, the rest wait
-// behind a chevron that opens them as a grid. Click opens the app, right
-// click its own menu, scroll is passed through.
 Island {
     id: root
 
@@ -20,8 +17,6 @@ Island {
     padding: 4
     spacing: 0
 
-    // ScriptModel keeps delegates for items that stay, so only a new icon
-    // animates in — the others don't flicker when the list changes.
     Repeater {
         model: ScriptModel { values: root.items.slice(0, root.inline) }
 
@@ -65,7 +60,6 @@ Island {
         padding: 8
         implicitWidth: 32
 
-        // A new tray icon spins up into place.
         property bool born: false
         Component.onCompleted: Qt.callLater(() => chip.born = true)
         SpringValue { id: pop; target: chip.born ? 1 : 0; damping: 0.55; stiffness: 420 }

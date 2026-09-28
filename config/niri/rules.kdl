@@ -1,6 +1,3 @@
-// Shape: tiled windows get the M3 "large increased" corner (20dp), floating
-// ones are dialogs and get "extra large" (28dp).
-
 window-rule {
     geometry-corner-radius 20
     clip-to-geometry true
@@ -26,13 +23,11 @@ window-rule {
     open-floating true
 }
 
-// Steam's toast notifications: bottom-right corner, not the middle of the screen.
 window-rule {
     match app-id="steam" title=r#"^notificationtoasts_\d+_desktop$"#
     default-floating-position x=10 y=10 relative-to="bottom-right"
 }
 
-// The shell's own windows (settings, wallpapers): ordinary tiled columns.
 window-rule {
     match title=r#"^Nyri · Настройки$"#
     match title=r#"^Nyri · Обои$"#
@@ -45,8 +40,6 @@ window-rule {
     block-out-from "screen-capture"
 }
 
-// The shell's wallpaper sits in the overview backdrop, so zooming out shows
-// the wallpaper behind the workspaces instead of a flat color.
 layer-rule {
     match namespace="^nyri-wallpaper$"
     place-within-backdrop true

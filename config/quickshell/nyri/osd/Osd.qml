@@ -5,7 +5,6 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// Drops out from under the clock. Never takes input, and unmaps when hidden.
 PanelWindow {
     id: root
 
@@ -31,7 +30,6 @@ PanelWindow {
     WlrLayershell.namespace: "nyri-osd"
     WlrLayershell.layer: WlrLayer.Overlay
 
-
     readonly property var spec: {
         switch (Osd.kind) {
         case "volume":
@@ -48,7 +46,6 @@ PanelWindow {
         return { icon: "info" };
     }
 
-    // Opens from a circle into the full pill.
     Card {
         id: card
         readonly property real full: row.implicitWidth + 16

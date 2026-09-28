@@ -4,7 +4,6 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// The one loud element on the bar: primary container, emphasized type.
 Island {
     id: root
 

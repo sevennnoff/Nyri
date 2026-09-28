@@ -5,7 +5,6 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// Bluetooth devices. Discovery runs only while this page is open.
 Column {
     id: root
 
@@ -36,7 +35,6 @@ Column {
         clickable: true
         onClicked: Bt.activate(modelData)
 
-        // A freshly paired device connects right away.
         Connections {
             target: row.modelData
             function onPairedChanged() { if (row.modelData.paired) row.modelData.connect() }

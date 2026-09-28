@@ -1,9 +1,8 @@
 import QtQuick
 import qs.theme
 
-// Position / size / shape. Overshoots, like a spring.
 NumberAnimation {
-    property string speed: "default"   // fast | default | slow
+    property string speed: "default"
     readonly property var token: speed === "fast" ? Motion.fastSpatial
                                : speed === "slow" ? Motion.slowSpatial
                                : Motion.defaultSpatial

@@ -21,9 +21,7 @@ HOME_CFG = Path.home() / ".config"
 BACKUPS = Path.home() / ".config-nyri-backup"
 OWN = {"niri", "fuzzel", "quickshell/nyri"}
 
-
 def leaves(rel=Path(".")):
-    """Repo paths to link: owned dirs whole, other dirs recursed, files as is."""
     for entry in sorted((REPO / rel).iterdir()):
         r = (rel / entry.name)
         key = r.as_posix().lstrip("./")
@@ -31,7 +29,6 @@ def leaves(rel=Path(".")):
             yield from leaves(r)
         else:
             yield Path(key)
-
 
 def overlay(target: Path):
     if target.exists() or target.is_symlink():
@@ -42,10 +39,8 @@ def overlay(target: Path):
     def place(rel: Path):
         dst = target / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
-        # The parent may be a mirror of a real dir: fill in its real siblings.
         dst.symlink_to(REPO / rel)
 
-    # Mirror every real directory that the repo merges into, entry by entry.
     merged_dirs = {p.parent for p in repo_leaves if p.parent != Path(".")}
     merged_dirs |= {d for p in merged_dirs for d in p.parents if d != Path(".")}
     for real in sorted(HOME_CFG.iterdir()):
@@ -63,7 +58,6 @@ def overlay(target: Path):
     for rel in repo_leaves:
         place(rel)
 
-
 def install():
     stamp = BACKUPS / time.strftime("%Y%m%d-%H%M%S")
     for rel in leaves():
@@ -79,7 +73,6 @@ def install():
         print(f"linked     ~/.config/{rel}")
     if stamp.exists():
         print(f"\nbackup: {stamp}")
-
 
 def uninstall():
     for rel in leaves():
@@ -102,13 +95,11 @@ def uninstall():
             print(f"restored   ~/.config/{rel}")
     print(f"\nrestored from {last}")
 
-
 def status():
     for rel in leaves():
         dst = HOME_CFG / rel
         ok = dst.is_symlink() and dst.resolve() == (REPO / rel).resolve()
         print(("linked    " if ok else "NOT linked"), f"~/.config/{rel}")
-
 
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "status"

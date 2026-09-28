@@ -2,7 +2,6 @@ pragma Singleton
 import QtQuick
 import Quickshell
 
-// M3 Expressive corner scale (dp).
 Singleton {
     readonly property int none: 0
     readonly property int extraSmall: 4

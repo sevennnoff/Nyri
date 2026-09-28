@@ -6,10 +6,6 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// Alt+Tab, most recent first. niri keeps handling Alt+Tab itself and calls
-// `nyri switcher next` each time; this surface only shows and moves the
-// selection. It commits when Alt is released or, if that release was missed
-// (a quick tap lands before the surface has focus), after a short pause.
 PanelWindow {
     id: root
 
@@ -50,8 +46,6 @@ PanelWindow {
         if (w) Niri.action("focus-window", "--id", String(w.id));
     }
 
-    // Fallback only: normally releasing Alt commits. Long enough that a slow
-    // second Tab (Alt still held) is never cut off.
     Timer {
         id: commitTimer
         interval: 1500
@@ -66,7 +60,6 @@ PanelWindow {
     WlrLayershell.namespace: "nyri-switcher"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-
 
     Item {
         anchors.fill: parent

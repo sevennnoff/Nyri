@@ -3,13 +3,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// M3 color roles, read from theme.json in the state dir (written by bin/nyri-theme).
-// Roles carry an m3 prefix: QML reads any property named on<Upper>... as a
-// signal handler, so `onSurface` and friends silently never bind.
-//
-// No Behaviors here: Behavior on a non-Item singleton segfaults Quickshell 0.3.
-// Consumers animate their own colors (ColorAnim), so a wallpaper change still
-// recolors the shell smoothly.
 Singleton {
     id: root
 
@@ -23,8 +16,6 @@ Singleton {
     }
 
     FileView {
-        // The theme module cannot import services (they import it), so it
-        // resolves the state dir the same way Paths does.
         path: (Quickshell.env("NYRI_STATE") || Quickshell.env("HOME") + "/.local/state/nyri") + "/theme.json"
         watchChanges: true
         onFileChanged: reload()

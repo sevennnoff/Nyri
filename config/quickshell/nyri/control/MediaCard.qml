@@ -5,14 +5,10 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// Now playing, Android 16 style: the cover fills the right of the card and
-// melts into the surface on the left, where the title sits. The play button
-// is a shape that morphs — a circle while paused, a rounded square while
-// playing — and the progress is a wave that lies flat when paused.
 ClippingRectangle {
     id: root
 
-    required property bool active          // on screen: only then track position
+    required property bool active
     readonly property var player: Media.player
     readonly property bool playing: player?.isPlaying ?? false
     readonly property bool hasArt: art.status === Image.Ready
@@ -26,7 +22,6 @@ ClippingRectangle {
         return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
     }
 
-    // MPRIS does not push position; ask once a second, only while visible and playing.
     Timer {
         running: root.active && root.playing
         interval: 1000
@@ -35,7 +30,6 @@ ClippingRectangle {
         onTriggered: root.player.positionChanged()
     }
 
-    // ── Cover: right side, fading into the card ─────────────────────────
     Item {
         id: cover
         anchors.right: parent.right
@@ -53,7 +47,6 @@ ClippingRectangle {
             Behavior on opacity { EffectAnim {} }
         }
 
-        // No cover: a big soft shape in the secondary tone instead.
         MaterialShape {
             visible: !root.hasArt
             anchors.right: parent.right
@@ -75,7 +68,6 @@ ClippingRectangle {
             }
         }
 
-        // And under the progress row, so the times stay readable.
         Rectangle {
             anchors.bottom: parent.bottom
             width: parent.width
@@ -87,7 +79,6 @@ ClippingRectangle {
         }
     }
 
-    // ── Text ────────────────────────────────────────────────────────────
     Column {
         x: 20
         y: 18
@@ -128,7 +119,6 @@ ClippingRectangle {
         }
     }
 
-    // ── Controls ────────────────────────────────────────────────────────
     Row {
         id: controls
         x: 14
@@ -145,7 +135,6 @@ ClippingRectangle {
             onClicked: root.player.previous()
         }
 
-        // Play/pause: the shape itself tells the state.
         Item {
             id: play
             anchors.verticalCenter: parent.verticalCenter
@@ -185,7 +174,6 @@ ClippingRectangle {
         }
     }
 
-    // ── Progress: time · wave · length ──────────────────────────────────
     Row {
         x: 20
         anchors.bottom: parent.bottom

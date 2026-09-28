@@ -1,9 +1,6 @@
 import QtQuick
 import qs.theme
 
-// M3 state layer: an overlay of the content color at 8% on hover, 10% on press.
-// Corners follow the container — set `radius`, or the four corner radii for
-// containers whose corners differ (grouped list rows, connected buttons).
 MouseArea {
     id: root
 

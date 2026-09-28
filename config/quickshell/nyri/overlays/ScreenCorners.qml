@@ -5,9 +5,6 @@ import Quickshell.Wayland
 import qs.theme
 import qs.services
 
-// Rounded screen corners, as the old setup had: four tiny click-through
-// surfaces on the overlay layer (so they round fullscreen apps too).
-// Static vector shapes — drawn once, then nothing moves.
 Variants {
     model: Config.o.bar.corners ? Quickshell.screens : []
 
@@ -43,7 +40,6 @@ Variants {
             WlrLayershell.namespace: "nyri-corner"
             WlrLayershell.layer: WlrLayer.Overlay
 
-            // Black everywhere outside a quarter circle centred inward.
             Vec.Shape {
                 anchors.fill: parent
                 preferredRendererType: Vec.Shape.CurveRenderer

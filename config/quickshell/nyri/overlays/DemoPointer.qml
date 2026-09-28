@@ -6,8 +6,6 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// The demo pointer: an arrow that glides to where the script points, and a
-// ripple when it "clicks". Takes no input. Only exists in the test window.
 PanelWindow {
     id: root
 
@@ -21,11 +19,9 @@ PanelWindow {
     WlrLayershell.namespace: "nyri-demo"
     WlrLayershell.layer: WlrLayer.Overlay
 
-    // Brisk like a hand; glued to the widget while it is being dragged.
     SpringValue { id: px; target: Demo.x; damping: 0.9; stiffness: Demo.holding ? 4000 : 320; epsilon: 0.1 }
     SpringValue { id: py; target: Demo.y; damping: 0.9; stiffness: Demo.holding ? 4000 : 320; epsilon: 0.1 }
 
-    // Click ripple.
     Rectangle {
         id: ripple
         property real t: 1

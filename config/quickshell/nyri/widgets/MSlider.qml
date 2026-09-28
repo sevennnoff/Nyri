@@ -1,14 +1,11 @@
 import QtQuick
 import qs.theme
 
-// M3 Expressive slider: split track with a gap around a thin handle, rounded
-// outer ends and near-square inner ends, a stop dot, and (for tall tracks) an
-// icon inset at the start of the active track. The handle narrows while held.
 Item {
     id: root
 
-    property real value: 0                 // 0..1
-    property int trackHeight: 16           // XS 16 · S 24 · M 40 · L 56
+    property real value: 0
+    property int trackHeight: 16
     property string icon: ""
     property bool interactive: true
     property color activeColor: Colors.m3primary
@@ -23,7 +20,6 @@ Item {
     readonly property real outer: trackHeight / 2
     readonly property real inner: Math.min(2, trackHeight / 4)
 
-    // Follows `value` on a live spring; under the finger it tracks exactly.
     property real dragValue: 0
     readonly property real shown: dragging ? dragValue : spring.value
     SpringValue { id: spring; target: root.value; damping: 0.7; stiffness: 520; epsilon: 0.0005 }

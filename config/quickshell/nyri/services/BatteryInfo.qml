@@ -4,13 +4,11 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Services.UPower
 
-// Details for the battery popout. History comes from UPower's own log and is
-// fetched only when the popout opens.
 Singleton {
     id: root
 
     readonly property var device: UPower.devices.values.find(d => d.isLaptopBattery) ?? null
-    property var history: []          // [{ t: ms, v: 0..100, charging: bool }], oldest first
+    property var history: []
     property int cycles: -1
 
     readonly property real health: device?.healthSupported ? device.healthPercentage : -1

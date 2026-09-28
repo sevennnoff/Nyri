@@ -3,21 +3,9 @@ import QtQuick
 import Quickshell
 import qs.services
 
-// M3 Expressive motion. Every token is a real damped spring (damping ratio,
-// stiffness) played as a multi-segment Bézier fitted by tools/fit-springs.py —
-// the exact overshoot and settle, at the display's refresh rate. niri uses the
-// same springs natively (config/niri/motion.kdl), so windows and the shell
-// move alike.
-//
-//   fastSpatial     0.60 / 800   small things: chips, pills, shapes, toggles
-//   defaultSpatial  0.70 / 420   panels, cards, anything that travels
-//   slowSpatial     0.72 / 240   big entrances
-//   effects         1.00 / 1600  color and opacity — never overshoots
 Singleton {
     id: root
 
-    // Settings → Оформление → Скорость анимаций. Curves stretch in time;
-    // springs (SpringValue) scale their stiffness by speed².
     readonly property real speed: Config.o.motion.speed
     function t(token) { return { duration: Math.round(token.duration / speed), curve: token.curve }; }
 
@@ -31,7 +19,6 @@ Singleton {
     readonly property var slowSpatial: t(slowSpatialBase)
     readonly property var effects: t(effectsBase)
 
-    // Whole surfaces leaving: accelerate away, no bounce.
     readonly property var emphasizedDecel: ({ duration: 400, curve: [0.05, 0.7, 0.1, 1, 1, 1] })
     readonly property var emphasizedAccel: ({ duration: 200, curve: [0.3, 0, 0.8, 0.15, 1, 1] })
 }

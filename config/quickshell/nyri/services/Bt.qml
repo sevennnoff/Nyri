@@ -21,7 +21,6 @@ Singleton {
         if (adapter && adapter.enabled) adapter.discovering = on;
     }
 
-    // BlueZ icon names → Material Symbols.
     function deviceIcon(dev) {
         const i = dev?.icon ?? "";
         if (i.includes("headset") || i.includes("headphone") || i.includes("audio")) return "headphones";
@@ -33,7 +32,6 @@ Singleton {
         return "bluetooth";
     }
 
-    // Tap: connect / disconnect a known device, pair and connect a new one.
     function activate(dev) {
         if (dev.paired || dev.bonded) {
             dev.connected ? dev.disconnect() : dev.connect();

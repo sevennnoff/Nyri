@@ -1,11 +1,6 @@
 import QtQuick
 import qs.theme
 
-// Text that rolls instead of snapping: when a character changes, the old
-// glyph slides up and fades while the new one rises from below on the fast
-// spatial spring (a little overshoot, then it settles). Characters that did
-// not change stay put, so 12:59 → 13:00 moves only what actually changed.
-// Digits are tabular, so the line does not jiggle sideways.
 Row {
     id: root
 

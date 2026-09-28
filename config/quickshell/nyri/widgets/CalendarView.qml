@@ -2,7 +2,6 @@ import QtQuick
 import qs.theme
 import qs.widgets
 
-// Month grid. Today is a primary cookie shape.
 Column {
     id: view
 
@@ -13,7 +12,6 @@ Column {
         shownMonth = new Date(shownMonth.getFullYear(), shownMonth.getMonth() + n, 1);
     }
 
-    // 42 cells from the Monday on or before the 1st.
     readonly property var cells: {
         const first = new Date(shownMonth.getFullYear(), shownMonth.getMonth(), 1);
         const offset = (first.getDay() + 6) % 7;

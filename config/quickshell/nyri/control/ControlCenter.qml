@@ -6,7 +6,6 @@ import qs.services
 import qs.widgets
 import qs.notifications
 
-// Right-hand panel: sliders, quick settings, media, notification history.
 Surface {
     id: root
 
@@ -14,14 +13,11 @@ Surface {
 
     readonly property var battery: UPower.displayDevice
 
-    // Sub-pages (sound, Wi-Fi, Bluetooth) slide in on the M3 shared X axis.
     property string page: "main"
-    // The sub-page stays loaded while it slides away.
     property string shownPage: ""
     onPageChanged: if (page !== "main") shownPage = page
     onOpenChanged: if (open) page = Panels.tab || "main"
     SpringValue { id: slide; target: root.page === "main" ? 0 : 1; damping: 0.8; stiffness: 480; epsilon: 0.001 }
-
 
     function duration(sec) {
         const total = Math.round(sec / 60), h = Math.floor(total / 60), m = total % 60;
@@ -72,7 +68,6 @@ Surface {
                 opacity: 1 - slide.value
                 visible: opacity > 0.01
 
-                // ── Header ────────────────────────────────────────────────
                 Item {
                     width: parent.width
                     height: 48
@@ -133,7 +128,6 @@ Surface {
                     }
                 }
 
-                // ── Sliders ───────────────────────────────────────────────
                 Rectangle {
                     width: parent.width
                     height: sliders.implicitHeight + 24
@@ -177,7 +171,6 @@ Surface {
                     }
                 }
 
-                // ── Quick settings ────────────────────────────────────────
                 Grid {
                     width: parent.width
                     columns: 2
@@ -264,14 +257,12 @@ Surface {
                     }
                 }
 
-                // ── Media ─────────────────────────────────────────────────
                 MediaCard {
                     width: parent.width
                     visible: Media.player !== null
                     active: root.open
                 }
 
-                // ── Notifications ─────────────────────────────────────────
                 Item {
                     width: parent.width
                     height: 40
@@ -328,7 +319,6 @@ Surface {
                     }
                 }
 
-                // Empty state: a quiet M3 shape instead of a blank hole.
                 Column {
                     width: parent.width
                     visible: Notifs.count === 0

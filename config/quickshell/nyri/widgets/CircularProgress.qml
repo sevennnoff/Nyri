@@ -2,12 +2,6 @@ import QtQuick
 import QtQuick.Shapes as Vec
 import qs.theme
 
-// M3 Expressive circular progress: a round-capped active arc, a gap, then the
-// track. Vector geometry (QtQuick.Shapes, curve renderer) drawn by the GPU —
-// nothing is repainted into a canvas, so it cannot flicker. The value flows
-// to its new position on a slow effects curve.
-//
-// (QtQuick.Shapes is imported as Vec because qs.theme has its own `Shape`.)
 Item {
     id: root
 
@@ -16,8 +10,6 @@ Item {
     property color activeColor: Colors.m3primary
     property color trackColor: Colors.m3secondaryContainer
 
-    // Off when the caller already moves `value` smoothly (a spring): the
-    // built-in animation would restart on every frame and stutter.
     property bool animated: true
 
     property real shown: Math.max(0, Math.min(1, value))

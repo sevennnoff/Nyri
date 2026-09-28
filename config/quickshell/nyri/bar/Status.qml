@@ -4,15 +4,12 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// Layout, volume, battery. Clicking the island opens the control center;
-// the chips inside keep their own quick actions.
 Island {
     id: root
 
     padding: 4
     spacing: 0
 
-    // Recording: a red chip with the elapsed time; click stops it.
     Reveal {
         shown: Toggles.recording
 
@@ -57,7 +54,6 @@ Island {
             text: Niri.layoutShort
         }
 
-        // Caps Lock on: a small filled badge next to the layout.
         Reveal {
             shown: Toggles.capsLock
 
@@ -99,7 +95,6 @@ Island {
         }
     }
 
-    // Unread notifications / do-not-disturb / keep-awake, only when relevant.
     Reveal {
         shown: Notifs.count > 0 || Notifs.dnd || Toggles.caffeine
 

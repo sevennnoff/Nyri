@@ -1,7 +1,3 @@
-// ─── Nyri · niri ─────────────────────────────────────────────────────────────
-// Material 3 Expressive, built from scratch. Colors come from colors.kdl, which
-// bin/nyri-theme renders from the wallpaper — never edit that one by hand.
-
 prefer-no-csd
 screenshot-path "~/Pictures/Screenshots/%Y-%m-%d %H-%M-%S.png"
 

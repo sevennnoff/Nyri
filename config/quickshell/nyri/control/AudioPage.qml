@@ -6,7 +6,6 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// Where sound goes, where it comes from, and how loud each app is.
 Column {
     id: root
 

@@ -3,13 +3,11 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Open-Meteo, no key. One request every 30 minutes (and on demand if the
-// data is older than 15 minutes when the dashboard opens).
 Singleton {
     id: root
 
-    property var current: null          // { temp, feels, humidity, wind, code, day }
-    property var daily: []              // [{ date, code, max, min }]
+    property var current: null
+    property var daily: []
     property real fetchedAt: 0
     readonly property bool ready: current !== null
 

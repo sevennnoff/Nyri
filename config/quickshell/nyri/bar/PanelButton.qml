@@ -3,8 +3,6 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// Mirror of the launcher button, on the right: a shape that opens the right
-// panel (control center) and morphs while you point at it.
 Item {
     id: root
 

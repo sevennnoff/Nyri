@@ -1,8 +1,6 @@
 import QtQuick
 import qs.theme
 
-// M3 search bar: a full pill on the highest container, leading icon, and a
-// trailing clear button once there is text.
 Rectangle {
     id: root
 

@@ -1,12 +1,6 @@
 import QtQuick
 import qs.theme
 
-// Material Symbols Rounded, driven through its variable axes. `fill` animates,
-// which is how M3 marks an icon as selected: outlined -> filled.
-//
-// The item is exactly size × size with the glyph centred in it. (A bare Text
-// is taller than the glyph — the font's line box — so anything laid out
-// against it sat off-centre.)
 Item {
     id: root
 

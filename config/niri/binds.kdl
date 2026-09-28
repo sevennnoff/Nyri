@@ -1,17 +1,9 @@
-// Same keys as the iNiR setup, one for one. Shell actions go through
-// `~/nyri/bin/nyri <action>`: binds stay fixed while what stands behind an
-// action moves from stand-in tools to the Quickshell shell.
-//
-// Mod is Super on the TTY and Alt inside a nested (windowed) niri.
-
 binds {
-    // ── Session ─────────────────────────────────────────────────────────────
     Mod+Tab repeat=false { toggle-overview; }
     Mod+Shift+E { quit; }
     Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
     Mod+Shift+O { power-off-monitors; }
 
-    // ── Shell surfaces ──────────────────────────────────────────────────────
     Alt+Tab       hotkey-overlay-title="Переключить окно" { spawn-sh "~/nyri/bin/nyri switcher next"; }
     Alt+Shift+Tab hotkey-overlay-title="Переключить окно назад" { spawn-sh "~/nyri/bin/nyri switcher prev"; }
     Super+G hotkey-overlay-title="Прицел" { spawn-sh "~/nyri/bin/nyri crosshair"; }
@@ -20,7 +12,6 @@ binds {
     Mod+Alt+L allow-when-locked=true hotkey-overlay-title="Блокировка" { spawn-sh "~/nyri/bin/nyri lock"; }
     XF86PowerOff allow-when-locked=true hotkey-overlay-title="Блокировка" { spawn-sh "~/nyri/bin/nyri lock"; }
     Mod+Ctrl+Shift+L allow-when-locked=true hotkey-overlay-title="Блокировка" { spawn-sh "~/nyri/bin/nyri lock"; }
-    // Also what the PrtSc key sends on laptops that copy Windows (Win+Shift+S).
     Mod+Shift+S hotkey-overlay-title="Снимок или запись" { spawn-sh "~/nyri/bin/nyri region menu"; }
     Mod+Shift+X hotkey-overlay-title="Текст с экрана (OCR)" { spawn-sh "~/nyri/bin/nyri region ocr"; }
     Mod+Shift+A hotkey-overlay-title="Поиск по области" { spawn-sh "~/nyri/bin/nyri region search"; }
@@ -33,22 +24,18 @@ binds {
     Mod+Shift+C hotkey-overlay-title="Пипетка" { spawn-sh "~/nyri/bin/nyri picker"; }
     Mod+X hotkey-overlay-title="Питание и выход" { spawn-sh "~/nyri/bin/nyri session"; }
 
-    // ── Apps ────────────────────────────────────────────────────────────────
     Mod+Return hotkey-overlay-title="Терминал" { spawn-sh "~/nyri/bin/nyri terminal"; }
     Super+E hotkey-overlay-title="Файлы" { spawn "nemo"; }
     Super+C hotkey-overlay-title="VS Code" { spawn "code"; }
     Super+W hotkey-overlay-title="Браузер" { spawn-sh "~/nyri/bin/nyri browser"; }
 
-    // ── Windows ─────────────────────────────────────────────────────────────
     Mod+Q repeat=false { close-window; }
-    // Full width, keeping the gaps and the bar; Ctrl for edge to edge.
     Mod+F hotkey-overlay-title="Развернуть" { maximize-column; }
     Mod+Ctrl+F hotkey-overlay-title="Развернуть до краёв" { maximize-window-to-edges; }
     Mod+Shift+F { fullscreen-window; }
     Mod+Shift+T { toggle-window-floating; }
     Mod+Shift+V { switch-focus-between-floating-and-tiling; }
 
-    // ── Columns ─────────────────────────────────────────────────────────────
     Mod+R { switch-preset-column-width; }
     Mod+Shift+R hotkey-overlay-title="Запись экрана со звуком" { spawn-sh "~/nyri/bin/nyri region recordWithSound"; }
     Mod+Ctrl+R { reset-window-height; }
@@ -60,7 +47,6 @@ binds {
     Mod+BracketLeft  { consume-or-expel-window-left; }
     Mod+BracketRight { consume-or-expel-window-right; }
 
-    // ── Focus ───────────────────────────────────────────────────────────────
     Mod+Left  { focus-column-left; }
     Mod+Right { focus-column-right; }
     Mod+Up    { focus-window-up; }
@@ -72,7 +58,6 @@ binds {
     Mod+Home  { focus-column-first; }
     Mod+End   { focus-column-last; }
 
-    // ── Move ────────────────────────────────────────────────────────────────
     Mod+Shift+Left  { move-column-left; }
     Mod+Shift+Right { move-column-right; }
     Mod+Shift+Up    { move-window-up; }
@@ -84,7 +69,6 @@ binds {
     Mod+Ctrl+Home   { move-column-to-first; }
     Mod+Ctrl+End    { move-column-to-last; }
 
-    // ── Monitors ────────────────────────────────────────────────────────────
     Mod+Ctrl+Left  { focus-monitor-left; }
     Mod+Ctrl+Right { focus-monitor-right; }
     Mod+Ctrl+Up    { focus-monitor-up; }
@@ -94,7 +78,6 @@ binds {
     Mod+Ctrl+Shift+Up    { move-column-to-monitor-up; }
     Mod+Ctrl+Shift+Down  { move-column-to-monitor-down; }
 
-    // ── Workspaces ──────────────────────────────────────────────────────────
     Mod+1 { focus-workspace 1; }
     Mod+2 { focus-workspace 2; }
     Mod+3 { focus-workspace 3; }
@@ -124,15 +107,11 @@ binds {
     Mod+WheelScrollRight { focus-column-right; }
     Mod+WheelScrollLeft  { focus-column-left; }
 
-    // ── Screenshots (niri native) ───────────────────────────────────────────
-    // Print: the capture menu (screenshot, OCR, Lens, recording); pressed
-    // again while recording, it stops the recording.
     Print       hotkey-overlay-title="Снимок или запись" { spawn-sh "~/nyri/bin/nyri region menu"; }
     Shift+Print hotkey-overlay-title="Записать область" { spawn-sh "~/nyri/bin/nyri region record"; }
     Ctrl+Print  { screenshot-screen; }
     Alt+Print   { screenshot-window; }
 
-    // ── Hardware keys ───────────────────────────────────────────────────────
     XF86AudioRaiseVolume allow-when-locked=true hotkey-overlay-title="Громче" { spawn-sh "~/nyri/bin/nyri audio volumeUp"; }
     XF86AudioLowerVolume allow-when-locked=true hotkey-overlay-title="Тише" { spawn-sh "~/nyri/bin/nyri audio volumeDown"; }
     XF86AudioMute        allow-when-locked=true hotkey-overlay-title="Звук вкл/выкл" { spawn-sh "~/nyri/bin/nyri audio mute"; }
@@ -144,7 +123,6 @@ binds {
     XF86AudioNext  hotkey-overlay-title="Следующий трек" { spawn-sh "~/nyri/bin/nyri mpris next"; }
     XF86AudioPrev  hotkey-overlay-title="Предыдущий трек" { spawn-sh "~/nyri/bin/nyri mpris previous"; }
 
-    // Media without media keys.
     Ctrl+Mod+Space hotkey-overlay-title="Пауза / играть" { spawn-sh "~/nyri/bin/nyri mpris playPause"; }
     Mod+Alt+N      hotkey-overlay-title="Следующий трек" { spawn-sh "~/nyri/bin/nyri mpris next"; }
     Mod+Alt+P      hotkey-overlay-title="Предыдущий трек" { spawn-sh "~/nyri/bin/nyri mpris previous"; }

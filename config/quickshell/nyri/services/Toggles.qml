@@ -4,18 +4,14 @@ import Quickshell
 import Quickshell.Io
 import qs.theme
 
-// Small switches that are processes or state rather than services.
 Singleton {
     id: root
 
-    // Gaming crosshair in the middle of the screen (Super+G).
     property bool crosshair: false
 
-    // Screen recording, reported by bin/nyri when wf-recorder starts/stops.
     property bool recording: false
     property real recordingSince: 0
 
-    // Caps Lock, from bin/nyri-capswatch (evdev + the Caps LED; no polling).
     property bool capsLock: false
     property bool capsReady: false
     Process {
@@ -30,13 +26,8 @@ Singleton {
         }
     }
 
-    // Keep-awake. The IdleInhibitor itself lives on the bar window (it needs
-    // a surface); this is just the switch.
     property bool caffeine: false
 
-    // Night light (Settings → Оформление): wlsunset, running only while on.
-    // "on" holds the warm temperature all day; "auto" follows sunset and
-    // sunrise at the weather location.
     readonly property bool nightLight: Config.o.night.mode !== "off"
     function setNightLight(on) { Config.o.night.mode = on ? "on" : "off"; }
     Process {

@@ -5,8 +5,6 @@ import qs.services
 import qs.widgets
 import qs.control
 
-// Grows out of the clock. Time and weather up top; calendar on the left;
-// media, forecast and system load on the right.
 Surface {
     id: root
 
@@ -102,7 +100,6 @@ Surface {
             width: parent.width - 40
             spacing: 16
 
-            // ── Header: time + weather now ────────────────────────────────
             Item {
                 width: parent.width
                 height: 92
@@ -188,7 +185,6 @@ Surface {
                 width: parent.width
                 spacing: 12
 
-                // ── Calendar ──────────────────────────────────────────────
                 Column {
                     width: 360
                     spacing: 12
@@ -201,7 +197,6 @@ Surface {
                         }
                     }
 
-                    // Screen time at a glance; the full view is one click away.
                     Section {
                         id: usage
 
@@ -295,7 +290,6 @@ Surface {
                         active: root.open
                     }
 
-                    // ── Forecast ──────────────────────────────────────────
                     Section {
                         visible: Weather.daily.length > 0
 
@@ -343,9 +337,6 @@ Surface {
                         }
                     }
 
-                    // ── System ────────────────────────────────────────────
-                    // Three fixed meters (not a Repeater over a fresh array),
-                    // so updates only move values — nothing is rebuilt.
                     Section {
                         Row {
                             width: parent.width

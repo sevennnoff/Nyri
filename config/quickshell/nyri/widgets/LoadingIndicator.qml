@@ -1,12 +1,6 @@
 import QtQuick
 import qs.theme
 
-// M3 Expressive loading indicator: one shape that keeps morphing into the
-// next — burst, cookie, pentagon, pill, sun, clover, oval — and turns a
-// little further with every morph, on a spring. `contained` puts it in a
-// rounded square, like Android's contained variant.
-//
-// Only ticks while `running`; a stopped indicator costs nothing.
 Item {
     id: root
 

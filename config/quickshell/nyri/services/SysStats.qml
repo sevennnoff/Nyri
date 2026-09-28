@@ -3,18 +3,16 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// CPU, memory, temperature, disk. Sampled every 2 s, and only while something
-// on screen asks for it (`watchers` > 0) — otherwise nothing runs at all.
 Singleton {
     id: root
 
     property int watchers: 0
-    property real cpu: 0                // 0..1
-    property real mem: 0                // 0..1
+    property real cpu: 0
+    property real mem: 0
     property real memUsedGb: 0
     property real memTotalGb: 0
-    property real temp: 0               // °C, CPU package
-    property real disk: 0               // 0..1 for /
+    property real temp: 0
+    property real disk: 0
     property string diskText: ""
 
     property var lastCpu: null
@@ -69,7 +67,6 @@ Singleton {
         onLoaded: root.temp = parseInt(text()) / 1000
     }
 
-    // CPU sensor: k10temp on AMD, coretemp on Intel.
     Process {
         running: true
         command: ["sh", "-c", "for d in /sys/class/hwmon/hwmon*; do n=$(cat $d/name); case $n in k10temp|coretemp|zenpower) echo $d/temp1_input; exit;; esac; done"]

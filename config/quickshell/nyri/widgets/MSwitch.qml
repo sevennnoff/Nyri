@@ -1,10 +1,6 @@
 import QtQuick
 import qs.theme
 
-// M3 Expressive switch on a live spring. The thumb flies across with a small
-// overshoot, stretches along its path in proportion to its speed (and flattens
-// a touch), grows from 16 to 24 as it turns on and to 28 while held. Tap it
-// twice fast and it turns around mid-air instead of restarting.
 Item {
     id: root
 

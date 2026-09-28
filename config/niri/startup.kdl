@@ -1,12 +1,7 @@
 spawn-at-startup "qs" "-c" "nyri"
 
-// Password prompts for apps (pkexec, mounting...) come from the shell itself
-// (polkit/PolkitDialog.qml), so no separate polkit agent is started here.
-
-// Clipboard history for `nyri clipboard` (Mod+V).
 spawn-at-startup "wl-paste" "--watch" "cliphist" "store"
 
-// KDE's menu database, so Dolphin/Qt "Open with" lists the right apps.
 spawn-at-startup "sh" "-c" "systemctl --user import-environment XDG_MENU_PREFIX && kbuildsycoca6"
 
 environment {
@@ -15,7 +10,6 @@ environment {
     ELECTRON_OZONE_PLATFORM_HINT "auto"
     QT_QPA_PLATFORM "wayland;xcb"
     QT_WAYLAND_DISABLE_WINDOWDECORATION "1"
-    // Qt apps take their palette from kdeglobals, which bin/nyri-theme writes.
     QT_QPA_PLATFORMTHEME "kde"
     QT_STYLE_OVERRIDE "Darkly"
 }

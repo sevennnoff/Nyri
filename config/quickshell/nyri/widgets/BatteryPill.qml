@@ -2,8 +2,6 @@ import QtQuick
 import Quickshell.Widgets
 import qs.theme
 
-// A pill that fills with the charge. The label is drawn twice and clipped at
-// the fill edge, so every glyph has contrast whatever the level.
 ClippingRectangle {
     id: root
 

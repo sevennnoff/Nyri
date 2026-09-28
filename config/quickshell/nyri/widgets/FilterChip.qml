@@ -2,16 +2,12 @@ import QtQuick
 import Quickshell.Widgets
 import qs.theme
 
-// M3 filter chip, Expressive. Picking it: the check mark unfolds in from the
-// left on a spring (the chip widens to make room), the outline melts into a
-// tonal fill and the corners round into a pill. Pressing squishes it.
-// Optional `swatch`: up to three colours shown as a small split dot.
 Item {
     id: root
 
     property string text
     property bool picked: false
-    property var swatch: null            // ["#rrggbb", ...] or null
+    property var swatch: null
     signal clicked
 
     SpringValue { id: pickS; target: root.picked ? 1 : 0; damping: 0.62; stiffness: 520 }
@@ -42,7 +38,6 @@ Item {
         anchors.centerIn: parent
         spacing: 6
 
-        // The check takes its room only while picked.
         Item {
             anchors.verticalCenter: parent.verticalCenter
             width: 18 * pickS.value

@@ -3,7 +3,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// App search with frecency. Launch counts persist in the state dir (Paths.state).
 Singleton {
     id: root
 
@@ -11,8 +10,6 @@ Singleton {
         .filter(e => !e.noDisplay)
     property var counts: ({})
 
-    // Icon and name for a window's app id. Our own settings window is a
-    // Quickshell window (app id org.quickshell); show it as settings.
     function iconFor(appId) {
         if (appId === "org.quickshell")
             return "preferences-system";
@@ -29,8 +26,6 @@ Singleton {
         return Math.log((counts[entry.id] ?? 0) + 1);
     }
 
-    // Higher is better; 0 means no match. Prefix > word start > substring >
-    // other fields > in-order fuzzy match on the name.
     function score(entry, q) {
         const name = entry.name.toLowerCase();
         if (name.startsWith(q)) return 100;

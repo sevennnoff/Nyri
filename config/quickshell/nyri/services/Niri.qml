@@ -3,14 +3,11 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Live niri state from `niri msg --json event-stream`. The stream opens with a
-// full snapshot (WorkspacesChanged, WindowsChanged, ...) and then sends deltas,
-// so this never polls. Objects are replaced, not mutated, so bindings notice.
 Singleton {
     id: root
 
-    property var workspaces: []          // sorted by output, then idx
-    property var windows: ({})           // id -> window
+    property var workspaces: []
+    property var windows: ({})
     property var focusedWindowId: null
     property var layoutNames: []
     property int layoutIndex: 0
@@ -105,7 +102,6 @@ Singleton {
         } else if (ev.KeyboardLayoutSwitched) {
             root.layoutIndex = ev.KeyboardLayoutSwitched.idx;
         } else if (ev.ConfigLoaded) {
-            // A broken config.kdl: niri keeps running the previous one.
             if (ev.ConfigLoaded.failed)
                 Quickshell.execDetached(["notify-send", "-a", "niri", "-u", "critical", "-i", "dialog-error",
                     "Ошибка в конфиге niri", "Работает прежняя версия. Подробности: niri validate"]);
@@ -127,7 +123,6 @@ Singleton {
                 }
             }
         }
-        // niri restarting (or a config error on startup) drops the stream.
         onExited: restart.start()
     }
 

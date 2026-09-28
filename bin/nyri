@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# One entry point for every shell action a keybind can trigger.
-#
-# niri binds call `nyri <action>` and never change. What stands behind an
-# action does: today most are stand-ins (fuzzel, grim, wf-recorder); as the
-# Quickshell shell grows its own surfaces, the case below switches to
-# `qs -c nyri ipc call ...` and the binds stay exactly as they are.
 set -uo pipefail
 
 NYRI="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
@@ -13,14 +7,11 @@ CLIPS="$HOME/Videos/Recordings"
 
 todo() { notify-send -a nyri "Nyri" "$1 — ещё не сделано"; }
 
-# Ask the running shell. Fails (so the caller can fall back) when it is down.
 shell() { qs -c nyri ipc call nyri "$@" &>/dev/null; }
 
 menu() { fuzzel --dmenu --prompt "$1  " "${@:2}"; }
 
 region() {
-    # $2: an area already picked ("x,y wxh", from the capture menu);
-    # without it the tools ask with slurp themselves.
     local geom="${2:-}"
     case "${1:-screenshot}" in
         screenshot)
@@ -29,7 +20,6 @@ region() {
         full)
             niri msg action screenshot-screen ;;
         menu)
-            # While recording, the same key stops it.
             pkill -INT -x wf-recorder && exit 0
             shell toggle snip || niri msg action screenshot ;;
         edit)
@@ -50,7 +40,6 @@ region() {
     esac
 }
 
-# A picked area to a file in ~/Pictures/Screenshots and the clipboard.
 shot() {
     local file
     mkdir -p "$SHOTS"
@@ -65,14 +54,11 @@ shot() {
     disown
 }
 
-# tesseract fails outright on a missing language, so use only installed ones.
 ocr_langs() {
     local have; have="$(tesseract --list-langs 2>/dev/null)"
     grep -qx rus <<<"$have" && echo "eng+rus" || echo "eng"
 }
 
-# Same key starts and stops a recording. The shell shows a red chip while it
-# runs; when it stops, the file is offered as a notification.
 record() {
     if pkill -INT -x wf-recorder; then
         return
@@ -92,8 +78,6 @@ record() {
     disown
 }
 
-# Google Lens on a screen region. The image goes to litterbox.catbox.moe
-# (public, deleted after 1 hour) because Lens only takes a URL.
 lens() {
     local geom="${1:-}" tmp url
     [[ -n $geom ]] || geom="$(slurp)" || exit 0
@@ -109,7 +93,6 @@ lens() {
     fi
 }
 
-# Pick a color anywhere on screen; copies the hex.
 picker() {
     local c; c="$(hyprpicker -a -f hex 2>/dev/null)" || exit 0
     [[ -n $c ]] && notify-send -a "Пипетка" -i color-select "$c" "Скопирован в буфер обмена"

@@ -7,26 +7,16 @@ import qs.services
 import qs.widgets
 import qs.control
 
-// Widgets that live on the wallpaper, Pixel-style: clock, date and weather,
-// battery, the player when something plays, the forecast, a calendar, system
-// load and today's screen time. Drag them anywhere; right click one for its
-// next look. They stay where you put them; only the picture behind drifts
-// with the workspace.
-//
-// Nothing here ticks on its own: the clock wakes once a minute, weather and
-// battery are pushed by their services, the player asks for its position and
-// the system widget samples CPU and memory only while the desk is bare.
 Item {
     id: root
 
     property real shiftX: 0
     property real shiftY: 0
-    property bool bare: true         // no windows on this workspace: widgets are in view
+    property bool bare: true
 
     readonly property var cfg: Config.o.desktop
     visible: cfg.enabled
 
-    // First appearance: everything drops in one after another.
     property bool shown: false
     SpringValue { id: introSpring; target: root.shown ? 1 : 0; damping: 0.7; stiffness: 200 }
     Component.onCompleted: shown = true
@@ -38,7 +28,6 @@ Item {
 
     SystemClock { id: clock; precision: SystemClock.Minutes }
 
-    // CPU and memory are sampled only while the system widget is in view.
     readonly property bool watchingSys: cfg.enabled && cfg.system && bare
     onWatchingSysChanged: SysStats.watchers += watchingSys ? 1 : -1
     Component.onDestruction: if (watchingSys) SysStats.watchers--
@@ -67,7 +56,6 @@ Item {
         return h > 0 ? h + " ч " + m + " мин" : m + " мин";
     }
 
-    // ── Grid, shown only while something is being dragged ───────────────
     readonly property var desks: [dClock, dGlance, dBattery, dMedia, dForecast, dCalendar, dSystem, dUsage]
     readonly property DeskItem held: desks.find(d => d.dragging) ?? null
     SpringValue { id: gridIn; target: root.held && root.cfg.grid ? 1 : 0; damping: 0.9; stiffness: 400 }
@@ -90,7 +78,6 @@ Item {
         }
     }
 
-    // Where the held widget will land: a soft slot that hops cell to cell.
     Rectangle {
         visible: root.held !== null
         SpringValue { id: slotX; target: root.held ? root.held.dropX : 0; damping: 0.7; stiffness: 700 }
@@ -105,7 +92,6 @@ Item {
         border.color: Qt.alpha(Colors.m3primary, 0.6)
     }
 
-    // Input only where the widgets are (see the window in Wallpaper.qml).
     readonly property Region mask: Region {
         Region { item: dClock }
         Region { item: dGlance }
@@ -119,7 +105,6 @@ Item {
         Region { item: menu.visible ? menu : null }
     }
 
-    // While the menu is open, a click anywhere else closes it.
     MouseArea {
         id: catcher
         anchors.fill: parent
@@ -128,7 +113,6 @@ Item {
         onClicked: menu.close()
     }
 
-    // Scripted demo requests (test window only; see services/Demo.qml).
     Connections {
         target: Demo
         function find(key) { return root.desks.find(d => d.key === key) ?? null; }
@@ -138,8 +122,6 @@ Item {
         function onDragRequested(key, x, y) { const d = find(key); if (d) d.demoDrag(x, y); }
     }
 
-    // Hand angles for the analog clock, counted from midnight so they only
-    // ever move forward (no spin backwards when the hour turns).
     readonly property int dayMinutes: clock.date.getHours() * 60 + clock.date.getMinutes()
     readonly property real minuteAngle: dayMinutes * 6
     readonly property real hourAngle: dayMinutes * 0.5
@@ -148,7 +130,6 @@ Item {
         id: col
         anchors.fill: parent
 
-        // ── Clock ───────────────────────────────────────────────────────
         DeskItem {
             id: dClock
             shown: root.cfg.clock
@@ -169,12 +150,11 @@ Item {
                 scale: 0.6 + 0.4 * root.stage(0)
                 transformOrigin: Item.TopLeft
 
-                // 1. Hours over minutes inside a cookie that turns a notch a minute.
                 Component {
                     id: clockCookie
                     Item {
                         width: 260
-                        height: 284             // the scallops need air below them
+                        height: 284
 
                         SpringValue {
                             id: turn
@@ -214,7 +194,6 @@ Item {
                     }
                 }
 
-                // 2. One line in a wide pill, with the weekday under it.
                 Component {
                     id: clockPill
                     Rectangle {
@@ -246,7 +225,6 @@ Item {
                     }
                 }
 
-                // 3. Analog: rounded hands on a scalloped face.
                 Component {
                     id: clockAnalog
                     Item {
@@ -261,7 +239,6 @@ Item {
                             shape: "cookie9Sided"
                             color: Colors.m3primaryContainer
                         }
-                        // Twelve dots for the hours.
                         Repeater {
                             model: 12
                             Rectangle {
@@ -276,7 +253,7 @@ Item {
                                 opacity: index % 3 === 0 ? 0.9 : 0.45
                             }
                         }
-                        Rectangle {                     // hour hand
+                        Rectangle {
                             x: 120 - width / 2
                             y: 120 - height + 10
                             width: 18
@@ -285,7 +262,7 @@ Item {
                             color: Colors.m3onPrimaryContainer
                             transform: Rotation { origin.x: 9; origin.y: 60; angle: hourS.value }
                         }
-                        Rectangle {                     // minute hand
+                        Rectangle {
                             x: 120 - width / 2
                             y: 120 - height + 8
                             width: 10
@@ -306,7 +283,6 @@ Item {
                     }
                 }
 
-                // 4. Two shapes side by side: hours in a cookie, minutes in a pill.
                 Component {
                     id: clockDuo
                     Row {
@@ -338,7 +314,6 @@ Item {
             }
         }
 
-        // ── At a glance: date, weather ──────────────────────────────────
         DeskItem {
             id: dGlance
             shown: root.cfg.glance
@@ -358,7 +333,6 @@ Item {
                 opacity: Math.min(1, root.stage(1))
                 transform: Translate { y: (1 - Math.min(1, root.stage(1))) * 24 }
 
-                // 1. One line in a pill.
                 Component {
                     id: glancePill
                     Rectangle {
@@ -384,7 +358,6 @@ Item {
                     }
                 }
 
-                // 3. Only the date, big and quiet.
                 Component {
                     id: glanceDate
                     Rectangle {
@@ -396,7 +369,6 @@ Item {
                     }
                 }
 
-                // 2. A card: the day number big, weekday and month, weather.
                 Component {
                     id: glanceCard
                     Rectangle {
@@ -444,7 +416,6 @@ Item {
             }
         }
 
-        // ── Battery ─────────────────────────────────────────────────────
         DeskItem {
             id: dBattery
             shown: root.cfg.battery && (root.battery?.isLaptopBattery ?? false)
@@ -464,7 +435,6 @@ Item {
                 opacity: Math.min(1, root.stage(2))
                 transform: Translate { y: (1 - Math.min(1, root.stage(2))) * 24 }
 
-                // 1. A ring with the number, and how long it lasts.
                 Component {
                     id: battPill
                     Rectangle {
@@ -505,7 +475,6 @@ Item {
                     }
                 }
 
-                // 3. A battery: a wide pill that fills, the number on it.
                 Component {
                     id: battBar
                     Rectangle {
@@ -530,7 +499,6 @@ Item {
                             Row {
                                 anchors.centerIn: parent
                                 spacing: 6
-                                // The number sits over the fill once it passes the middle.
                                 MIcon { anchors.verticalCenter: parent.verticalCenter; visible: root.charging; icon: "bolt"; size: 22; fill: 1; color: root.level > 0.5 ? Colors.m3onPrimary : Colors.m3onSecondaryContainer }
                                 RollingText { anchors.verticalCenter: parent.verticalCenter; pixelSize: 26; weight: 700; color: root.level > 0.5 ? Colors.m3onPrimary : Colors.m3onSecondaryContainer; text: Math.round(root.level * 100) + "%" }
                             }
@@ -538,7 +506,6 @@ Item {
                     }
                 }
 
-                // 2. One big ring, the number inside.
                 Component {
                     id: battRing
                     Rectangle {
@@ -571,7 +538,6 @@ Item {
             }
         }
 
-        // ── Now playing: shows up only when there is a player ──────────
         DeskItem {
             id: dMedia
             shown: root.cfg.media
@@ -603,9 +569,6 @@ Item {
             }
         }
 
-        // ── Right column ───────────────────────────────────────────────
-
-        // Weather.
         DeskItem {
             id: dForecast
             shown: root.cfg.forecast && Weather.daily.length > 0
@@ -625,7 +588,6 @@ Item {
                 height: cur?.height ?? 0
                 opacity: Math.min(1, root.stage(1))
 
-                // 1. The next five days: big icons, highs over lows.
                 Component {
                     id: fcDays
                     Rectangle {
@@ -659,7 +621,6 @@ Item {
                     }
                 }
 
-                // 2. Right now: the temperature big, what it feels like.
                 Component {
                     id: fcNow
                     Rectangle {
@@ -697,7 +658,6 @@ Item {
             }
         }
 
-        // Calendar.
         DeskItem {
             id: dCalendar
             shown: root.cfg.calendar
@@ -717,7 +677,6 @@ Item {
                 height: cur?.height ?? 0
                 opacity: Math.min(1, root.stage(2))
 
-                // 1. This month, today in a cookie.
                 Component {
                     id: calMonth
                     Rectangle {
@@ -736,7 +695,6 @@ Item {
                     }
                 }
 
-                // 2. This week as a strip.
                 Component {
                     id: calWeek
                     Rectangle {
@@ -792,7 +750,6 @@ Item {
             }
         }
 
-        // System load.
         DeskItem {
             id: dSystem
             shown: root.cfg.system
@@ -818,8 +775,6 @@ Item {
                 height: cur?.height ?? 0
                 opacity: Math.min(1, root.stage(3))
 
-                // 1. Three rings.
-                // Fixed sizes: numbers changing width must never move the card.
                 Component {
                     id: sysRings
                     Rectangle {
@@ -842,8 +797,6 @@ Item {
                                         anchors.horizontalCenter: parent.horizontalCenter
                                         width: 60
                                         height: 60
-                                        // A slow, calm spring: the 2 s samples glide into each
-                                        // other, and the number counts along with the ring.
                                         SpringValue { id: ring; target: modelData.value; damping: 1.0; stiffness: 12; epsilon: 0.001 }
                                         CircularProgress { anchors.fill: parent; stroke: 6; value: ring.value; animated: false }
                                         MText { anchors.centerIn: parent; textStyle: Type.labelLargeEmph; font.features: { "tnum": 1 }; text: Math.round(ring.value * 100) }
@@ -855,7 +808,6 @@ Item {
                     }
                 }
 
-                // 3. One line: the numbers only, fixed width.
                 Component {
                     id: sysLine
                     Rectangle {
@@ -880,7 +832,6 @@ Item {
                     }
                 }
 
-                // 2. Three bars.
                 Component {
                     id: sysBars
                     Rectangle {
@@ -930,7 +881,6 @@ Item {
             }
         }
 
-        // Screen time today.
         DeskItem {
             id: dUsage
             shown: root.cfg.usage
@@ -945,7 +895,6 @@ Item {
 
             Item {
                 id: usage
-                // Recomputed when the clock ticks (once a minute): cheap.
                 readonly property var today: { clock.date; return ScreenTime.dayTotals(new Date()); }
                 readonly property var topApps: Object.entries(today).sort((a, b) => b[1] - a[1]).slice(0, 3)
                 readonly property string totalText: ScreenTime.fmt(ScreenTime.total(today))
@@ -955,7 +904,6 @@ Item {
                 height: cur?.height ?? 0
                 opacity: Math.min(1, root.stage(4))
 
-                // 1. The total and the top three apps.
                 Component {
                     id: usageList
                     Rectangle {
@@ -1016,7 +964,6 @@ Item {
                     }
                 }
 
-                // 2. Just the total, big.
                 Component {
                     id: usageTotal
                     Rectangle {
@@ -1049,15 +996,11 @@ Item {
         }
     }
 
-    // ── Right-click menu: this widget's looks as live previews, and remove ──
     Item {
         id: menu
 
         property DeskItem target: null
         readonly property bool open: target !== null && (openS.target > 0 || openDelay.running)
-        // The previews are live copies of the widget; building them takes a
-        // frame or two. Build first (invisible), then unfold — otherwise the
-        // empty card shows up before its content.
         function openFor(d) { target = d; openS.target = 0; openDelay.restart(); }
         Timer { id: openDelay; interval: 60; onTriggered: openS.target = 1 }
         function close() { openDelay.stop(); openS.target = 0; }
@@ -1069,7 +1012,6 @@ Item {
         visible: target !== null && p > 0.01
         width: Math.max(240, previews.width + 16)
         height: menuCol.implicitHeight + 16
-        // Above the widget, centred on it; below when there is no room.
         readonly property bool below: target ? target.y - height - 8 < 8 : false
         x: target ? Math.max(8, Math.min(root.width - width - 8, target.x + target.width / 2 - width / 2)) : 0
         y: target ? (below ? target.y + target.height + 8 : target.y - height - 8) : 0
@@ -1098,7 +1040,6 @@ Item {
                 text: menu.target?.title ?? ""
             }
 
-            // Every look as a live miniature; the current one is ringed.
             Grid {
                 id: previews
                 columns: Math.min(2, menu.target?.looks.length ?? 1)

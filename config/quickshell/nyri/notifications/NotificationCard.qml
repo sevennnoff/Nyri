@@ -6,7 +6,6 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// One notification. Used for popups and for the history in the control center.
 Card {
     id: root
 
@@ -27,7 +26,6 @@ Card {
     color: critical ? Colors.m3errorContainer : popup ? Colors.m3surfaceContainerHigh : Colors.m3surfaceContainerHighest
     elevation: popup ? 3 : 0
 
-    // Click anywhere: the default action if there is one.
     MouseArea {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
@@ -48,7 +46,6 @@ Card {
             width: parent.width
             spacing: 12
 
-            // Leading: the notification image if any, else the app icon.
             Item {
                 width: 40
                 height: 40
@@ -137,7 +134,6 @@ Card {
             }
         }
 
-        // Actions as tonal pills (the default action is the card itself).
         Flow {
             width: parent.width
             spacing: 8

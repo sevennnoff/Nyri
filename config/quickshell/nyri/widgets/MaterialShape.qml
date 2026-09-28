@@ -3,12 +3,10 @@ import qs.theme
 import "../lib/shapes/material-shapes.js" as Shapes
 import "../lib/shapes/shapes/morph.js" as Morph
 
-// One of the 35 M3 Expressive shapes. Changing `shape` morphs to the new one
-// on the fast spatial curve, overshoot included.
 Canvas {
     id: root
 
-    property string shape: "circle"    // cookie9Sided, sunny, clover4Leaf, ...
+    property string shape: "circle"
     property color color: Colors.m3primary
     property real progress: 1
 

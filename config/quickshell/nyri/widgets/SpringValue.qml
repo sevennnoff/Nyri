@@ -1,12 +1,6 @@
 import QtQuick
 import qs.theme
 
-// A number that follows `target` like a damped spring (unit mass), integrated
-// every frame — so it runs at the display's refresh rate, and when the target
-// changes mid-flight it keeps its velocity and bends toward the new target
-// instead of restarting. That is what makes interrupted motion flow.
-//
-// Idle when settled: the FrameAnimation stops, nothing ticks.
 FrameAnimation {
     id: root
 

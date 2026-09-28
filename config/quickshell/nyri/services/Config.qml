@@ -3,10 +3,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// User settings, edited in the settings window and read everywhere else.
-// Lives in Paths.state/settings.json (not the repo, so toggling a
-// switch never dirties git). Writes itself on change; reloads when the file
-// changes on disk.
 Singleton {
     id: root
 
@@ -32,10 +28,9 @@ Singleton {
             }
 
             property JsonObject notifications: JsonObject {
-                property int timeout: 7          // seconds, normal urgency
+                property int timeout: 7
             }
 
-            // Minutes; 0 means never.
             property JsonObject idle: JsonObject {
                 property int screenOff: 5
                 property int lockAc: 10
@@ -51,25 +46,24 @@ Singleton {
             }
 
             property JsonObject night: JsonObject {
-                property string mode: "off"      // off | on | auto (sunset to sunrise)
+                property string mode: "off"
                 property int temp: 3600
             }
 
             property JsonObject motion: JsonObject {
-                property real speed: 1.0         // 0.6 slower … 1.6 faster
+                property real speed: 1.0
             }
 
             property JsonObject wallpaper: JsonObject {
-                property bool span: false        // one picture across all monitors
+                property bool span: false
             }
 
-            // Widgets on the wallpaper.
             property JsonObject desktop: JsonObject {
                 property bool enabled: true
-                property bool grid: true         // snap to a grid when dropped
+                property bool grid: true
                 property int gridSize: 24
-                property var positions: ({})     // key -> { x, y }, set by dragging
-                property var variants: ({})      // key -> which look, cycled by right click
+                property var positions: ({})
+                property var variants: ({})
                 property bool clock: true
                 property bool glance: true
                 property bool battery: true

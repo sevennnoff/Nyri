@@ -3,8 +3,6 @@ import QtQuick.Effects
 import qs.theme
 import qs.services
 
-// A floating pill on the bar. Width follows the content on a spatial spring,
-// so islands stretch and settle instead of snapping when their content changes.
 Item {
     id: root
 
@@ -13,7 +11,6 @@ Item {
     property int padding: 4
     property alias spacing: row.spacing
     property string widthSpeed: "default"
-    // Startup: islands fall into place one by one (set per island in Bar).
     property int introIndex: 0
     property real intro: 0
 

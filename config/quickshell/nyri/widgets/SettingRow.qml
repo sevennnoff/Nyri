@@ -1,8 +1,6 @@
 import QtQuick
 import qs.theme
 
-// One row of a ListGroup: icon, title, optional subtitle, and a trailing
-// control (switch, value, button...) passed as children.
 Rectangle {
     id: root
 
@@ -30,11 +28,9 @@ Rectangle {
 
     onVisibleChanged: parent?.restyle?.()
 
-    // Disabled: still there, but faded and deaf.
     property real dim: enabled ? 1 : 0.45
     Behavior on dim { EffectAnim {} }
 
-    // Arrival: rows rise into place one after another, top to bottom.
     property bool born: false
     Timer {
         running: true
@@ -45,7 +41,6 @@ Rectangle {
     opacity: dim * Math.max(0, Math.min(1, arrive.value * 1.3))
     transform: Translate { y: (1 - arrive.value) * 28 }
 
-    // A row that holds a switch is one big target: tap anywhere to flip it.
     readonly property var switchItem: {
         for (let i = 0; i < slot.children.length; i++) {
             const c = slot.children[i];
@@ -70,8 +65,6 @@ Rectangle {
         width: parent.width - 32
         height: Math.max(48, texts.implicitHeight)
 
-        // M3 lists: one- and two-line items centre the icon; three lines and
-        // more line it up with the title instead of the middle of the block.
         MIcon {
             id: ico
             y: texts.height > titleText.height * 2.4 ? texts.y + (titleText.height - height) / 2
@@ -113,14 +106,10 @@ Rectangle {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             spacing: 8
-            // Trailing items of different heights (an 18px icon next to a
-            // 36px button) share one centre line.
             onChildrenChanged: { for (const c of children) c.anchors.verticalCenter = slot.verticalCenter; }
         }
     }
 
-    // Supporting content (sliders, buttons...) lines up with the text
-    // column, not the card edge — M3 list alignment.
     Column {
         id: extra
         x: root.icon !== "" ? 16 + 24 + 16 : 16

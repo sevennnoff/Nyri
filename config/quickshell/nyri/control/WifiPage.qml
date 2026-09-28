@@ -5,13 +5,11 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// Wi-Fi networks. Scans only while this page is open. A secured network you
-// have not joined asks for the password inline.
 Column {
     id: root
 
     signal back
-    property var asking: null        // network whose password row is open
+    property var asking: null
     spacing: 16
 
     Component.onCompleted: Net.scan(true)

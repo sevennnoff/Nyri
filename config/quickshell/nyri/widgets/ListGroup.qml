@@ -1,8 +1,6 @@
 import QtQuick
 import qs.theme
 
-// Android 16-style grouped list: rows share a column with 2dp gaps; the group
-// has large outer corners and small inner ones. Rows are SettingRow items.
 Column {
     id: root
 
@@ -24,7 +22,6 @@ Column {
         width: root.width
         spacing: 2
 
-        // Round the outer corners of the first and last visible rows.
         function restyle() {
             const vis = [];
             for (let i = 0; i < children.length; i++)

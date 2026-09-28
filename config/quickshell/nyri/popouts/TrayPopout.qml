@@ -6,7 +6,6 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// The overflow of the bar's tray, grown out of its chevron.
 Surface {
     id: root
 

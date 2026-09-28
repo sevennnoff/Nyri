@@ -2,15 +2,13 @@ import QtQuick
 import QtQuick.Effects
 import qs.theme
 
-// An M3 container with elevation. Swallows clicks, so a click on a card never
-// reaches the click-catcher behind it.
 Item {
     id: root
 
     default property alias content: body.data
     property color color: Colors.m3surfaceContainer
     property real radius: Shape.extraLarge
-    property int elevation: 2          // M3 levels 0..5
+    property int elevation: 2
     property alias clip: body.clip
 
     RectangularShadow {

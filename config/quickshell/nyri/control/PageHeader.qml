@@ -2,7 +2,6 @@ import QtQuick
 import qs.theme
 import qs.widgets
 
-// Header of a control-center sub-page: back, title, optional master switch.
 Item {
     id: root
 

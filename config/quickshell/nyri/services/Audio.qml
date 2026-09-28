@@ -12,7 +12,6 @@ Singleton {
     readonly property bool muted: sink?.audio?.muted ?? false
     readonly property bool micMuted: source?.audio?.muted ?? false
 
-    // Devices and per-app streams, for the audio page.
     readonly property var sinks: Pipewire.nodes.values.filter(n => n.audio && n.isSink && !n.isStream)
     readonly property var sources: Pipewire.nodes.values.filter(n => n.audio && !n.isSink && !n.isStream
                                                                     && !(n.name ?? "").endsWith(".monitor"))
@@ -23,7 +22,6 @@ Singleton {
         return node?.description || node?.nickname || node?.name || "";
     }
 
-    // Headphones, bluetooth, HDMI or speakers, by what the node calls itself.
     function deviceIcon(node) {
         const n = ((node?.name ?? "") + " " + (node?.description ?? "")).toLowerCase();
         if (n.includes("bluez")) return "headphones";
@@ -63,8 +61,6 @@ Singleton {
         objects: [root.sink, root.source]
     }
 
-    // Any volume change — keys, bar scroll, another app — shows the OSD.
-    // Skip the burst of changes while PipeWire hands over initial state.
     property bool settled: false
     Timer {
         running: true

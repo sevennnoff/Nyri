@@ -1,14 +1,6 @@
 import QtQuick
 import qs.theme
 
-// Text that flows when it changes, instead of snapping: the old line slides
-// up and fades, the new one rises in from below on a spring, and the width
-// stretches to the new length. For labels that change while you look at
-// them — states, titles, counters. Digits that only tick should use
-// RollingText, which rolls per character.
-//
-// Drop-in for MText in most places: text, textStyle, color, elide; set a
-// width to elide, otherwise it sizes itself.
 Item {
     id: root
 
@@ -21,7 +13,6 @@ Item {
     property real maxWidth: Infinity
     readonly property bool sized: elide !== Text.ElideNone
 
-    // a/b take turns being the current line.
     property bool onA: true
     readonly property Text current: onA ? a : b
     readonly property Text previous: onA ? b : a

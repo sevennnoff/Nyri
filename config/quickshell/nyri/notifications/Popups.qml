@@ -5,7 +5,6 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// Top-right stack under the bar. Maps only while there is something to show.
 PanelWindow {
     id: root
 
@@ -16,9 +15,6 @@ PanelWindow {
     margins { top: 12 + 40 + 4; right: 0 }
     exclusionMode: ExclusionMode.Ignore
     implicitWidth: 400 + 24
-    // Tall enough for any stack. The list's contentHeight is measured before
-    // a card's text has wrapped, so sizing the window by it cut single cards
-    // short; input still only lands on the cards themselves.
     implicitHeight: (screen?.height ?? 1080) - 12 - 40 - 4 - 12
     mask: Region { item: hit }
 
@@ -33,7 +29,6 @@ PanelWindow {
     WlrLayershell.namespace: "nyri-notifications"
     WlrLayershell.layer: WlrLayer.Overlay
 
-    // Keep the surface mapped until the last card has finished leaving.
     Timer {
         id: exitTimer
         interval: Motion.emphasizedAccel.duration + 50
@@ -78,7 +73,6 @@ PanelWindow {
             NotificationCard {
                 id: card
 
-                // Born as a pill, springs into a card.
                 property real born: 0
                 SpatialAnim on born { from: 0; to: 1; speed: "fast" }
 

@@ -13,7 +13,6 @@ Column {
         return v === 0 ? "никогда" : v + " мин";
     }
 
-    // A minutes slider over 0..max, snapping to whole minutes.
     component MinuteRow: SettingRow {
         id: row
         property string key
@@ -26,7 +25,6 @@ Column {
             onMoved: v => Config.o.idle[row.key] = Math.round(v * row.max)
         }
     }
-
 
     ListGroup {
         width: parent.width

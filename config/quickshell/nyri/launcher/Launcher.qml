@@ -6,13 +6,6 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// Docked search, dropping from under the bar.
-//   plain text  apps, windows, actions (fuzzy, frecent first)
-//   2+2*3, 100 usd в руб, 5 км в милях
-//               looks like maths or a conversion: qalc's answer comes first;
-//               Enter copies it
-//   = …         calculator only
-//   > cmd       run a command; Shift+Enter runs it in a terminal
 Surface {
     id: root
 
@@ -20,8 +13,6 @@ Surface {
 
     readonly property string query: field.text
     readonly property string mode: query.startsWith("=") ? "calc" : query.startsWith(">") ? "run" : "apps"
-    // One list, several kinds: open windows first, then apps, then shell
-    // actions, and a web search at the end.
     readonly property var results: {
         if (mode !== "apps")
             return [];
@@ -30,7 +21,6 @@ Surface {
             return Apps.search("").map(e => ({ kind: "app", entry: e }));
         const answer = root.looksLikeMath && root.calcResult ? [{ kind: "calc", text: root.calcResult }] : [];
 
-        // One ranking for everything, so a strong action beats a weak app.
         const scored = [];
         for (const w of Object.values(Niri.windows)) {
             const t = (w.title ?? "").toLowerCase(), id = (w.app_id ?? "").toLowerCase();
@@ -66,15 +56,12 @@ Surface {
     ]
     property string calcResult: ""
 
-    // Digits plus an operator, a unit or a currency, or "в"/"to": worth
-    // asking qalc about, without typing "=".
     readonly property bool looksLikeMath: {
         const q = query.trim();
         return /\d/.test(q) && (/[-+*\/^%×÷()=]/.test(q) || /(^|\s)(to|in|в|во)\s/i.test(q)
             || /(usd|eur|rub|cny|gbp|kzt|uah|руб|доллар|бакс|евро|юан|фунт|тенге|гривн|km|км|kg|кг|mi|миль|°|mb|gb|мб|гб)/i.test(q));
     }
 
-    // What qalc understands: English units, ISO currency codes, "to".
     function expression(q) {
         return q
             .replace(/(\d+(?:[.,]\d+)?)\s*%\s*(от|of)\s+/gi, "($1/100)*")
@@ -85,7 +72,7 @@ Surface {
             .replace(/мил[ьяи]\S*/gi, "mi").replace(/мб\b/gi, "MB").replace(/гб\b/gi, "GB");
     }
     readonly property bool currency: /RUB|USD|EUR|CNY|GBP|KZT|UAH/i.test(expression(query))
-    property bool ratesFresh: false        // exchange rates: fetched once per session
+    property bool ratesFresh: false
 
     property bool cascade: false
     Timer { id: cascadeOff; interval: 450; onTriggered: root.cascade = false }
@@ -128,7 +115,6 @@ Surface {
         stdout: StdioCollector {
             onStreamFinished: {
                 const t = text.trim();
-                // An answer, not qalc echoing the question back.
                 root.calcResult = t && /\d/.test(t) && t !== qalc.asked.trim() ? t : "";
             }
         }
@@ -143,7 +129,6 @@ Surface {
             const update = root.currency && !root.ratesFresh;
             if (update) root.ratesFresh = true;
             qalc.asked = expr;
-            // conv 0: "3,1 mi", not "3 mi + 188 yd + 2 in".
             qalc.command = ["qalc", "-t", "-set", "conv 0", ...(update ? ["-e"] : []), expr];
             qalc.running = true;
         }
@@ -195,7 +180,6 @@ Surface {
                 }
             }
 
-            // Calculator / run: one big answer row.
             Rectangle {
                 width: parent.width
                 height: 72
@@ -302,7 +286,6 @@ Surface {
                             }
                         }
 
-                        // Open windows get a small badge so they read as "go to".
                         Rectangle {
                             visible: row.modelData.kind === "window"
                             anchors.right: parent.right

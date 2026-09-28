@@ -1,5 +1,3 @@
-// Hardware: Lenovo 83QG, 2880x1800 OLED at 120 Hz.
-
 input {
     keyboard {
         xkb {
@@ -47,8 +45,6 @@ output "eDP-1" {
     focus-at-startup
 }
 
-// The nested test session (bin/nyri-nested) gets the laptop's scale, so what
-// you see in the window is what the real session will look like.
 output "winit" {
     scale 1.3333333333333333
 }

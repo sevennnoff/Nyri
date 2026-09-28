@@ -5,7 +5,7 @@ import Quickshell
 Singleton {
     id: root
 
-    property string kind: ""        // volume | mic | brightness | layout
+    property string kind: ""
     property bool shown: false
 
     function show(k) {
@@ -22,7 +22,6 @@ Singleton {
         onTriggered: root.shown = false
     }
 
-    // Keyboard layout switches come from niri itself.
     property bool layoutReady: false
     Connections {
         target: Niri

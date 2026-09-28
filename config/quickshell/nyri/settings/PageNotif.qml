@@ -6,7 +6,6 @@ import qs.widgets
 Column {
     spacing: 24
 
-
     ListGroup {
         width: parent.width
 

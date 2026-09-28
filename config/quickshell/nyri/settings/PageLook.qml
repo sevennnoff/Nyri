@@ -13,8 +13,6 @@ Column {
 
     readonly property string theme: Quickshell.env("HOME") + "/nyri/bin/nyri-theme"
 
-    // Each scheme's colours for this wallpaper, for the chip swatches.
-    // Computed in the background (a couple of seconds), cached per wallpaper.
     property var schemes: ({})
     FileView {
         id: schemeCache
@@ -38,8 +36,6 @@ Column {
     function apply(env, wall) {
         Quickshell.execDetached(["env", ...env, theme, ...(wall ? [wall] : [])]);
     }
-
-
 
     ListGroup {
         width: parent.width
@@ -272,7 +268,6 @@ Column {
                 }
             }
 
-            // Open-Meteo geocoding: name → coordinates.
             Process {
                 id: geo
                 function lookup(name) {

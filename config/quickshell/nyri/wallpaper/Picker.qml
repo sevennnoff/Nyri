@@ -6,14 +6,6 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// Wallpaper studio (Mod+Y): an ordinary window, tiled like any app. Flat
-// vector wallpapers from bin/nyri-wall: a big live preview with the actions
-// on it; every style as a live thumbnail in the current palette; palettes as
-// M3 colour swatches, including "your colour" — pick a hue and the whole
-// palette is built from it; graph paper on or off; your own pictures.
-//
-// Keys: ←/→ style, ↑/↓ palette, C your colour, G grid, R or Space shuffle,
-// Enter apply.
 Scope {
     id: root
 
@@ -32,7 +24,7 @@ Scope {
     property string palette: "Терракота"
     property int seed: 1
     property bool grid: false
-    property real hue: 0.72             // your colour
+    property real hue: 0.72
     property bool customDark: false
     property int frame: 0
     property int thumbGen: 0
@@ -67,7 +59,6 @@ Scope {
         applier.running = true;
     }
 
-    // Dragging the hue re-renders at most every 120 ms.
     onCustomSpecChanged: if (custom) hueDebounce.restart()
     Timer { id: hueDebounce; interval: 120; onTriggered: { root.palette = root.customSpec; root.refresh(); } }
 
@@ -93,7 +84,6 @@ Scope {
         }
     }
 
-    // Start from whatever is on the desktop now.
     FileView {
         id: restore
         path: Paths.data + "/walls/current.json"
@@ -128,8 +118,6 @@ Scope {
     }
     Process {
         id: scan
-        // Your pictures: ~/Pictures/Wallpapers, or $NYRI_PICTURES (the demo
-        // points it at an empty folder so no private pictures end up on video).
         command: ["sh", "-c", "find \"${NYRI_PICTURES:-$HOME/Pictures/Wallpapers}\" -maxdepth 1 -type f \\( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \\) 2>/dev/null | sort"]
         stdout: StdioCollector { onStreamFinished: root.files = text.split("\n").filter(Boolean) }
     }
@@ -188,7 +176,6 @@ Scope {
                     width: parent.width - 40
                     spacing: 18
 
-                    // ── Hero preview with the actions on it ───────────────
                     ClippingRectangle {
                         id: hero
                         width: parent.width
@@ -196,8 +183,6 @@ Scope {
                         radius: Shape.extraLarge
                         color: Colors.m3surfaceContainerHighest
 
-                        // Two images take turns: the new variant fades and
-                        // settles in over the old one.
                         Item {
                             id: stage
                             anchors.fill: parent
@@ -244,7 +229,6 @@ Scope {
                             }
                         }
 
-                        // style · palette
                         Rectangle {
                             x: 16
                             y: 16
@@ -266,7 +250,6 @@ Scope {
                             }
                         }
 
-                        // Actions, bottom right: shuffle (round) and apply (FAB).
                         Row {
                             anchors.right: parent.right
                             anchors.bottom: parent.bottom
@@ -321,7 +304,6 @@ Scope {
                         }
                     }
 
-                    // ── Styles ────────────────────────────────────────────
                     Item {
                         width: parent.width
                         height: 36
@@ -352,7 +334,6 @@ Scope {
                             id: card
                             required property var modelData
                             readonly property bool picked: root.style === modelData.id
-                            // Room around the thumbnail for the ring and the badge.
                             width: 164
                             height: 136
 
@@ -411,7 +392,6 @@ Scope {
                         }
                     }
 
-                    // ── Palettes ──────────────────────────────────────────
                     Section { title: "Палитра" }
 
                     ListView {
@@ -427,7 +407,6 @@ Scope {
                         onCurrentIndexChanged: if (currentIndex >= 0) positionViewAtIndex(currentIndex, ListView.Contain)
                         boundsBehavior: Flickable.StopAtBounds
 
-                        // First: your colour, a rainbow ring around the hue.
                         header: Item {
                             width: 70
                             height: 80
@@ -482,8 +461,6 @@ Scope {
 
                             SpringValue { id: swPick; target: sw.picked ? 1 : 0; damping: 0.6; stiffness: 520 }
 
-                            // Android-style swatch: background on top, two inks
-                            // below; picked, it shrinks into a ring with a check.
                             Item {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 y: 4
@@ -536,8 +513,6 @@ Scope {
                         }
                     }
 
-                    // Your colour: a hue bar and light/dark, unfolding under
-                    // the swatches only while "Свой" is picked.
                     Item {
                         id: customBox
                         width: parent.width
@@ -570,7 +545,6 @@ Scope {
                                 }
                             }
 
-                            // Thumb: the chosen colour in a white ring, grows while held.
                             Rectangle {
                                 SpringValue { id: thumbX; target: root.hue * (hueBar.width - 36); damping: 0.8; stiffness: 900; epsilon: 0.1 }
                                 SpringValue { id: thumbS; target: hueArea.pressed ? 1.2 : 1; damping: 0.55; stiffness: 700 }
@@ -606,7 +580,6 @@ Scope {
                         }
                     }
 
-                    // ── Your own pictures ─────────────────────────────────
                     Section { title: "Мои картинки"; visible: root.files.length > 0 }
 
                     ListView {

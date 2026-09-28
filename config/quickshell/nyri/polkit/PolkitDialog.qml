@@ -6,21 +6,11 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// The shell's own polkit agent: when an app asks for admin rights (pkexec,
-// mounting, package managers), an M3 dialog grows from the centre instead of
-// a KDE window. Password dots are M3 shapes, a wrong password shakes the
-// field, and Esc or "Отмена" cancels the request.
-//
-// Only one agent can own a session. If another one got there first (say the
-// old polkit-kde agent), this one simply never shows up.
 Scope {
     id: root
 
     PolkitAgent { id: agent }
 
-    // bin/nyri-nested cannot register an agent (the real session already
-    // has one), so there `ipc call nyri polkitDemo` fakes a request to look
-    // at the dialog.
     property bool demo: false
     QtObject {
         id: fake
@@ -103,7 +93,6 @@ Scope {
             opacity: 0.5 * win.f
         }
 
-        // M3 dialog: extra-large corners, icon, headline, body, actions.
         Card {
             id: dialog
             anchors.centerIn: parent
@@ -123,7 +112,6 @@ Scope {
                 width: parent.width - 48
                 spacing: 16
 
-                // Icon in a shape that turns while the password is checked.
                 Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     width: 72
@@ -163,7 +151,6 @@ Scope {
                     text: root.flow?.message ?? ""
                 }
 
-                // Who to authenticate as, when there is a choice.
                 Flow {
                     width: parent.width
                     spacing: 6
@@ -185,7 +172,6 @@ Scope {
                     }
                 }
 
-                // Password pill: a shape per character, shakes when wrong.
                 Rectangle {
                     id: field
                     width: parent.width
@@ -274,7 +260,6 @@ Scope {
                     text: root.flow?.actionId ?? ""
                 }
 
-                // Actions: text button + filled button, right-aligned (M3).
                 Row {
                     anchors.right: parent.right
                     spacing: 8

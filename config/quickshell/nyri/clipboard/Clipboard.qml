@@ -5,15 +5,12 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// Clipboard history from cliphist, read once per opening (no watching).
-// Enter copies, Shift+Delete forgets an entry. Images get thumbnails,
-// decoded on demand into the runtime dir.
 Surface {
     id: root
 
     name: "clipboard"
 
-    property var entries: []          // { line, id, text, image }
+    property var entries: []
     readonly property string thumbs: Quickshell.env("XDG_RUNTIME_DIR") + "/nyri-clip"
     readonly property var shown: {
         const q = field.text.trim().toLowerCase();
@@ -143,7 +140,6 @@ Surface {
                         sourceSize.height: 192
                         asynchronous: true
                         cache: false
-                        // The file may not exist yet on first paint; retry once it does.
                         onStatusChanged: if (status === Image.Error) retry.start()
                         Timer { id: retry; interval: 300; onTriggered: { img.source = ""; img.source = "file://" + row.thumb } }
                     }

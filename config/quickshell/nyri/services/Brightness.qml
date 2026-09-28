@@ -3,9 +3,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Backlight via sysfs. sysfs does not emit inotify events, so instead of
-// polling this re-reads only when something changes brightness: the keys
-// (through `nyri brightness ...` -> IPC) or the slider here.
 Singleton {
     id: root
 

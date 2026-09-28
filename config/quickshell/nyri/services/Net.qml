@@ -3,7 +3,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Networking
 
-// NetworkManager through Quickshell — event-driven, no nmcli polling.
 Singleton {
     readonly property var wifi: Networking.devices.values.find(d => d.type === DeviceType.Wifi) ?? null
     readonly property var wired: Networking.devices.values.find(d => d.type === DeviceType.Wired && d.connected) ?? null
@@ -17,8 +16,6 @@ Singleton {
         : strength > 66 ? "network_wifi" : strength > 33 ? "network_wifi_2_bar" : "network_wifi_1_bar"
     readonly property string label: wired ? "Кабель" : network ? nameOf(network) : (enabled ? "Не подключено" : "Выключен")
 
-    // Display names. NYRI_WIFI_ALIASES="real=shown;other=shown" renames
-    // networks on screen (for screenshots and demo videos), nothing else.
     readonly property var aliases: {
         const out = {};
         for (const pair of (Quickshell.env("NYRI_WIFI_ALIASES") || "").split(";")) {
@@ -29,7 +26,6 @@ Singleton {
     }
     function nameOf(net) { return aliases[net?.name] ?? net?.name ?? ""; }
 
-    // Networks for the Wi-Fi page: connected, then saved, then by signal.
     readonly property var networks: (wifi?.networks.values ?? []).slice().sort((a, b) =>
         (b.connected - a.connected) || (b.known - a.known) || (b.signalStrength - a.signalStrength))
 

@@ -4,7 +4,6 @@ import Quickshell.Widgets
 import qs.theme
 import qs.widgets
 
-// Android 16-style battery: a pill that fills, with the number inside it.
 Row {
     id: root
 

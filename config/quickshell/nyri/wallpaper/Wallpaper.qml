@@ -6,12 +6,6 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// Background layer. A new wallpaper opens as a circle from the centre over
-// the old one. Parallax: the picture is a little larger than the screen and
-// drifts on a slow spring when you change workspace (up/down) or scroll
-// columns (sideways), and leans in when the overview opens. Between
-// transitions nothing moves. niri puts this layer in the overview backdrop
-// (layer-rule in config/niri/rules.kdl).
 Variants {
     model: Quickshell.screens
 
@@ -32,9 +26,6 @@ Variants {
         WlrLayershell.namespace: "nyri-wallpaper"
         WlrLayershell.layer: WlrLayer.Background
 
-        // One picture across all screens (settings: "Единые обои"): the
-        // picture covers the box around every monitor, and each screen shows
-        // its own piece of it, placed where the monitor really is.
         readonly property bool span: Config.o.wallpaper.span && Quickshell.screens.length > 1
         readonly property rect box: {
             let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -47,7 +38,6 @@ Variants {
 
         readonly property size texture: Qt.size(stage.width * modelData.devicePixelRatio * 1.1, stage.height * modelData.devicePixelRatio * 1.1)
 
-        // ── Parallax ──
         readonly property var myWorkspaces: Niri.workspacesOn(modelData.name)
         readonly property var activeWs: myWorkspaces.find(w => w.is_active) ?? null
         readonly property real wsPos: myWorkspaces.length > 1 && activeWs
@@ -71,8 +61,6 @@ Variants {
         SpringValue { id: px; target: (0.5 - win.colPos) * 2 * win.slackX * 0.8; damping: 0.85; stiffness: 90; epsilon: 0.05 }
         SpringValue { id: py; target: (0.5 - win.wsPos) * 2 * win.slackY * 0.8; damping: 0.85; stiffness: 90; epsilon: 0.05 }
         SpringValue { id: pz; target: win.zoom; damping: 0.9; stiffness: 120; epsilon: 0.0005 }
-        // Arrival after unlock: from the lock screen's framing (a touch
-        // wider) the picture eases in to its usual zoom.
         Connections {
             target: Lock
             function onUnlocked() { pz.value = 1.0; pz.velocity = 0; pz.running = true; }
@@ -98,14 +86,12 @@ Variants {
             sourceSize: win.texture
         }
 
-        // The reveal: a circle that grows until it covers the screen.
         ClippingRectangle {
             id: reveal
 
             property real size: 0
             readonly property real diagonal: Math.hypot(win.width, win.height)
 
-            // Centred on this screen, wherever it sits in the stage.
             x: -stage.x + (win.width - size) / 2
             y: -stage.y + (win.height - size) / 2
             width: size
@@ -143,7 +129,6 @@ Variants {
                 }
             }
         }
-
         }
 
         Connections {
@@ -157,9 +142,6 @@ Variants {
         Component.onCompleted: if (Colors.wallpaper) shown = Colors.wallpaper
     }
 
-    // Widgets get their own surface on the bottom layer: the wallpaper sits
-    // in niri's overview backdrop, which takes no clicks. Input only where
-    // the widgets are. They stay put while the picture drifts under them.
     PanelWindow {
         screen: scope.modelData
         anchors { top: true; bottom: true; left: true; right: true }

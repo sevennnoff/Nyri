@@ -1,6 +1,3 @@
-// Geometry follows the M3 tokens: 12dp spacing between panes, 3dp focus
-// indicator, and level-3 elevation for the window shadow.
-
 layout {
     gaps 12
     center-focused-column "on-overflow"

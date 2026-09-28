@@ -1,11 +1,4 @@
 #!/usr/bin/env bash
-# Switch the real session from iNiR to nyri — or back.
-#
-#   nyri-install           check what is missing, render the theme, link the
-#                          configs (with a backup), stop iNiR from starting
-#   nyri-install --undo    unlink, restore the backup, bring iNiR back
-#
-# Takes effect at the next login (log out, log back in).
 set -euo pipefail
 
 NYRI="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
@@ -26,8 +19,6 @@ for cmd in niri qs matugen jq fuzzel cliphist wl-paste wl-copy grim slurp wf-rec
            kreadconfig6 plasma-apply-colorscheme wlsunset qalc; do
     command -v "$cmd" >/dev/null || missing+=("$cmd")
 done
-# Read the font list once: `fc-list | grep -q` dies of SIGPIPE under pipefail
-# and reports fonts that are there as missing.
 fonts="$(fc-list : family)"
 for font in "Rubik" "Material Symbols Rounded" "JetBrainsMono Nerd Font"; do
     grep -qF "$font" <<<"$fonts" || missing+=("font: $font")

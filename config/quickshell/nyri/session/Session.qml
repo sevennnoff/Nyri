@@ -4,8 +4,6 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-// Power menu. Every action is a shape; the selected one springs into its own
-// expressive shape and turns primary. ← → / Tab to move, Enter, or the letter.
 Surface {
     id: root
 
@@ -22,7 +20,6 @@ Surface {
         { key: "P", label: "Выключение",  icon: "power_settings_new", shape: "softBurst",    run: () => system(["systemctl", "poweroff"]) }
     ]
 
-    // Never power off the real laptop from the test window.
     function system(cmd) {
         if (Panels.nested)
             console.log("nested: skipped", cmd.join(" "));

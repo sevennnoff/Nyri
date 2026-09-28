@@ -3,22 +3,19 @@ import QtQuick
 import Quickshell
 import Quickshell.Services.Notifications
 
-// Notification daemon. Every notification is tracked (kept for the control
-// center's history) until dismissed; a popup is just a temporary view of it.
 Singleton {
     id: root
 
     property bool dnd: false
     readonly property var list: server.trackedNotifications.values
     readonly property int count: list.length
-    property var arrived: ({})              // id -> Date
+    property var arrived: ({})
     readonly property ListModel popups: ListModel {}
 
     function find(id) {
         return list.find(n => n.id === id) ?? null;
     }
 
-    // Normal timeout from settings (7 s by default), low at most 5 s, critical sticky.
     function timeoutFor(n) {
         if (!n || n.urgency === NotificationUrgency.Critical)
             return 0;
@@ -76,8 +73,6 @@ Singleton {
         imageSupported: true
 
         onNotification: n => {
-            // niri announces its own screenshots in English with no actions;
-            // swap that for ours: Russian, a thumbnail, Open / Folder.
             if (n.appName === "niri" && /screenshot/i.test(n.summary)) {
                 n.dismiss();
                 root.screenshotToast();
@@ -87,9 +82,8 @@ Singleton {
             const a = Object.assign({}, root.arrived);
             a[n.id] = new Date();
             root.arrived = a;
-            // lastGeneration: carried over a shell reload — already seen.
             if (!n.lastGeneration && (!root.dnd || n.urgency === NotificationUrgency.Critical)) {
-                root.hidePopup(n.id);          // replaced notification: re-show on top
+                root.hidePopup(n.id);
                 root.popups.insert(0, { nid: n.id });
             }
             n.closed.connect(() => root.hidePopup(n.id));
