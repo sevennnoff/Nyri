@@ -80,6 +80,8 @@ Singleton {
             property JsonObject wallpaper: JsonObject {
                 property bool span: false
                 property real scale: 1.0
+                property bool animated: false
+                property real pace: 1.0
             }
 
             property JsonObject theme: JsonObject {

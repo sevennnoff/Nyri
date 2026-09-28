@@ -82,6 +82,34 @@ Column {
         StateLayer { id: hbLayer; radius: hb.radius; color: hb.primary ? Colors.m3onPrimary : Colors.m3onSurface; onClicked: hb.clicked() }
     }
 
+    ListGroup {
+        width: parent.width
+        SettingRow {
+            icon: "animation"
+            title: "Живые обои"
+            subtitle: "Каждый узор двигается по-своему: плитки переворачиваются, фигуры крутятся, ленты плывут. Только пока виден стол"
+            MSwitch { checked: Config.o.wallpaper.animated; onToggled: c => Config.o.wallpaper.animated = c }
+        }
+        SettingRow {
+            visible: Config.o.wallpaper.animated
+            icon: "speed"
+            title: "Скорость живых обоев"
+            subtitle: "×" + Config.o.wallpaper.pace
+            below: MSlider {
+                width: parent.width
+                value: (Math.log(Config.o.wallpaper.pace) / Math.LN2 + 2) / 4
+                onMoved: v => deskPace.want = Math.pow(2, v * 4 - 2)
+                Timer {
+                    id: deskPace
+                    property real want: 1
+                    onWantChanged: restart()
+                    interval: 200
+                    onTriggered: Config.o.wallpaper.pace = Math.abs(want - 1) < 0.08 ? 1 : Math.round(want * 20) / 20
+                }
+            }
+        }
+    }
+
     Item {
         width: parent.width
         height: 40

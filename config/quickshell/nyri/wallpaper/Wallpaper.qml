@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Widgets
 import qs.theme
@@ -68,6 +69,26 @@ Variants {
         property string shown: ""
         property string incoming: ""
 
+        readonly property bool animated: Config.o.wallpaper.animated ?? false
+        readonly property bool seen: {
+            if (Niri.overviewOpen || Panels.deskEdit || !activeWs) return true;
+            const cols = {};
+            for (const id in Niri.windows) {
+                const w = Niri.windows[id];
+                if (w.workspace_id !== activeWs.id || w.is_floating) continue;
+                const c = w.layout?.pos_in_scrolling_layout?.[0] ?? 0, tw = w.layout?.tile_size?.[0] ?? width;
+                cols[c] = Math.max(cols[c] ?? 0, tw);
+            }
+            let sum = 0;
+            for (const c in cols) sum += cols[c];
+            return sum < width * 0.9;
+        }
+        Process {
+            id: sceneJob
+            command: [Paths.bin + "/nyri-wall", "scene", win.shown]
+            onExited: code => { if (code === 0) scene.reload(); }
+        }
+
         Item {
             id: stage
             x: win.span ? win.box.x - win.modelData.x : 0
@@ -80,10 +101,20 @@ Variants {
         Image {
             id: base
             anchors.fill: parent
-            source: win.shown ? "file://" + win.shown : ""
+            source: win.shown && !scene.visible ? "file://" + win.shown : ""
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             sourceSize: win.texture
+        }
+
+        Scene {
+            id: scene
+            anchors.fill: parent
+            visible: win.animated && ready
+            file: win.animated && win.shown.indexOf("/walls/") >= 0 && win.shown.endsWith(".png") ? win.shown.replace(/\.png$/, ".json") : ""
+            running: win.seen && !Lock.locked && win.incoming === ""
+            fps: Idle.battery ? 24 : 30
+            onMissing: if (file !== "") sceneJob.running = true
         }
 
         ClippingRectangle {

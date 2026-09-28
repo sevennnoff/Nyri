@@ -44,10 +44,14 @@ Scope {
         if (Math.abs(patternScale - 1) > 0.01) a.push("--scale", patternScale.toFixed(2));
         return a;
     }
+    Connections {
+        target: Config.o.wallpaper
+        function onAnimatedChanged() { if (Config.o.wallpaper.animated) root.regenerate(); }
+    }
     Timer { id: scaleDebounce; interval: 150; onTriggered: root.refresh() }
     function regenerate() {
         frame = (frame + 1) % 2;
-        make.command = [bin, "make", style, spec, String(seed), preview + frame + ".svg", "--size", "1440x900", ...args()];
+        make.command = [bin, "make", style, spec, String(seed), preview + frame + ".svg", "--size", "1440x900", ...args(), ...(Config.o.wallpaper.animated ? ["--scene", preview + frame + ".json"] : [])];
         make.running = true;
     }
     function rethumb() {
@@ -205,6 +209,7 @@ Scope {
                             }
                             function reveal(img) {
                                 img.pending = false;
+                                live.file = Config.o.wallpaper.animated ? img.source.toString().replace("file://", "").replace(/\.svg$/, ".json") : "";
                                 onA = img === imgA;
                                 img.z = 1;
                                 (img === imgA ? imgB : imgA).z = 0;
@@ -237,6 +242,14 @@ Scope {
                                 scale: !stage.onA ? 1.04 - 0.04 * swap.value : 1
                                 onStatusChanged: if (status === Image.Ready && pending) stage.reveal(imgB)
                             }
+                        }
+
+                        Scene {
+                            id: live
+                            anchors.fill: parent
+                            z: 1
+                            visible: Config.o.wallpaper.animated && ready && !swap.running
+                            running: visible
                         }
 
                         Rectangle {
@@ -445,6 +458,56 @@ Scope {
                                 color: Colors.m3onSecondaryContainer
                                 onClicked: { root.patternScale = 1; root.refresh(); }
                             }
+                        }
+                    }
+
+                    Item {
+                        width: parent.width
+                        height: 48
+                        MIcon { id: liveIcon; anchors.verticalCenter: parent.verticalCenter; icon: "animation"; size: 22; color: Colors.m3onSurfaceVariant }
+                        Column {
+                            anchors.left: liveIcon.right
+                            anchors.leftMargin: 12
+                            anchors.right: liveSwitch.left
+                            anchors.rightMargin: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                            MText { textStyle: Type.labelLargeEmph; color: Colors.m3onSurface; text: "Живые обои" }
+                            MText { width: parent.width; elide: Text.ElideRight; textStyle: Type.labelMedium; color: Colors.m3onSurfaceVariant; text: "Узор двигается, пока виден стол" }
+                        }
+                        MSwitch {
+                            id: liveSwitch
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            checked: Config.o.wallpaper.animated
+                            onToggled: c => Config.o.wallpaper.animated = c
+                        }
+                    }
+
+                    Item {
+                        width: parent.width
+                        height: 48
+                        visible: Config.o.wallpaper.animated
+                        MText {
+                            id: paceLabel
+                            anchors.verticalCenter: parent.verticalCenter
+                            textStyle: Type.labelLargeEmph
+                            color: Colors.m3onSurfaceVariant
+                            text: "Скорость"
+                        }
+                        MSlider {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: paceLabel.right
+                            anchors.leftMargin: 16
+                            anchors.right: parent.right
+                            value: (Math.log(Config.o.wallpaper.pace) / Math.LN2 + 2) / 4
+                            onMoved: v => paceSet.want = Math.pow(2, v * 4 - 2)
+                        }
+                        Timer {
+                            id: paceSet
+                            property real want: 1
+                            onWantChanged: restart()
+                            interval: 200
+                            onTriggered: Config.o.wallpaper.pace = Math.abs(want - 1) < 0.08 ? 1 : Math.round(want * 20) / 20
                         }
                     }
 

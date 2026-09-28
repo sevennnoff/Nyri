@@ -8,6 +8,7 @@ import Quickshell.Services.UPower
 import qs.theme
 import qs.services
 import qs.widgets
+import qs.wallpaper
 
 Scope {
     id: root
@@ -125,14 +126,30 @@ Scope {
             Image {
                 id: wall
                 anchors.fill: parent
+                visible: false
                 source: Colors.wallpaper ? "file://" + Colors.wallpaper : ""
                 fillMode: Image.PreserveAspectCrop
                 sourceSize: Qt.size(surface.width, surface.height)
             }
 
+            readonly property string sceneFile: (Config.o.wallpaper.animated ?? false) && Colors.wallpaper.indexOf("/walls/") >= 0 && Colors.wallpaper.endsWith(".png")
+                                                ? Colors.wallpaper.replace(/\.png$/, ".json") : ""
+            readonly property bool live: sceneFile !== "" && liveScene.ready
+            Scene {
+                id: liveScene
+                anchors.fill: parent
+                file: surface.sceneFile
+                pace: 0.5
+                running: Lock.locked && !root.awake && !root.checking && !root.unlocking
+                visible: surface.live && !Config.o.lock.blur
+                opacity: surface.e
+                scale: 1 + 0.06 * surface.e
+            }
+
             MultiEffect {
                 anchors.fill: parent
-                source: wall
+                visible: !surface.live || Config.o.lock.blur
+                source: surface.live ? liveScene : wall
                 blurEnabled: Config.o.lock.blur
                 blur: 1
                 blurMax: 64
