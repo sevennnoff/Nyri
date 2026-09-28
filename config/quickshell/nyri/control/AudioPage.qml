@@ -196,7 +196,6 @@ Column {
                     anchors.leftMargin: 14
                     anchors.verticalCenter: parent.verticalCenter
                     MText { textStyle: Type.titleSmall; text: "Эквалайзер" }
-                    MText { textStyle: Type.labelMedium; color: Colors.m3onSurfaceVariant; text: Eq.on ? "Для любого выхода" : "Выключен" }
                 }
                 MSwitch { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; checked: Eq.on; onToggled: c => Eq.setOn(c) }
             }
@@ -299,9 +298,6 @@ Column {
                   aptx_ll_duplex: "aptX LL", faststream: "FastStream", opus_05: "Opus", opus_g: "Opus", lc3: "LC3",
                   msbc: "mSBC", cvsd: "CVSD", lc3_swb: "LC3-SWB" })[key] ?? key.toUpperCase();
     }
-    readonly property var codecHint: ({ sbc: "обычный", sbc_xq: "чище SBC", aac: "для Apple и большинства", ldac: "лучшее качество",
-                                        aptx: "меньше задержка", aptx_hd: "высокое качество", aptx_ll: "минимальная задержка",
-                                        lc3: "новый, экономный", msbc: "звонки почище", cvsd: "звонки, базовый" })
     Repeater {
         model: root.btSinks
         Rectangle {
@@ -386,8 +382,8 @@ Column {
                     height: 52
                     spacing: 3
                     Repeater {
-                        model: [{ calls: false, icon: "music_note", label: "Музыка", sub: "лучший звук" },
-                                { calls: true, icon: "call", label: "Звонки", sub: "с микрофоном" }]
+                        model: [{ calls: false, icon: "music_note", label: "Музыка" },
+                                { calls: true, icon: "call", label: "Звонки" }]
                         Rectangle {
                             id: seg
                             required property var modelData
@@ -407,11 +403,7 @@ Column {
                                 anchors.centerIn: parent
                                 spacing: 8
                                 MIcon { anchors.verticalCenter: parent.verticalCenter; icon: seg.modelData.icon; size: 20; fill: seg.on ? 1 : 0; color: seg.on ? Colors.m3onPrimary : Colors.m3onSecondaryContainer }
-                                Column {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    MText { textStyle: Type.labelLargeEmph; color: seg.on ? Colors.m3onPrimary : Colors.m3onSecondaryContainer; text: seg.modelData.label }
-                                    MText { textStyle: Type.labelSmall; color: seg.on ? Colors.m3onPrimary : Colors.m3onSecondaryContainer; opacity: 0.8; text: seg.modelData.sub }
-                                }
+                                MText { anchors.verticalCenter: parent.verticalCenter; textStyle: Type.labelLargeEmph; color: seg.on ? Colors.m3onPrimary : Colors.m3onSecondaryContainer; text: seg.modelData.label }
                             }
                             StateLayer {
                                 id: segL
@@ -444,15 +436,6 @@ Column {
                                 onClicked: root.setProfile(bt.card, modelData)
                             }
                         }
-                    }
-                    MText {
-                        width: parent.width
-                        wrapMode: Text.Wrap
-                        textStyle: Type.bodySmall
-                        color: Colors.m3onSurfaceVariant
-                        readonly property string cur: (bt.modelData.properties["api.bluez5.codec"] ?? "")
-                        visible: text !== ""
-                        text: root.codecHint[cur] ? root.codecName(cur) + ": " + root.codecHint[cur] : ""
                     }
                 }
             }

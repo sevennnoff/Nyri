@@ -16,14 +16,11 @@ Singleton {
 
     function send(cmd) { if (proc.running) proc.write(cmd + "\n"); }
     function share(path) { if (phone) send("share " + phone.id + " " + path); }
-    function shareText(t) { if (phone) send("text " + phone.id + " " + t.replace(/\n/g, " ")); }
     function sendClipboard() { if (phone) send("clip " + phone.id); }
     function ring() { if (phone) send("ring " + phone.id); }
-    function ping() { if (phone) send("ping " + phone.id); }
     function browse() { if (phone) send("browse " + phone.id); }
     function pair(id) { send("pair " + id); }
     function accept(id) { send("accept " + id); }
-    function unpair(id) { send("unpair " + id); }
     function openApp() { send("app"); }
 
     Process {

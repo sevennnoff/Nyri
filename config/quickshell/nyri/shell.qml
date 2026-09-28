@@ -81,13 +81,11 @@ ShellRoot {
         function settingsAt(page: string): void { Panels.openSettings(page); }
         function crosshair(): void { Toggles.crosshair = !Toggles.crosshair; }
         function autohide(): void { Config.o.bar.autohide = !Config.o.bar.autohide; }
-        function liveWall(): void { Config.o.wallpaper.animated = !Config.o.wallpaper.animated; }
         function recording(on: bool): void { Toggles.recording = on; if (on) Toggles.recordingSince = Date.now(); }
         function switcher(dir: string): void { altTab.step(dir === "prev" ? -1 : 1); }
         function activity(json: string): void { Activities.push(json); }
         function activityEnd(id: string, done: string): void { Activities.end(id, done); }
         function timer(spec: string, label: string): void { Activities.addTimer(Activities.parseDuration(spec), label); }
-        function stopwatch(): void { Activities.startStopwatch(); }
         function privacy(): void { Config.o.privacy.mode = !Config.o.privacy.mode; }
     }
 }

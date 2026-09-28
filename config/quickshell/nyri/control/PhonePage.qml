@@ -152,10 +152,10 @@ Column {
         spacing: 4
         enabled: Phone.reachable
 
-        Action { first: true; icon: "ring_volume"; label: "Найти телефон"; sub: "Позвонит на полную"; onClicked: Phone.ring() }
-        Action { icon: "upload_file"; label: "Отправить файл"; sub: "Попадёт в загрузки"; onClicked: picker.open() }
-        Action { icon: "content_paste_go"; label: "Отправить буфер"; sub: "Что скопировано здесь"; onClicked: Phone.sendClipboard() }
-        Action { last: true; icon: "folder_open"; label: "Файлы телефона"; sub: "Открыть его память"; onClicked: { Panels.close(); Phone.browse(); } }
+        Action { first: true; icon: "ring_volume"; label: "Найти телефон"; onClicked: Phone.ring() }
+        Action { icon: "upload_file"; label: "Отправить файл"; onClicked: picker.open() }
+        Action { icon: "content_paste_go"; label: "Отправить буфер"; onClicked: Phone.sendClipboard() }
+        Action { last: true; icon: "folder_open"; label: "Файлы телефона"; onClicked: { Panels.close(); Phone.browse(); } }
     }
 
     FileDialog {

@@ -400,7 +400,7 @@ Variants {
                             anchors.verticalCenter: parent.verticalCenter
                             width: parent.width - 48 - 44
                             MText { width: parent.width; elide: Text.ElideRight; textStyle: Type.labelLarge; color: row.on ? Colors.m3onSecondaryContainer : Colors.m3onSurface; text: row.modelData.title || Apps.nameFor(row.modelData.app_id) }
-                            MText { textStyle: Type.labelSmall; color: row.on ? Colors.m3onSecondaryContainer : Colors.m3onSurfaceVariant; text: win.wsName(row.modelData) + (row.on ? " · сейчас" : "") }
+                            MText { textStyle: Type.labelSmall; color: row.on ? Colors.m3onSecondaryContainer : Colors.m3onSurfaceVariant; text: win.wsName(row.modelData) }
                         }
                         IconButton {
                             anchors.right: parent.right

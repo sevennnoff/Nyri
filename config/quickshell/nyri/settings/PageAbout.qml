@@ -19,6 +19,10 @@ Column {
     Component.onCompleted: SysStats.watchers++
     Component.onDestruction: SysStats.watchers = Math.max(0, SysStats.watchers - 1)
 
+    function plural(n, one, few, many) {
+        const m10 = n % 10, m100 = n % 100;
+        return n + " " + (m10 === 1 && m100 !== 11 ? one : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? few : many);
+    }
     function gb(b) { return b >= 1e12 ? (b / 1e12).toFixed(1) + " ТБ" : (b / 1e9).toFixed(b >= 1e11 ? 0 : 1) + " ГБ"; }
     function since(sec) {
         const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
@@ -62,7 +66,7 @@ Column {
                     Repeater {
                         model: [
                             { icon: "schedule", text: page.info.uptime ? "работает " + page.since(page.info.uptime) : "" },
-                            { icon: "deployed_code", text: page.info.packages ? page.info.packages + " пакетов" : "" },
+                            { icon: "deployed_code", text: page.info.packages ? page.plural(page.info.packages, "пакет", "пакета", "пакетов") : "" },
                             { icon: "terminal", text: page.info.kernel ?? "" }
                         ].filter(c => c.text)
                         Rectangle {
@@ -95,7 +99,7 @@ Column {
                 { label: "Диск", value: SysStats.disk, text: Math.round(SysStats.disk * 100) + "%", sub: SysStats.diskText },
                 { label: "Батарея", value: Math.min(100, page.info.battery?.health ?? 0) / 100,
                   text: page.info.battery ? Math.min(100, page.info.battery.health) + "%" : "—",
-                  sub: page.info.battery ? (page.info.battery.health >= 100 ? "как новая" : "") + (page.info.battery.cycles >= 0 ? (page.info.battery.health >= 100 ? " · " : "") + page.info.battery.cycles + " циклов" : "") : "" }
+                  sub: page.info.battery && page.info.battery.cycles >= 0 ? page.plural(page.info.battery.cycles, "цикл", "цикла", "циклов") : "" }
             ]
             Rectangle {
                 id: meter
@@ -173,7 +177,7 @@ Column {
         Fact {
             icon: "memory"
             title: "Процессор"
-            lines: [page.info.cpu, page.info.cores ? page.info.cores + " ядер · " + page.info.threads + " потоков" + (page.info.ghz ? " · до " + page.info.ghz + " ГГц" : "") : ""]
+            lines: [page.info.cpu, page.info.cores ? page.plural(page.info.cores, "ядро", "ядра", "ядер") + " · " + page.plural(page.info.threads, "поток", "потока", "потоков") + (page.info.ghz ? " · до " + page.info.ghz + " ГГц" : "") : ""]
         }
         Fact {
             icon: "developer_board"
@@ -205,22 +209,22 @@ Column {
             visible: !!page.info.battery
             icon: "battery_full"
             title: "Батарея"
-            lines: page.info.battery ? [page.info.battery.fullWh + " из " + page.info.battery.designWh + " Вт·ч по паспорту",
+            lines: page.info.battery ? ["Ёмкость " + page.info.battery.fullWh + " из " + page.info.battery.designWh + " Вт·ч",
                                         [page.info.battery.tech, page.info.battery.maker].filter(Boolean).join(" · ")] : []
         }
         Fact {
             icon: "deployed_code"
             title: "Nyri"
             lines: [page.info.nyri ? (page.info.branch ? page.info.branch + " · " : "") + page.info.nyri : "",
-                    page.info.shellMemory ? "шелл занимает " + Math.round(page.info.shellMemory / 1e6) + " МБ" : ""]
+                    page.info.shellMemory ? "Оболочка · " + Math.round(page.info.shellMemory / 1e6) + " МБ" : ""]
         }
     }
 
     ListGroup {
         width: parent.width
         title: "Программы"
-        SettingRow { icon: "grid_view"; title: "niri"; subtitle: page.info.niri ?? "" }
-        SettingRow { icon: "widgets"; title: "Quickshell"; subtitle: page.info.quickshell ?? "" }
+        SettingRow { icon: "grid_view"; title: "niri"; subtitle: (page.info.niri ?? "").replace(/^niri\s*/i, "").replace(/\s*\(.*\)\s*$/, "") }
+        SettingRow { icon: "widgets"; title: "Quickshell"; subtitle: (page.info.quickshell ?? "").replace(/^quickshell\s*/i, "").replace(/\s*\(.*\)\s*$/, "") }
         SettingRow { icon: "terminal"; title: "Ядро"; subtitle: page.info.kernel ?? "" }
     }
 

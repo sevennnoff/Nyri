@@ -27,13 +27,13 @@ Singleton {
                        title: Privacy.micBlocked ? "Микрофон заглушён" : "Микрофон слушает", text: Privacy.micApps.join(", "), progress: -1,
                        actions: [{ icon: Privacy.micBlocked ? "mic" : "mic_off", label: Privacy.micBlocked ? "Включить" : "Заглушить", key: "toggle" }] });
         for (const t of timers)
-            out.push({ id: "timer:" + t.id, kind: "timer", icon: t.focus ? "self_improvement" : "timer", tone: "primary", priority: 80,
-                       title: t.label || (t.focus ? "Фокус" : "Таймер"), text: t.focus ? "Уведомления молчат" : "",
+            out.push({ id: "timer:" + t.id, kind: "timer", icon: "timer", tone: "primary", priority: 80,
+                       title: t.label || "Таймер", text: "",
                        until: t.paused ? 0 : t.end, frozen: t.paused ? t.left : -1,
                        progress: 1 - Math.max(0, t.paused ? t.left : t.end - now) / t.total,
                        actions: [{ icon: t.paused ? "play_arrow" : "pause", label: t.paused ? "Дальше" : "Пауза", key: "pause" },
                                  { icon: "more_time", label: "+1 мин", key: "more" },
-                                 { icon: "close", label: t.focus ? "Хватит" : "Отменить", key: "stop" }] });
+                                 { icon: "close", label: "Отменить", key: "stop" }] });
         if (stopwatch)
             out.push({ id: "stopwatch", kind: "stopwatch", icon: "timer_play", tone: "primary", priority: 78,
                        title: "Секундомер", text: stopwatch.laps.length ? "Круг " + (stopwatch.laps.length + 1) + " · прошлый " + fmtClock(stopwatch.laps[0]) : (stopwatch.paused ? "Пауза" : ""),
@@ -107,7 +107,7 @@ Singleton {
             else if (key === "pause") timers = timers.map(t => t.id !== tid ? t
                 : t.paused ? Object.assign({}, t, { paused: false, end: Date.now() + t.left })
                 : Object.assign({}, t, { paused: true, left: Math.max(0, t.end - Date.now()) }));
-            else { if (timers.find(t => t.id === tid)?.focus) endFocus(); timers = timers.filter(t => t.id !== tid); }
+            else timers = timers.filter(t => t.id !== tid);
         } else if (a.kind === "stopwatch") {
             const sw = Object.assign({}, stopwatch), t = Date.now();
             if (key === "pause") {
@@ -203,7 +203,6 @@ Singleton {
             if (!done.length) return;
             root.timers = root.timers.filter(t => t.paused || t.end > root.now);
             for (const t of done) {
-                if (t.focus) root.endFocus();
                 root.flash({ id: "timer-done:" + t.id, kind: "done", icon: "alarm", tone: "primary", priority: 90,
                              title: "Время вышло", text: t.label || root.fmtDuration(t.total) }, 12000);
                 Quickshell.execDetached(["notify-send", "-a", "Таймер", "-i", "alarm-symbolic", "Время вышло", t.label || root.fmtDuration(t.total)]);
@@ -218,18 +217,9 @@ Singleton {
         return m + ":" + String(r).padStart(2, "0");
     }
 
-    property bool focusDnd: false
-    function startFocus(minutes) {
-        if (!Notifs.dnd) { Notifs.dnd = true; focusDnd = true; }
-        addTimer(minutes * 60, "Фокус", true);
-    }
-    function endFocus() {
-        if (focusDnd) { Notifs.dnd = false; focusDnd = false; }
-    }
-
-    function addTimer(seconds, label, focus) {
+    function addTimer(seconds, label) {
         if (!(seconds > 0)) return;
-        const t = { id: nextTimer++, label: label || "", end: Date.now() + seconds * 1000, total: seconds * 1000, focus: !!focus };
+        const t = { id: nextTimer++, label: label || "", end: Date.now() + seconds * 1000, total: seconds * 1000 };
         now = Date.now();
         timers = timers.concat([t]);
     }

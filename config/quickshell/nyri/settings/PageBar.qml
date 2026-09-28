@@ -99,18 +99,8 @@ Column {
         width: parent.width
         height: tray.y + tray.height
 
-        MText {
-            id: hint
-            width: parent.width
-            wrapMode: Text.Wrap
-            textStyle: Type.bodyMedium
-            color: Colors.m3onSurfaceVariant
-            text: "Перетаскивайте значки по панели или вниз, чтобы спрятать"
-        }
-
         Rectangle {
             id: bar
-            y: hint.height + 16
             width: parent.width
             height: 60
             radius: height / 2
@@ -146,13 +136,6 @@ Column {
             y: trayLabel.y + trayLabel.height + 10
             width: parent.width
             height: 44
-            MText {
-                y: 12
-                visible: page.ids("hidden").length === 0
-                textStyle: Type.bodyMedium
-                color: Colors.m3outline
-                text: "Пусто: вся панель на месте"
-            }
         }
 
         Repeater {
@@ -353,7 +336,6 @@ Column {
         SettingRow {
             icon: "style"
             title: "Стиль"
-            subtitle: "Островки, сплошная полоса или отдельный чип на каждую кнопку статуса"
             choice: Config.o.bar.style
             choices: [{ value: "islands", label: "Островки" }, { value: "strip", label: "Полоса" }, { value: "chips", label: "Чипы" }]
             onChosen: v => Config.o.bar.style = v
@@ -362,7 +344,6 @@ Column {
         SettingRow {
             icon: "vertical_split"
             title: "Где"
-            subtitle: "Меню и шторка вырастают из панели, где бы она ни была"
             choice: Config.o.bar.position
             choices: [{ value: "top", label: "Сверху", icon: "vertical_align_top" }, { value: "bottom", label: "Снизу", icon: "vertical_align_bottom" }]
             onChosen: v => Config.o.bar.position = v

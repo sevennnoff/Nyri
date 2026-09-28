@@ -472,7 +472,6 @@ Scope {
                             anchors.rightMargin: 12
                             anchors.verticalCenter: parent.verticalCenter
                             MText { textStyle: Type.labelLargeEmph; color: Colors.m3onSurface; text: "Живые обои" }
-                            MText { width: parent.width; elide: Text.ElideRight; textStyle: Type.labelMedium; color: Colors.m3onSurfaceVariant; text: "Узор двигается, пока виден стол" }
                         }
                         MSwitch {
                             id: liveSwitch

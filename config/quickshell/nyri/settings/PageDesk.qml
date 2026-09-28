@@ -87,14 +87,12 @@ Column {
         SettingRow {
             icon: "animation"
             title: "Живые обои"
-            subtitle: "Каждый узор двигается по-своему: плитки переворачиваются, фигуры крутятся, ленты плывут. Только пока виден стол"
             MSwitch { checked: Config.o.wallpaper.animated; onToggled: c => Config.o.wallpaper.animated = c }
         }
         SettingRow {
             visible: Config.o.wallpaper.animated
             icon: "speed"
             title: "Скорость живых обоев"
-            subtitle: "×" + Config.o.wallpaper.pace
             below: MSlider {
                 width: parent.width
                 value: (Math.log(Config.o.wallpaper.pace) / Math.LN2 + 2) / 4
@@ -236,13 +234,5 @@ Column {
             picked: Config.o.wallpaper.span
             onClicked: Config.o.wallpaper.span = !Config.o.wallpaper.span
         }
-    }
-
-    MText {
-        width: parent.width
-        wrapMode: Text.Wrap
-        textStyle: Type.bodyMedium
-        color: Colors.m3onSurfaceVariant
-        text: "Правый клик по пустому месту на столе — его меню. По виджету — его вид, размер и где он показывается."
     }
 }

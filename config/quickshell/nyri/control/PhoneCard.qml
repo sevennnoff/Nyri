@@ -106,8 +106,7 @@ Rectangle {
             Repeater {
                 model: [
                     root.p?.signal ? { icon: "signal_cellular_" + Math.max(0, Math.min(4, root.p.signal.strength ?? 4)) + "_bar", text: root.p.signal.type } : null,
-                    Phone.battery ? { icon: root.charging ? "battery_charging_full" : root.low ? "battery_alert" : "battery_full", text: root.charging ? "Заряжается" : "От батареи" } : null,
-                    { icon: "content_paste", text: "Общий буфер" }
+                    Phone.battery ? { icon: root.charging ? "battery_charging_full" : root.low ? "battery_alert" : "battery_full", text: root.charging ? "Заряжается" : "От батареи" } : null
                 ].filter(Boolean)
                 Rectangle {
                     id: fact
