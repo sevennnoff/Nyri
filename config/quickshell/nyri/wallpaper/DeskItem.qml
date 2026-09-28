@@ -103,7 +103,10 @@ Item {
         return Config.o.desktop.grid && g > 0 ? Math.round(v / g) * g : v;
     }
     function clampX(v) { return Math.max(0, Math.min(desk.width - width, v)); }
-    function clampY(v) { return Math.max(56, Math.min(desk.height - height, v)); }
+    function clampY(v) {
+        const top = Panels.barBottom ? 12 : 56, bottom = Panels.barBottom ? 56 : 0;
+        return Math.max(top, Math.min(desk.height - height - bottom, v));
+    }
 
     property bool shown: true
     readonly property bool on: shown && here

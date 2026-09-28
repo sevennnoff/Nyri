@@ -29,6 +29,7 @@ Singleton {
                 property var center: ["clock", "live"]
                 property var right: ["tray", "status", "control"]
                 property string style: "islands"
+                property string position: "top"
                 property bool seconds: false
                 property string workspaces: "pills"
                 property bool volume: true
@@ -91,6 +92,10 @@ Singleton {
                 property bool calendar: true
                 property bool system: false
                 property bool usage: false
+            }
+
+            property JsonObject osd: JsonObject {
+                property string position: "bar"
             }
 
             property JsonObject launcher: JsonObject {

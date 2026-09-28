@@ -9,16 +9,17 @@ Card {
     default property alias content: inner.data
 
     property real toX
-    property real toY: 12 + 40 + 12
     property real toW
     property real toH
+    readonly property real room: (parent?.height ?? 800) - Panels.barReach - 12 - 12
+    property real toY: Panels.barBottom ? (parent?.height ?? 800) - Panels.barReach - 12 - toH : Panels.barReach + 12
 
     property real defaultFromX: toX + toW / 2 - 60
     property real defaultFromW: 120
     readonly property bool fromBar: Panels.anchorW > 0
     readonly property real fromX: fromBar ? Panels.anchorX : defaultFromX
     readonly property real fromW: fromBar ? Panels.anchorW : defaultFromW
-    readonly property real fromY: 12
+    readonly property real fromY: Panels.barBottom ? (parent?.height ?? 800) - Panels.barReach : 12
     readonly property real fromH: 40
 
     readonly property real p: Math.max(0, progress)
@@ -56,7 +57,7 @@ Card {
             const index = i;
             item.opacity = Qt.binding(() => root.stage(index));
             const shift = Qt.createQmlObject("import QtQuick; Translate {}", item);
-            shift.y = Qt.binding(() => (1 - root.stage(index)) * 18);
+            shift.y = Qt.binding(() => (1 - root.stage(index)) * (Panels.barBottom ? -18 : 18));
             item.transform = [shift];
         }
     }

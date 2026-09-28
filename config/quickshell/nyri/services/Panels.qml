@@ -6,6 +6,8 @@ Singleton {
     id: root
 
     property string current: ""
+    readonly property bool barBottom: Config.o.bar.position === "bottom"
+    readonly property real barReach: 12 + 40
     property bool deskEdit: false
     property string tab: ""
     property real anchorX: 0

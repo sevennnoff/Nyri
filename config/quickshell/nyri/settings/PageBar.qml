@@ -282,12 +282,24 @@ Column {
         SettingRow {
             icon: "style"
             title: "Стиль"
-            subtitle: "Островки, сплошная полоса или прозрачные островки с обводкой"
+            subtitle: "Островки, сплошная полоса или отдельный чип на каждую кнопку статуса"
             below: SegmentedButtons {
                 width: parent.width
                 value: Config.o.bar.style
-                options: [{ value: "islands", label: "Островки" }, { value: "strip", label: "Полоса" }, { value: "outline", label: "Обводка" }]
+                options: [{ value: "islands", label: "Островки" }, { value: "strip", label: "Полоса" }, { value: "chips", label: "Чипы" }]
                 onSelected: v => Config.o.bar.style = v
+            }
+        }
+
+        SettingRow {
+            icon: "vertical_split"
+            title: "Где"
+            subtitle: "Меню и шторка вырастают из панели, где бы она ни была"
+            below: SegmentedButtons {
+                width: parent.width
+                value: Config.o.bar.position
+                options: [{ value: "top", label: "Сверху", icon: "vertical_align_top" }, { value: "bottom", label: "Снизу", icon: "vertical_align_bottom" }]
+                onSelected: v => Config.o.bar.position = v
             }
         }
 
@@ -305,7 +317,7 @@ Column {
         SettingRow {
             icon: "vertical_align_top"
             title: "Прятать панель"
-            subtitle: "Выезжает сверху, когда ведёшь мышь к краю, открываешь меню или стол пуст"
+            subtitle: "Выезжает, когда ведёшь мышь к краю, открываешь меню или стол пуст"
             MSwitch { checked: Config.o.bar.autohide; onToggled: c => Config.o.bar.autohide = c }
         }
 

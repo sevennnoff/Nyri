@@ -41,7 +41,7 @@ Surface {
         progress: root.progress
         toX: parent.width - toW - 12
         toW: 420
-        toH: Math.min((root.page === "main" ? content.implicitHeight : sub.implicitHeight) + 32, parent.height - toY - 12)
+        toH: Math.min((root.page === "main" ? content.implicitHeight : sub.implicitHeight) + 32, room)
 
         Behavior on toH { SpatialAnim {} }
         defaultFromX: parent.width - 12 - 200

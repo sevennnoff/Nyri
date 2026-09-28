@@ -20,8 +20,12 @@ PanelWindow {
     screen: Panels.screen
     visible: Osd.shown || progress > 0.001
     color: "transparent"
-    anchors.top: true
-    margins.top: 12 + 40 + 8
+    readonly property string where: Config.o.osd.position === "center" ? "center"
+        : (Config.o.osd.position === "opposite") !== Panels.barBottom ? "bottom" : "top"
+    anchors.top: where === "top"
+    anchors.bottom: where === "bottom"
+    margins.top: where === "top" ? (Panels.barBottom ? 24 : 12 + 40 + 8) : 0
+    margins.bottom: where === "bottom" ? (Panels.barBottom ? 12 + 40 + 8 : 32) : 0
     exclusionMode: ExclusionMode.Ignore
     implicitWidth: card.full + 32
     implicitHeight: card.height + 32
@@ -49,7 +53,7 @@ PanelWindow {
     Card {
         id: card
         readonly property real full: row.implicitWidth + 16
-        y: 16 - (1 - root.progress) * 24
+        y: 16 + (1 - root.progress) * (root.where === "bottom" ? 24 : -24)
         width: 56 + (full - 56) * Math.max(0, root.progress)
         x: 16 + (full - width) / 2
         height: 56

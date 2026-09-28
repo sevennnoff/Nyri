@@ -12,10 +12,10 @@ PanelWindow {
     visible: Notifs.popups.count > 0 || exitTimer.running
     color: "transparent"
     anchors { top: true; right: true }
-    margins { top: 12 + 40 + 4; right: 0 }
+    margins { top: Panels.barBottom ? 4 : 12 + 40 + 4; right: 0 }
     exclusionMode: ExclusionMode.Ignore
     implicitWidth: 400 + 24
-    implicitHeight: (screen?.height ?? 1080) - 12 - 40 - 4 - 12
+    implicitHeight: (screen?.height ?? 1080) - (Panels.barBottom ? 4 + 12 + 40 + 12 : 12 + 40 + 4 + 12)
     mask: Region { item: hit }
 
     Item {

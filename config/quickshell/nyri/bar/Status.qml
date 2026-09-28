@@ -7,13 +7,26 @@ import qs.widgets
 Island {
     id: root
 
-    padding: 4
-    spacing: 0
+    readonly property bool chips: Config.o.bar.style === "chips"
+    readonly property var segs: [
+        Toggles.recording ? "rec" : "",
+        Config.o.bar.layout ? "layout" : "",
+        Audio.sink !== null && Config.o.bar.volume ? "volume" : "",
+        Notifs.count > 0 || Notifs.dnd || Toggles.caffeine ? "notif" : "",
+        "battery"
+    ].filter(Boolean)
+    function seg(id) { return segs[0] === id ? (segs.length === 1 ? "only" : "first") : segs[segs.length - 1] === id ? "last" : "middle"; }
+    split: true
+    padding: chips ? 0 : 4
+    spacing: chips ? 3 : 0
 
     Reveal {
         shown: Toggles.recording
 
         Chip {
+            pill: root.chips
+            segment: root.seg("rec")
+            segmentColor: Colors.m3errorContainer
             id: rec
             property int secs: 0
             onClicked: Quickshell.execDetached(["pkill", "-INT", "-x", "wf-recorder"])
@@ -44,6 +57,8 @@ Island {
     }
 
     Chip {
+        pill: root.chips
+        segment: root.seg("layout")
         visible: Config.o.bar.layout
         onClicked: Niri.action("switch-layout", "next")
 
@@ -76,6 +91,8 @@ Island {
     }
 
     Chip {
+        pill: root.chips
+        segment: root.seg("volume")
         visible: Audio.sink !== null && Config.o.bar.volume
         onClicked: m => m.button === Qt.RightButton ? Panels.toggleFrom("control", root) : Audio.toggleMute()
         onWheel: event => Audio.setVolume(Audio.volume + (event.angleDelta.y > 0 ? 0.05 : -0.05))
@@ -99,6 +116,8 @@ Island {
         shown: Notifs.count > 0 || Notifs.dnd || Toggles.caffeine
 
         Chip {
+            pill: root.chips
+            segment: root.seg("notif")
             padding: 8
             spacing: 2
             onClicked: Panels.toggleFrom("control", root)
@@ -126,6 +145,8 @@ Island {
     }
 
     Chip {
+        pill: root.chips
+        segment: root.seg("battery")
         id: batteryChip
         padding: 8
         onClicked: Panels.toggleFrom("power", batteryChip, "battery")

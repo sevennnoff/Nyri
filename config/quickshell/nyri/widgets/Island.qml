@@ -27,7 +27,7 @@ Item {
         epsilon: 0.2
     }
 
-    transform: Translate { y: (1 - root.intro) * -64 }
+    transform: Translate { y: (1 - root.intro) * (Panels.barBottom ? 64 : -64) }
     opacity: Math.min(1, root.intro * 2)
 
     SequentialAnimation {
@@ -43,9 +43,11 @@ Item {
 
     readonly property string barStyle: Config.o.bar.style
     readonly property bool plain: root.color === Colors.m3surfaceContainer
+    property bool split: false
+    readonly property bool bare: (barStyle === "strip" && plain) || (barStyle === "chips" && split)
 
     RectangularShadow {
-        visible: root.barStyle === "islands"
+        visible: root.barStyle !== "strip" && !root.bare
         anchors.fill: bg
         radius: bg.radius
         offset.y: 2
@@ -57,11 +59,7 @@ Item {
         id: bg
         anchors.fill: parent
         radius: height / 2
-        color: root.barStyle === "strip" && root.plain ? "transparent"
-             : root.barStyle === "outline" && root.plain ? Qt.alpha(Colors.m3surface, 0.55)
-             : root.color
-        border.width: root.barStyle === "outline" ? 1.5 : 0
-        border.color: Qt.alpha(Colors.m3outline, 0.7)
+        color: root.bare ? "transparent" : root.color
 
         Behavior on color { ColorAnim {} }
     }

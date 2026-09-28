@@ -14,7 +14,7 @@ Surface {
         progress: root.progress
         toX: Math.max(12, Math.min(parent.width - toW - 12, (Panels.anchorW > 0 ? Panels.anchorX + Panels.anchorW / 2 : parent.width / 2) - toW / 2))
         toW: 420
-        toH: Math.min(col.implicitHeight + 32, parent.height - toY - 12)
+        toH: Math.min(col.implicitHeight + 32, room)
         Behavior on toH { SpatialAnim {} }
 
         Flickable {

@@ -243,7 +243,7 @@ Surface {
         id: flyer
         readonly property real p: Math.max(0, Math.min(1.05, root.progress))
         readonly property real fromX: Panels.anchorW > 0 ? Panels.anchorX + 6 : card.toX + 20
-        readonly property real fromY: 12 + 6
+        readonly property real fromY: Panels.barBottom ? root.height - Panels.barReach + 6 : 12 + 6
         readonly property real toX: card.x + side.x
         readonly property real toY: card.y + side.y
         x: fromX + (toX - fromX) * p

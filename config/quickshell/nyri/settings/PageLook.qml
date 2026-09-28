@@ -388,4 +388,27 @@ Column {
             MSwitch { checked: Config.o.wallpaper.span; onToggled: c => Config.o.wallpaper.span = c }
         }
     }
+
+    ListGroup {
+        width: parent.width
+        title: "Поиск"
+
+        SettingRow {
+            icon: "travel_explore"
+            title: "Искать в интернете через"
+            below: SegmentedButtons {
+                width: parent.width
+                value: Config.o.launcher.engine
+                options: [{ value: "google", label: "Google" }, { value: "ddg", label: "DuckDuckGo" }, { value: "yandex", label: "Яндекс" }, { value: "brave", label: "Brave" }]
+                onSelected: v => Config.o.launcher.engine = v
+            }
+        }
+
+        SettingRow {
+            icon: "description"
+            title: "Файлы в поиске"
+            subtitle: "Из индекса plocate, только домашняя папка"
+            MSwitch { checked: Config.o.launcher.files; onToggled: c => Config.o.launcher.files = c }
+        }
+    }
 }

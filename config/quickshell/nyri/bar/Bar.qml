@@ -15,7 +15,12 @@ Variants {
         required property ShellScreen modelData
         readonly property int gap: 12
         readonly property int islandHeight: 40
-        readonly property int stripHeight: gap + islandHeight
+        readonly property bool strip: Config.o.bar.style === "strip"
+        readonly property int top: strip ? 4 : gap
+        readonly property int stripHeight: strip ? 48 : gap + islandHeight
+        readonly property bool bottom: Panels.barBottom
+        readonly property real islandY: bottom ? height - top - islandHeight : top
+        readonly property real hideShift: (bottom ? 1 : -1) * (stripHeight + 12)
 
         readonly property bool autohide: Config.o.bar.autohide
         readonly property bool emptyDesk: {
@@ -34,7 +39,7 @@ Variants {
         }
 
         screen: modelData
-        anchors { top: true; left: true; right: true }
+        anchors { top: !bottom; bottom: bottom; left: true; right: true }
         implicitHeight: stripHeight + 16
         property bool settled: false
         Timer { running: true; interval: 600; onTriggered: bar.settled = true }
@@ -57,8 +62,8 @@ Variants {
             Region { item: bar.autohide ? (reveal.value > 0.5 ? strip : edge) : null }
         }
 
-        Item { id: strip; width: bar.width; height: bar.stripHeight + 4 }
-        Item { id: edge; width: bar.width; height: 3 }
+        Item { id: strip; width: bar.width; height: bar.stripHeight + 4; y: bar.bottom ? bar.height - height : 0 }
+        Item { id: edge; width: bar.width; height: 3; y: bar.bottom ? bar.height - height : 0 }
 
         HoverHandler {
             onHoveredChanged: {
@@ -80,11 +85,11 @@ Variants {
         Rectangle {
             visible: Config.o.bar.style === "strip"
             width: bar.width
-            height: bar.stripHeight + 4 - bar.gap / 2
-            y: (1 - reveal.value) * -(bar.stripHeight + 12)
+            height: bar.stripHeight
+            y: (bar.bottom ? bar.height - height : 0) + (1 - reveal.value) * bar.hideShift
             color: Colors.m3surfaceContainer
             opacity: Math.min(1, reveal.value * 2)
-            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Colors.m3outlineVariant; opacity: 0.6 }
+            Rectangle { y: bar.bottom ? 0 : parent.height - 1; width: parent.width; height: 1; color: Colors.m3outlineVariant; opacity: 0.6 }
         }
 
         readonly property var leftIds: Array.isArray(Config.o.bar.left) ? Config.o.bar.left : ["launcher", "workspaces", "title"]
@@ -135,13 +140,13 @@ Variants {
             id: content
             width: bar.width
             height: bar.height
-            transform: Translate { y: (1 - reveal.value) * -(bar.stripHeight + 12) }
+            transform: Translate { y: (1 - reveal.value) * bar.hideShift }
             opacity: Math.min(1, reveal.value * 2)
 
             Section {
                 id: left
                 x: bar.gap
-                y: bar.gap
+                y: bar.islandY
                 ids: bar.leftIds
                 base: 0
             }
@@ -149,7 +154,7 @@ Variants {
             Section {
                 id: center
                 x: (bar.width - width) / 2
-                y: bar.gap
+                y: bar.islandY
                 ids: bar.centerIds
                 base: bar.leftIds.length
             }
@@ -157,7 +162,7 @@ Variants {
             Section {
                 id: right
                 x: bar.width - width - bar.gap
-                y: bar.gap
+                y: bar.islandY
                 ids: bar.rightIds
                 base: bar.leftIds.length + bar.centerIds.length
             }
