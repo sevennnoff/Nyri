@@ -174,6 +174,134 @@ Column {
         }
     }
 
+    Rectangle {
+        width: root.width
+        height: eqCol.implicitHeight + 32
+        radius: Shape.extraLarge
+        color: Colors.m3surfaceContainerHigh
+
+        Column {
+            id: eqCol
+            x: 16
+            y: 16
+            width: parent.width - 32
+            spacing: 14
+
+            Item {
+                width: parent.width
+                height: 40
+                MIcon { id: eqIcon; anchors.verticalCenter: parent.verticalCenter; icon: "equalizer"; size: 24; color: Colors.m3onSurfaceVariant }
+                Column {
+                    anchors.left: eqIcon.right
+                    anchors.leftMargin: 14
+                    anchors.verticalCenter: parent.verticalCenter
+                    MText { textStyle: Type.titleSmall; text: "Эквалайзер" }
+                    MText { textStyle: Type.labelMedium; color: Colors.m3onSurfaceVariant; text: Eq.on ? "Для любого выхода" : "Выключен" }
+                }
+                MSwitch { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; checked: Eq.on; onToggled: c => Eq.setOn(c) }
+            }
+
+            Flow {
+                width: parent.width
+                spacing: 8
+                opacity: Eq.on ? 1 : 0.45
+                enabled: Eq.on
+                Behavior on opacity { EffectAnim {} }
+                Repeater {
+                    model: Eq.presets
+                    FilterChip {
+                        required property var modelData
+                        text: modelData.label
+                        picked: Eq.preset === modelData.id
+                        onClicked: Eq.usePreset(modelData.id)
+                    }
+                }
+            }
+
+            Row {
+                id: bands
+                width: parent.width
+                height: 168
+                opacity: Eq.on ? 1 : 0.45
+                enabled: Eq.on
+                Behavior on opacity { EffectAnim {} }
+                Repeater {
+                    model: Eq.bands.length
+                    Item {
+                        id: band
+                        required property int index
+                        readonly property real db: Eq.gains[index]
+                        width: bands.width / Eq.bands.length
+                        height: bands.height
+                        readonly property real trackH: height - 44
+                        SpringValue { id: kv; target: band.db; damping: 0.7; stiffness: 520; epsilon: 0.01 }
+                        readonly property real ky: 18 + band.trackH / 2 - kv.value / 12 * band.trackH / 2
+
+                        Rectangle {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            y: 18
+                            width: 6
+                            height: band.trackH
+                            radius: 3
+                            color: Colors.m3secondaryContainer
+                        }
+                        Rectangle {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            y: Math.min(band.ky, 18 + band.trackH / 2)
+                            width: 6
+                            height: Math.abs(band.ky - (18 + band.trackH / 2))
+                            radius: 3
+                            color: Colors.m3primary
+                        }
+                        Rectangle {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            y: band.ky - height / 2
+                            width: bandDrag.pressed ? 22 : 18
+                            height: bandDrag.pressed ? 10 : 8
+                            radius: height / 2
+                            color: Colors.m3primary
+                            Behavior on width { SpatialAnim { speed: "fast" } }
+                        }
+                        MText {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            y: 0
+                            textStyle: Type.labelSmall
+                            color: Colors.m3primary
+                            opacity: bandDrag.pressed || Math.abs(band.db) > 0.01 ? 1 : 0
+                            Behavior on opacity { EffectAnim {} }
+                            text: (band.db > 0 ? "+" : "") + band.db
+                        }
+                        MText {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.bottom: parent.bottom
+                            textStyle: Type.labelSmall
+                            color: Colors.m3onSurfaceVariant
+                            text: { const f = Eq.bands[band.index]; return f >= 1000 ? f / 1000 + "к" : String(f); }
+                        }
+                        MouseArea {
+                            id: bandDrag
+                            anchors.fill: parent
+                            preventStealing: true
+                            cursorShape: Qt.SizeVerCursor
+                            function set(y) { Eq.setGain(band.index, (18 + band.trackH / 2 - y) / (band.trackH / 2) * 12); }
+                            onPressed: m => set(m.y)
+                            onPositionChanged: m => { if (pressed) set(m.y); }
+                            onDoubleClicked: Eq.setGain(band.index, 0)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    function codecName(key) {
+        return ({ sbc: "SBC", sbc_xq: "SBC-XQ", aac: "AAC", ldac: "LDAC", aptx: "aptX", aptx_hd: "aptX HD", aptx_ll: "aptX LL",
+                  aptx_ll_duplex: "aptX LL", faststream: "FastStream", opus_05: "Opus", opus_g: "Opus", lc3: "LC3",
+                  msbc: "mSBC", cvsd: "CVSD", lc3_swb: "LC3-SWB" })[key] ?? key.toUpperCase();
+    }
+    readonly property var codecHint: ({ sbc: "обычный", sbc_xq: "чище SBC", aac: "для Apple и большинства", ldac: "лучшее качество",
+                                        aptx: "меньше задержка", aptx_hd: "высокое качество", aptx_ll: "минимальная задержка",
+                                        lc3: "новый, экономный", msbc: "звонки почище", cvsd: "звонки, базовый" })
     Repeater {
         model: root.btSinks
         Rectangle {
@@ -181,49 +309,150 @@ Column {
             required property var modelData
             readonly property var card: root.cardOf(modelData)
             readonly property var dev: root.btDevice(modelData)
-            readonly property var profiles: card ? Object.entries(card.profiles ?? {}).filter(e => e[0] !== "off" && e[1].available !== false) : []
+            readonly property string active: card?.active_profile ?? ""
+            readonly property bool calls: active.startsWith("headset")
+            readonly property string family: calls ? "headset-head-unit" : "a2dp-sink"
+            readonly property var keys: card ? Object.keys(card.profiles ?? {}).filter(k => card.profiles[k].available !== false) : []
+            readonly property bool canCalls: keys.some(k => k.startsWith("headset"))
+            readonly property var codecs: keys.filter(k => k === family || k.startsWith(family + "-"))
+                                              .sort((x, y) => (x === family ? -1 : y === family ? 1 : 0))
+            readonly property string now: root.codec(modelData)
+            readonly property real charge: dev?.batteryAvailable ? dev.battery : -1
+
             width: root.width
-            height: btCol.implicitHeight + 28
-            radius: Shape.largeIncreased
+            height: btCol.implicitHeight + 32
+            radius: Shape.extraLarge
             color: Colors.m3surfaceContainerHigh
 
             Column {
                 id: btCol
-                x: 16; y: 14
+                x: 16
+                y: 16
                 width: parent.width - 32
-                spacing: 12
-                Row {
-                    spacing: 12
+                spacing: 16
+
+                Item {
+                    width: parent.width
+                    height: 64
                     MaterialShape {
-                        width: 48; height: 48
+                        id: btShape
+                        width: 64
+                        height: 64
                         shape: "cookie9Sided"
-                        color: Colors.m3primaryContainer
-                        MIcon { anchors.centerIn: parent; icon: "headphones"; size: 24; fill: 1; color: Colors.m3onPrimaryContainer }
+                        color: bt.charge >= 0 && bt.charge <= 0.15 ? Colors.m3errorContainer : Colors.m3primaryContainer
+                        SpringValue { id: btTurn; target: bt.calls ? 40 : 0; damping: 0.5; stiffness: 200 }
+                        rotation: btTurn.value
+                        MIcon {
+                            anchors.centerIn: parent
+                            rotation: -btShape.rotation
+                            icon: bt.calls ? "headset_mic" : "headphones"
+                            size: 30
+                            fill: 1
+                            color: Colors.m3onPrimaryContainer
+                        }
                     }
                     Column {
+                        anchors.left: btShape.right
+                        anchors.leftMargin: 16
+                        anchors.right: btPct.left
+                        anchors.rightMargin: 12
                         anchors.verticalCenter: parent.verticalCenter
-                        MText { textStyle: Type.titleSmall; text: bt.dev?.name ?? Audio.label(bt.modelData) }
-                        MText { textStyle: Type.labelMedium; color: Colors.m3onSurfaceVariant; text: "Кодек " + (root.codec(bt.modelData) || "—") }
+                        spacing: 2
+                        FlowText { width: parent.width; elide: Text.ElideRight; textStyle: Type.titleMediumEmph; text: bt.dev?.name ?? Audio.label(bt.modelData) }
+                        FlowText {
+                            width: parent.width
+                            elide: Text.ElideRight
+                            textStyle: Type.labelMedium
+                            color: Colors.m3onSurfaceVariant
+                            text: (bt.calls ? "Звонки" : "Музыка") + (bt.now ? " · " + bt.now : "")
+                        }
+                    }
+                    RollingText {
+                        id: btPct
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: bt.charge >= 0
+                        pixelSize: 34
+                        weight: 650
+                        color: bt.charge >= 0 && bt.charge <= 0.15 ? Colors.m3error : Colors.m3onSurface
+                        text: Math.round(bt.charge * 100) + "%"
                     }
                 }
-                BatteryPill {
-                    visible: bt.dev?.batteryAvailable ?? false
-                    size: 18
-                    textSize: 16
-                    level: bt.dev?.battery ?? 0
+
+                Row {
+                    id: modes
+                    visible: bt.canCalls
+                    width: parent.width
+                    height: 52
+                    spacing: 3
+                    Repeater {
+                        model: [{ calls: false, icon: "music_note", label: "Музыка", sub: "лучший звук" },
+                                { calls: true, icon: "call", label: "Звонки", sub: "с микрофоном" }]
+                        Rectangle {
+                            id: seg
+                            required property var modelData
+                            required property int index
+                            readonly property bool on: bt.calls === modelData.calls
+                            width: (modes.width - modes.spacing) / 2
+                            height: modes.height
+                            SpringValue { id: segR; target: on || segL.pressed ? 1 : 0; damping: 0.55; stiffness: 600 }
+                            readonly property real inner: 8 + (height / 2 - 8) * Math.max(0, Math.min(1, segR.value))
+                            topLeftRadius: index === 0 ? height / 2 : inner
+                            bottomLeftRadius: index === 0 ? height / 2 : inner
+                            topRightRadius: index === 1 ? height / 2 : inner
+                            bottomRightRadius: index === 1 ? height / 2 : inner
+                            color: on ? Colors.m3primary : Colors.m3secondaryContainer
+                            Behavior on color { ColorAnim {} }
+                            Row {
+                                anchors.centerIn: parent
+                                spacing: 8
+                                MIcon { anchors.verticalCenter: parent.verticalCenter; icon: seg.modelData.icon; size: 20; fill: seg.on ? 1 : 0; color: seg.on ? Colors.m3onPrimary : Colors.m3onSecondaryContainer }
+                                Column {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    MText { textStyle: Type.labelLargeEmph; color: seg.on ? Colors.m3onPrimary : Colors.m3onSecondaryContainer; text: seg.modelData.label }
+                                    MText { textStyle: Type.labelSmall; color: seg.on ? Colors.m3onPrimary : Colors.m3onSecondaryContainer; opacity: 0.8; text: seg.modelData.sub }
+                                }
+                            }
+                            StateLayer {
+                                id: segL
+                                topLeftRadius: seg.topLeftRadius
+                                bottomLeftRadius: seg.bottomLeftRadius
+                                topRightRadius: seg.topRightRadius
+                                bottomRightRadius: seg.bottomRightRadius
+                                color: seg.on ? Colors.m3onPrimary : Colors.m3onSecondaryContainer
+                                onClicked: if (!seg.on) root.setProfile(bt.card, seg.modelData.calls ? "headset-head-unit" : "a2dp-sink")
+                            }
+                        }
+                    }
                 }
-                MText { visible: bt.profiles.length > 1; textStyle: Type.labelLarge; color: Colors.m3onSurfaceVariant; text: "Режим" }
-                Flow {
+
+                Column {
                     width: parent.width
                     spacing: 8
-                    Repeater {
-                        model: bt.profiles
-                        FilterChip {
-                            required property var modelData
-                            text: root.profileName(modelData[0], modelData[1])
-                            picked: bt.card?.active_profile === modelData[0]
-                            onClicked: root.setProfile(bt.card, modelData[0])
+                    visible: bt.codecs.length > 0
+                    MText { textStyle: Type.labelLargeEmph; color: Colors.m3onSurfaceVariant; text: "Кодек" }
+                    Flow {
+                        width: parent.width
+                        spacing: 8
+                        Repeater {
+                            model: bt.codecs
+                            FilterChip {
+                                required property string modelData
+                                readonly property string key: modelData === bt.family ? "" : modelData.slice(bt.family.length + 1)
+                                text: key ? root.codecName(key) : "Авто" + (bt.active === bt.family && bt.now ? " · " + bt.now : "")
+                                picked: bt.active === modelData
+                                onClicked: root.setProfile(bt.card, modelData)
+                            }
                         }
+                    }
+                    MText {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        textStyle: Type.bodySmall
+                        color: Colors.m3onSurfaceVariant
+                        readonly property string cur: (bt.modelData.properties["api.bluez5.codec"] ?? "")
+                        visible: text !== ""
+                        text: root.codecHint[cur] ? root.codecName(cur) + ": " + root.codecHint[cur] : ""
                     }
                 }
             }

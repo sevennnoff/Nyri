@@ -119,6 +119,11 @@ Singleton {
                 property bool seeded: false
             }
 
+            property JsonObject eq: JsonObject {
+                property bool on: false
+                property var gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            }
+
             property JsonObject capture: JsonObject {
                 property bool system: true
                 property bool mic: false

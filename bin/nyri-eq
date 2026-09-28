@@ -1,0 +1,94 @@
+#!/usr/bin/env python3
+"""A 10-band equalizer for whatever plays, as a PipeWire filter-chain.
+
+    nyri-eq run G1 … G10     run it (a small PipeWire of its own), gains in dB
+    nyri-eq set G1 … G10     change the gains while it runs
+
+The filter is a WirePlumber smart filter: it puts itself in front of the
+default output and follows it when the output changes, so the default
+device, its volume and the shell's routing all stay as they are.
+"""
+import json, os, subprocess, sys
+from pathlib import Path
+
+BANDS = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
+CONF = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "nyri-eq.conf"
+
+def gains(args):
+    g = [max(-12.0, min(12.0, float(a))) for a in args[:len(BANDS)]]
+    return g + [0.0] * (len(BANDS) - len(g))
+
+def preamp(g):
+    return 10 ** (-max(0.0, max(g)) / 20)
+
+def conf(g):
+    nodes = [f'{{ type = builtin name = pre label = linear control = {{ "Mult" = {preamp(g):.4f} "Add" = 0.0 }} }}']
+    for i, (fq, db) in enumerate(zip(BANDS, g)):
+        label = "bq_lowshelf" if i == 0 else "bq_highshelf" if i == len(BANDS) - 1 else "bq_peaking"
+        nodes.append(f'{{ type = builtin name = b{i} label = {label} control = {{ "Freq" = {fq}.0 "Q" = 1.2 "Gain" = {db:.2f} }} }}')
+    links = ['{ output = "pre:Out" input = "b0:In" }'] + [f'{{ output = "b{i}:Out" input = "b{i + 1}:In" }}' for i in range(len(BANDS) - 1)]
+    return f"""context.properties = {{ log.level = 0 }}
+context.spa-libs = {{
+    audio.convert.* = audioconvert/libspa-audioconvert
+    support.*       = support/libspa-support
+}}
+context.modules = [
+    {{ name = libpipewire-module-rt args = {{ }} flags = [ ifexists nofail ] }}
+    {{ name = libpipewire-module-protocol-native }}
+    {{ name = libpipewire-module-client-node }}
+    {{ name = libpipewire-module-adapter }}
+    {{ name = libpipewire-module-filter-chain
+        args = {{
+            node.description = "Эквалайзер"
+            media.name = "Эквалайзер"
+            filter.graph = {{
+                nodes = [ {" ".join(nodes)} ]
+                links = [ {" ".join(links)} ]
+            }}
+            audio.channels = 2
+            audio.position = [ FL FR ]
+            capture.props = {{
+                node.name = "nyri_eq"
+                media.class = Audio/Sink
+                filter.smart = true
+                filter.smart.name = "nyri-eq"
+            }}
+            playback.props = {{
+                node.name = "nyri_eq.out"
+                node.passive = true
+            }}
+        }}
+    }}
+]
+"""
+
+def node_id():
+    try:
+        for o in json.loads(subprocess.run(["pw-dump"], capture_output=True, text=True, timeout=3).stdout):
+            if o.get("type") == "PipeWire:Interface:Node" and o.get("info", {}).get("props", {}).get("node.name") == "nyri_eq":
+                return o["id"]
+    except Exception:
+        pass
+    return None
+
+def main(argv):
+    cmd = argv[1] if len(argv) > 1 else ""
+    if cmd == "run":
+        g = gains(argv[2:])
+        CONF.write_text(conf(g))
+        os.execvp("pipewire", ["pipewire", "-c", str(CONF)])
+    elif cmd == "set":
+        g = gains(argv[2:])
+        nid = node_id()
+        if nid is None:
+            return 1
+        params = [f'"pre:Mult" {preamp(g):.4f}'] + [f'"b{i}:Gain" {db:.2f}' for i, db in enumerate(g)]
+        subprocess.run(["pw-cli", "set-param", str(nid), "Props", "{ params = [ " + " ".join(params) + " ] }"],
+                       capture_output=True, timeout=3)
+    else:
+        print(__doc__)
+        return 2
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

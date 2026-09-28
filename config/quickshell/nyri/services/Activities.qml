@@ -53,11 +53,11 @@ Singleton {
         if (Phone.reachable && Phone.phone)
             out.push({ id: "phone:" + Phone.phone.id, kind: "phone", icon: "smartphone", tone: "primary", priority: 32, ambient: !(Phone.battery && Phone.battery.charge <= 15 && !Phone.battery.charging),
                        title: Phone.phone.name + (Phone.battery ? " · " + Phone.battery.charge + "%" : ""), text: Phone.battery ? "Заряд " + Phone.battery.charge + "%" + (Phone.battery.charging ? " · заряжается" : "") : "На связи",
-                       progress: Phone.battery ? Phone.battery.charge / 100 : -1, actions: [] });
+                       progress: -1, actions: [] });
         for (const d of btDevices)
             out.push({ id: "bt:" + d.address, kind: "bt", icon: Bt.deviceIcon(d), tone: "primary", priority: 30, ambient: true,
-                       title: d.name, text: d.batteryAvailable ? "Заряд " + Math.round(d.battery * 100) + "%" : "Подключено",
-                       progress: d.batteryAvailable ? d.battery : -1, actions: [] });
+                       title: d.name + (d.batteryAvailable ? " · " + Math.round(d.battery * 100) + "%" : ""), text: d.batteryAvailable ? "Заряд " + Math.round(d.battery * 100) + "%" : "Подключено",
+                       progress: -1, actions: [] });
         const p = Media.player;
         if (p && p.isPlaying)
             out.push({ id: "media", kind: "media", icon: "music_note", tone: "primary", priority: 50, ambient: false,

@@ -12,11 +12,12 @@ Singleton {
     readonly property bool muted: sink?.audio?.muted ?? false
     readonly property bool micMuted: source?.audio?.muted ?? false
 
-    readonly property var sinks: Pipewire.nodes.values.filter(n => n.audio && n.isSink && !n.isStream)
+    readonly property var sinks: Pipewire.nodes.values.filter(n => n.audio && n.isSink && !n.isStream && !(n.name ?? "").startsWith("nyri_eq"))
     readonly property var sources: Pipewire.nodes.values.filter(n => n.audio && !n.isSink && !n.isStream
                                                                     && !(n.name ?? "").endsWith(".monitor"))
     readonly property var streams: Pipewire.nodes.values.filter(n => n.audio && n.isStream
-                                                                    && n.properties["media.class"] === "Stream/Output/Audio")
+                                                                    && n.properties["media.class"] === "Stream/Output/Audio"
+                                                                    && !(n.name ?? "").startsWith("nyri_eq"))
 
     function label(node) {
         return node?.description || node?.nickname || node?.name || "";
