@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+import json, re, subprocess
+from pathlib import Path
+
+def run(*cmd):
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=2).stdout
+    except Exception:
+        return ""
+
+out = {}
+iface = next((m.group(1) for m in re.finditer(r"Interface (\S+)", run("iw", "dev"))), "")
+out["iface"] = iface
+if iface:
+    link = run("iw", "dev", iface, "link")
+    if m := re.search(r"SSID: (.+)", link): out["ssid"] = m.group(1).strip()
+    if m := re.search(r"freq: ([\d.]+)", link):
+        f = float(m.group(1))
+        out["freq"] = f
+        out["band"] = "2,4 ГГц" if f < 3000 else "5 ГГц" if f < 5925 else "6 ГГц"
+        out["channel"] = int((f - 2407) / 5) if f < 3000 else int((f - 5000) / 5) if f < 5925 else int((f - 5950) / 5)
+    if m := re.search(r"signal: (-?\d+) dBm", link): out["dbm"] = int(m.group(1))
+    if m := re.search(r"rx bitrate: ([\d.]+) MBit/s(?: (\d+)MHz)?", link): out["rx"] = float(m.group(1)); out["width"] = int(m.group(2) or 0)
+    if m := re.search(r"tx bitrate: ([\d.]+) MBit/s", link): out["tx"] = float(m.group(1))
+    gen = re.search(r"(EHT|HE|VHT|HT)-MCS", link)
+    out["standard"] = {"EHT": "Wi-Fi 7", "HE": "Wi-Fi 6", "VHT": "Wi-Fi 5", "HT": "Wi-Fi 4"}.get(gen.group(1), "") if gen else ""
+    try:
+        addrs = json.loads(run("ip", "-j", "-4", "addr", "show", "dev", iface) or "[]")
+        a = next((x for d in addrs for x in d.get("addr_info", [])), None)
+        if a: out["ip"], out["prefix"] = a["local"], a["prefixlen"]
+    except Exception:
+        pass
+    try:
+        routes = json.loads(run("ip", "-j", "route", "show", "default", "dev", iface) or "[]")
+        if routes: out["gateway"] = routes[0].get("gateway", "")
+    except Exception:
+        pass
+    out["dns"] = [l.split(":", 1)[1] for l in run("nmcli", "-t", "-f", "IP4.DNS", "dev", "show", iface).splitlines() if ":" in l]
+    sysd = Path("/sys/class/net") / iface
+    out["mac"] = (sysd / "address").read_text().strip() if (sysd / "address").exists() else ""
+    for k, f in (("rxBytes", "rx_bytes"), ("txBytes", "tx_bytes")):
+        try:
+            out[k] = int((sysd / "statistics" / f).read_text())
+        except OSError:
+            pass
+print(json.dumps(out, ensure_ascii=False))
