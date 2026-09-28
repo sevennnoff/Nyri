@@ -12,6 +12,10 @@ Rectangle {
     property bool compact: false
 
     implicitHeight: col.implicitHeight + 24
+
+    SpringValue { id: born; target: 1; damping: 0.62; stiffness: 420; Component.onCompleted: { value = 0; running = true; } }
+    scale: 0.85 + 0.15 * Math.min(1.05, born.value)
+    opacity: Math.min(1, born.value * 1.5)
     radius: Shape.largeIncreased
     color: loud ? Colors.m3errorContainer : Colors.m3surfaceContainerHigh
     Behavior on color { ColorAnim {} }

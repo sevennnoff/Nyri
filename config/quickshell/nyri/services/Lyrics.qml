@@ -45,6 +45,13 @@ Singleton {
         for (let k = 0; k < lines.length; k++) { if (lines[k].t <= p) i = k; else break; }
         return i;
     }
+    readonly property real lineProgress: {
+        const i = current;
+        if (i < 0) return 0;
+        const t0 = lines[i].t;
+        const t1 = lines[i + 1]?.t ?? (t0 + 4);
+        return Math.max(0, Math.min(1, (position + 0.25 - t0) / Math.max(0.5, Math.min(t1 - t0, 8))));
+    }
     function seek(i) {
         const l = lines[i];
         if (l && l.t >= 0 && player?.canSeek) { player.position = l.t; basePos = l.t; baseAt = Date.now(); }
@@ -74,15 +81,42 @@ Singleton {
         return { synced, plain: plain.filter((l, i) => l.trim() || (i > 0 && plain[i - 1].trim())), none: !synced.length && !plain.some(l => l.trim()) };
     }
 
+    function norm(s) {
+        return (s || "").toLowerCase().replace(/ё/g, "е").replace(/\(.*?\)|\[.*?\]/g, " ")
+            .replace(/prod\.?.*$/, " ").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+    }
+    function matches(d) {
+        const a = norm(artist), t = norm(title);
+        const da = norm(d.artistName), dt = norm(d.trackName);
+        const artistOk = !a || da.includes(a) || a.includes(da) || dt.includes(a);
+        const titleOk = dt === t || dt.replace(a, "").trim() === t || (t.length > 3 && dt.includes(t) && dt.length - t.length <= a.length + 3);
+        const lengthOk = !(length > 0 && d.duration > 0) || Math.abs(d.duration - length) <= 8;
+        return artistOk && titleOk && lengthOk;
+    }
+
+    Timer { id: retry; interval: 2500; onTriggered: fetch.running = true }
+
     Process {
         id: fetch
         property string asked: ""
         property bool search: false
+        property int tries: 0
         stdout: StdioCollector {
             onStreamFinished: {
                 let data = null;
                 try { data = JSON.parse(text); } catch (e) {}
-                if (Array.isArray(data)) data = data.find(d => d.syncedLyrics) ?? data[0] ?? null;
+                if (data && !Array.isArray(data) && data.statusCode == 503 && fetch.tries < 2) {
+                    fetch.tries++;
+                    retry.restart();
+                    return;
+                }
+                fetch.tries = 0;
+                if (Array.isArray(data)) {
+                    const ok = data.filter(d => root.matches(d));
+                    data = ok.find(d => d.syncedLyrics) ?? ok[0] ?? null;
+                } else if (data && !root.matches(data)) {
+                    data = null;
+                }
                 const got = data && (data.syncedLyrics || data.plainLyrics) ? root.parse(data) : null;
                 if (!got && !fetch.search) {
                     fetch.search = true;

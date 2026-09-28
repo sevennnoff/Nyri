@@ -333,10 +333,12 @@ Surface {
                     }
                 }
 
+                Collapse {
+                    width: parent.width
+                    shown: root.liveCards.length > 0
                 Column {
                     width: parent.width
                     spacing: 8
-                    visible: root.liveCards.length > 0
                     Repeater {
                         model: ScriptModel { values: root.liveCards; objectProp: "id" }
                         ActivityCard {
@@ -346,11 +348,15 @@ Surface {
                         }
                     }
                 }
+                }
 
-                MediaCard {
+                Collapse {
                     width: parent.width
-                    visible: Media.player !== null
-                    active: root.open
+                    shown: Media.player !== null
+                    MediaCard {
+                        width: parent.width
+                        active: root.open
+                    }
                 }
 
                 Item {

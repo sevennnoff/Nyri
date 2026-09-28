@@ -33,7 +33,7 @@ Item {
         epsilon: 0.002
         onRunningChanged: if (!running && target === 0) root.dismissed()
     }
-    Component.onCompleted: collapse.value = 1
+    Component.onCompleted: { collapse.value = 0; collapse.running = true; }
 
     readonly property real v: Math.max(-1, Math.min(1, sx.velocity / 3000))
 

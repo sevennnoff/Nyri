@@ -93,6 +93,11 @@ Singleton {
                 property bool usage: false
             }
 
+            property JsonObject launcher: JsonObject {
+                property string engine: "google"
+                property bool files: true
+            }
+
             property JsonObject screenTime: JsonObject {
                 property bool enabled: true
             }

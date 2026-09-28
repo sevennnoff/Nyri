@@ -12,14 +12,49 @@ Surface {
     name: "launcher"
 
     readonly property string query: field.text
+    property string filter: "all"
+    readonly property var filters: [
+        { id: "all", label: "Всё", icon: "apps" },
+        { id: "app", label: "Приложения", icon: "grid_view" },
+        { id: "window", label: "Окна", icon: "select_window" },
+        { id: "file", label: "Файлы", icon: "description" },
+        { id: "action", label: "Действия", icon: "bolt" }
+    ]
+    function wants(kind) {
+        if (filter === "all") return true;
+        if (filter === "action") return kind === "action" || kind === "setting" || kind === "timer" || kind === "appaction";
+        return kind === filter;
+    }
+    readonly property var engines: ({
+        google: { name: "Google", url: "https://www.google.com/search?q=" },
+        ddg: { name: "DuckDuckGo", url: "https://duckduckgo.com/?q=" },
+        yandex: { name: "Яндекс", url: "https://yandex.ru/search/?text=" },
+        brave: { name: "Brave", url: "https://search.brave.com/search?q=" }
+    })
+    readonly property var engine: engines[Config.o.launcher.engine] ?? engines.google
+
+    readonly property var settingsIndex: [
+        { page: "look", label: "Оформление", keys: ["тема", "цвет", "схема", "обои", "виджет", "ночной", "анимац", "расписан", "масштаб"] },
+        { page: "bar", label: "Панель", keys: ["панель", "бар", "bar", "остров", "часы", "трей", "секунд", "раскладк"] },
+        { page: "notif", label: "Уведомления", keys: ["уведомл", "notif", "всплыв"] },
+        { page: "power", label: "Питание и сон", keys: ["питан", "сон", "блокир", "экран гаснет", "батар"] },
+        { page: "usage", label: "Экранное время", keys: ["экранн", "время", "статист"] },
+        { page: "about", label: "О системе", keys: ["систем", "версия", "about"] }
+    ]
     readonly property string mode: query.startsWith("=") ? "calc" : query.startsWith(">") ? "run" : "apps"
     readonly property var results: {
         if (mode !== "apps")
             return [];
         const q = query.trim().toLowerCase();
-        if (!q)
-            return Apps.search("").map(e => ({ kind: "app", entry: e }));
-        const answer = root.looksLikeMath && root.calcResult ? [{ kind: "calc", text: root.calcResult }] : [];
+        if (!q) {
+            if (filter === "window") return Object.values(Niri.windows).map(w => ({ kind: "window", win: w }));
+            return filter === "all" || filter === "app" ? Apps.search("").map(e => ({ kind: "app", entry: e })) : [];
+        }
+        const answer = root.looksLikeMath && root.calcResult && filter === "all" ? [{ kind: "calc", text: root.calcResult }] : [];
+        const tm = query.trim().match(/^(таймер|timer|засеки)\s+(\S+(?:\s*(?:ч|час\S*|м|мин\S*|с|сек\S*|h|m|s|min)\b)?)\s*(.*)$/i);
+        const secs = tm ? Activities.parseDuration(tm[2]) : 0;
+        if (secs > 0 && wants("timer"))
+            answer.push({ kind: "timer", secs, label: tm[3] ?? "", text: "Таймер на " + Activities.fmtDuration(secs * 1000) + (tm[3] ? " · " + tm[3] : "") });
 
         const scored = [];
         for (const w of Object.values(Niri.windows)) {
@@ -35,9 +70,20 @@ Surface {
             const sc = a.keys.some(k => k.startsWith(q)) ? 96 : a.keys.some(k => k.includes(q)) ? 70 : 0;
             if (sc) scored.push({ kind: "action", action: a, score: sc });
         }
-        scored.sort((x, y) => y.score - x.score);
-        scored.push({ kind: "web", text: query.trim() });
-        return answer.concat(scored);
+        for (const p of settingsIndex) {
+            const sc = p.label.toLowerCase().startsWith(q) ? 72 : p.keys.some(k => k.startsWith(q) || q.startsWith(k)) ? 58 : 0;
+            if (sc) scored.push({ kind: "setting", page: p, score: sc });
+        }
+        const topApps = scored.filter(x => x.kind === "app").sort((x, y) => y.score - x.score).slice(0, 2);
+        for (const t of topApps)
+            for (const act of (t.entry.actions ?? []).slice(0, 3))
+                scored.push({ kind: "appaction", entry: t.entry, act, score: t.score - 12 });
+        for (const f of fileHits)
+            scored.push({ kind: "file", path: f, score: 50 });
+        const kept = scored.filter(x => wants(x.kind));
+        kept.sort((x, y) => y.score - x.score);
+        if (filter === "all") kept.push({ kind: "web", text: query.trim() });
+        return answer.concat(kept);
     }
 
     readonly property var actions: [
@@ -56,6 +102,27 @@ Surface {
         { label: "Батарея", icon: "battery_full", keys: ["батар", "заряд", "battery"], run: () => Panels.open("power", "battery") }
     ]
     property string calcResult: ""
+
+    property var fileHits: []
+    Process {
+        id: locate
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const home = Quickshell.env("HOME") + "/";
+                root.fileHits = text.split("\n").filter(p => p.startsWith(home) && !/\/\.[^/]/.test(p.slice(home.length))).slice(0, 8);
+            }
+        }
+    }
+    Timer {
+        id: locateDebounce
+        interval: 200
+        onTriggered: {
+            const q = root.query.trim();
+            if (!Config.o.launcher.files || q.length < 3 || root.mode !== "apps" || (root.filter !== "all" && root.filter !== "file")) { root.fileHits = []; return; }
+            locate.command = ["plocate", "-i", "-b", "-l", "60", q];
+            locate.running = true;
+        }
+    }
 
     readonly property bool looksLikeMath: {
         const q = query.trim();
@@ -83,6 +150,8 @@ Surface {
             cascade = true;
             cascadeOff.restart();
             field.text = "";
+            filter = "all";
+            fileHits = [];
             list.currentIndex = 0;
             field.input.forceActiveFocus();
         }
@@ -104,7 +173,11 @@ Surface {
             if (r.kind === "app") Apps.launch(r.entry);
             else if (r.kind === "window") Niri.action("focus-window", "--id", String(r.win.id));
             else if (r.kind === "action") r.action.run();
-            else if (r.kind === "web") Qt.openUrlExternally("https://www.google.com/search?q=" + encodeURIComponent(r.text));
+            else if (r.kind === "setting") Panels.openSettings(r.page.page);
+            else if (r.kind === "timer") Activities.addTimer(r.secs, r.label);
+            else if (r.kind === "appaction") r.act.execute();
+            else if (r.kind === "file") Qt.openUrlExternally("file://" + r.path);
+            else if (r.kind === "web") Qt.openUrlExternally(root.engine.url + encodeURIComponent(r.text));
             return;
         }
         Panels.close();
@@ -137,6 +210,7 @@ Surface {
 
     onQueryChanged: {
         list.currentIndex = 0;
+        locateDebounce.restart();
         if (mode === "calc" || (mode === "apps" && looksLikeMath)) calcDebounce.restart();
         else calcResult = "";
     }
@@ -164,19 +238,40 @@ Surface {
                 id: field
                 width: parent.width
                 icon: root.mode === "calc" ? "calculate" : root.mode === "run" ? "terminal" : "search"
-                placeholder: "Приложения, окна, действия, 2+2, 100 usd в руб · > команда"
+                placeholder: "Приложения, файлы, настройки, 2+2, таймер 5м · > команда"
 
                 input.Keys.onPressed: event => {
                     const ctrl = event.modifiers & Qt.ControlModifier;
-                    if (event.key === Qt.Key_Down || event.key === Qt.Key_Tab || (ctrl && event.key === Qt.Key_J)) {
+                    if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
+                        const i = root.filters.findIndex(f => f.id === root.filter);
+                        const n = root.filters.length;
+                        root.filter = root.filters[(i + (event.key === Qt.Key_Tab ? 1 : n - 1)) % n].id;
+                        list.currentIndex = 0;
+                        locateDebounce.restart();
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_Down || (ctrl && event.key === Qt.Key_J)) {
                         list.incrementCurrentIndex();
                         event.accepted = true;
-                    } else if (event.key === Qt.Key_Up || event.key === Qt.Key_Backtab || (ctrl && event.key === Qt.Key_K)) {
+                    } else if (event.key === Qt.Key_Up || (ctrl && event.key === Qt.Key_K)) {
                         list.decrementCurrentIndex();
                         event.accepted = true;
                     } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                         root.accept(event.modifiers & Qt.ShiftModifier);
                         event.accepted = true;
+                    }
+                }
+            }
+
+            Row {
+                visible: root.mode === "apps"
+                spacing: 8
+                Repeater {
+                    model: root.filters
+                    FilterChip {
+                        required property var modelData
+                        text: modelData.label
+                        picked: root.filter === modelData.id
+                        onClicked: { root.filter = modelData.id; list.currentIndex = 0; locateDebounce.restart(); field.input.forceActiveFocus(); }
                     }
                 }
             }
@@ -240,20 +335,31 @@ Surface {
                     required property var modelData
                     required property int index
                     readonly property bool current: ListView.isCurrentItem
-                    readonly property var entry: modelData.kind === "app" ? modelData.entry
+                    readonly property var entry: modelData.kind === "app" || modelData.kind === "appaction" ? modelData.entry
                         : modelData.kind === "window" ? DesktopEntries.heuristicLookup(modelData.win.app_id) : null
                     readonly property string title: modelData.kind === "calc" ? modelData.text
                         : modelData.kind === "app" ? entry.name
                         : modelData.kind === "window" ? (modelData.win.title || entry?.name || modelData.win.app_id)
                         : modelData.kind === "action" ? modelData.action.label
+                        : modelData.kind === "setting" ? modelData.page.label
+                        : modelData.kind === "timer" ? modelData.text
+                        : modelData.kind === "appaction" ? modelData.act.name
+                        : modelData.kind === "file" ? modelData.path.split("/").pop()
                         : "Найти в интернете: " + modelData.text
                     readonly property string subtitle: modelData.kind === "calc" ? "= " + root.query.trim() + " · Enter — скопировать"
                         : modelData.kind === "app" ? (entry.genericName || entry.comment || "")
                         : modelData.kind === "window" ? "Открытое окно · " + (entry?.name ?? modelData.win.app_id)
                         : modelData.kind === "action" ? "Действие"
-                        : "Google"
+                        : modelData.kind === "setting" ? "Настройки"
+                        : modelData.kind === "timer" ? "Enter — запустить"
+                        : modelData.kind === "appaction" ? (entry?.name ?? "")
+                        : modelData.kind === "file" ? modelData.path.replace(Quickshell.env("HOME"), "~").replace(/\/[^/]*$/, "")
+                        : root.engine.name
                     readonly property string symbol: modelData.kind === "calc" ? (root.currency ? "currency_exchange" : "calculate")
                         : modelData.kind === "action" ? modelData.action.icon
+                        : modelData.kind === "setting" ? "settings"
+                        : modelData.kind === "timer" ? "timer"
+                        : modelData.kind === "file" ? (/\.(png|jpe?g|webp|gif|svg)$/i.test(modelData.path) ? "image" : /\.(mp4|mkv|webm|mov)$/i.test(modelData.path) ? "movie" : /\.(mp3|flac|ogg|wav|m4a)$/i.test(modelData.path) ? "music_note" : /\.(pdf|docx?|odt|txt|md)$/i.test(modelData.path) ? "description" : "draft")
                         : modelData.kind === "web" ? "travel_explore" : ""
 
                     width: list.width

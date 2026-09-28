@@ -19,7 +19,7 @@ Scope {
     }
 
     IdleMonitor {
-        enabled: root.lockMinutes > 0
+        enabled: root.lockMinutes > 0 && !Panels.nested
         timeout: root.lockMinutes * 60
         onIsIdleChanged: if (isIdle) Lock.lock()
     }

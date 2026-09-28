@@ -25,6 +25,20 @@ Surface {
         triggeredOnStart: true
         onTriggered: root.player.positionChanged()
     }
+    function esc(t) { return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+    function karaoke(text, p) {
+        const parts = text.split(/(\s+)/);
+        const total = text.replace(/\s+/g, "").length || 1;
+        let done = 0, lit = "", rest = "", on = true;
+        for (const w of parts) {
+            if (on && w.trim()) {
+                done += w.length;
+                if ((done - w.length) / total > p) on = false;
+            }
+            if (on) lit += w; else rest += w;
+        }
+        return "<font color='" + Colors.m3primary + "'>" + esc(lit) + "</font><font color='" + Colors.m3onSurfaceVariant + "'>" + esc(rest) + "</font>";
+    }
     function fmt(s) {
         s = Math.max(0, Math.floor(s));
         return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
@@ -192,7 +206,8 @@ Surface {
                         font.variableAxes: ({ "wght": 500 + 250 * lit.value })
                         color: line.now ? Colors.m3primary : Colors.m3onSurface
                         opacity: !Lyrics.synced ? 0.9 : line.now ? 1 : line.past ? 0.35 : 0.6
-                        text: line.l?.text || "♪"
+                        textFormat: line.now ? Text.StyledText : Text.PlainText
+                        text: line.now && Lyrics.synced ? root.karaoke(line.l?.text || "♪", Lyrics.lineProgress) : (line.l?.text || "♪")
                         Behavior on opacity { EffectAnim {} }
                     }
                     MouseArea {

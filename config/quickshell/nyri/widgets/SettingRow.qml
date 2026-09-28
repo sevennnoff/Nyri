@@ -19,7 +19,9 @@ Rectangle {
     readonly property real inner: Shape.extraSmall
 
     width: parent?.width ?? 0
-    height: Math.max(72, head.height + 24) + (extra.children.length ? extra.implicitHeight + 12 : 0)
+    SpringValue { id: extraH; target: extra.implicitHeight > 0 ? extra.implicitHeight + 12 : 0; damping: 0.74; stiffness: 420; epsilon: 0.2 }
+    height: Math.max(72, head.height + 24) + Math.max(0, extraH.value)
+    clip: extraH.running
     color: Colors.m3surfaceContainer
     topLeftRadius: first ? outer : inner
     topRightRadius: first ? outer : inner
