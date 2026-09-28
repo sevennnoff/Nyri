@@ -746,7 +746,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             RollingText { pixelSize: 52; weight: 650; text: Weather.ready ? Weather.current.temp + "°" : "—" }
                             MText { textStyle: Type.labelLargeEmph; text: root.now?.text ?? "" }
-                            MText { textStyle: Type.labelMedium; color: Colors.m3onSurfaceVariant; text: Weather.ready ? "ощущается " + Weather.current.feels + "° · " + Weather.city : "" }
+                            MText { textStyle: Type.labelMedium; color: Colors.m3onSurfaceVariant; text: Weather.ready ? ["ощущается " + Weather.current.feels + "°", Weather.city].filter(Boolean).join(" · ") : "" }
                         }
                     }
                 }

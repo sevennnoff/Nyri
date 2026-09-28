@@ -169,7 +169,7 @@ Surface {
 
                         FlowText {
                             textStyle: Type.labelLarge
-                            text: (parent.parent.now.text ?? "") + " · " + Weather.city
+                            text: [parent.parent.now.text, Weather.city].filter(Boolean).join(" · ")
                         }
 
                         FlowText {
