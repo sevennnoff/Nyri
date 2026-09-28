@@ -13,7 +13,25 @@ Item {
     default property alias body: holder.data
     readonly property Item child: holder.children.length ? holder.children[0] : null
 
-    readonly property var saved: Config.o.desktop.positions?.[key] ?? null
+    readonly property string placeKey: desk.output + "/" + key
+    readonly property var saved: Config.o.desktop.positions?.[placeKey] ?? Config.o.desktop.positions?.[key] ?? null
+
+    readonly property var only: Config.o.desktop.only?.[key] ?? null
+    readonly property bool here: !only || ((!only.output || only.output === desk.output) && (!only.ws || only.ws === desk.wsIdx))
+    function pinHere(what) {
+        const o = Object.assign({}, Config.o.desktop.only ?? {});
+        const cur = Object.assign({}, o[key] ?? {});
+        if (what === "ws") cur.ws = cur.ws ? 0 : desk.wsIdx;
+        if (what === "output") cur.output = cur.output ? "" : desk.output;
+        if (what === "ws" && cur.ws) cur.output = desk.output;
+        if (!cur.ws && !cur.output) delete o[key]; else o[key] = cur;
+        Config.o.desktop.only = o;
+    }
+
+    readonly property real savedScale: Config.o.desktop.scales?.[key] ?? 1
+    property real liveScale: 0
+    readonly property real kk: liveScale > 0 ? liveScale : savedScale
+    SpringValue { id: kS; target: root.kk; damping: 0.7; stiffness: 520; epsilon: 0.001 }
 
     property string title: ""
     property var variantNames: []
@@ -71,7 +89,7 @@ Item {
     readonly property real heldY: fake.active ? fake.y : homeY + drag.activeTranslation.y
     function drop() {
         const p = Object.assign({}, Config.o.desktop.positions ?? {});
-        p[root.key] = { x: root.dropX, y: root.dropY };
+        p[root.placeKey] = { x: root.dropX, y: root.dropY };
         fake.active = false;
         Demo.holding = false;
         Config.o.desktop.positions = p;
@@ -88,9 +106,10 @@ Item {
     function clampY(v) { return Math.max(56, Math.min(desk.height - height, v)); }
 
     property bool shown: true
-    width: shown ? child?.width ?? 0 : 0
-    height: shown ? child?.height ?? 0 : 0
-    visible: shown
+    readonly property bool on: shown && here
+    width: on ? (child?.width ?? 0) * kS.value : 0
+    height: on ? (child?.height ?? 0) * kS.value : 0
+    visible: on
 
     SpringValue { id: sx; target: root.dragging ? root.heldX : root.homeX; damping: 0.62; stiffness: root.dragging ? 2400 : 300; epsilon: 0.1 }
     SpringValue { id: sy; target: root.dragging ? root.heldY : root.homeY; damping: 0.62; stiffness: root.dragging ? 2400 : 300; epsilon: 0.1 }
@@ -116,17 +135,85 @@ Item {
     HoverHandler { cursorShape: drag.active ? Qt.ClosedHandCursor : Qt.ArrowCursor }
 
     Rectangle {
-        anchors.fill: holder
+        anchors.fill: parent
         anchors.margins: -2
         radius: Math.min(height / 2, Shape.extraLarge)
         color: "transparent"
         border.width: 2
         border.color: Colors.m3primary
-        opacity: 0.6 * lift.value
+        opacity: Math.max(0.6 * lift.value, root.desk.editing ? 0.8 : 0)
     }
 
     Item {
         id: holder
+        width: root.child?.width ?? 0
+        height: root.child?.height ?? 0
+        scale: kS.value
+        transformOrigin: Item.TopLeft
+    }
+
+    MouseArea {
         anchors.fill: parent
+        visible: root.desk.editing
+        acceptedButtons: Qt.LeftButton
+    }
+    Item {
+        anchors.fill: parent
+        visible: root.desk.editing
+        z: 20
+        SpringValue { id: editIn; target: root.desk.editing ? 1 : 0; damping: 0.6; stiffness: 520 }
+
+        Rectangle {
+            x: -12
+            y: -12
+            width: 32
+            height: 32
+            radius: 16
+            scale: editIn.value
+            color: Colors.m3errorContainer
+            MIcon { anchors.centerIn: parent; icon: "close"; size: 18; color: Colors.m3onErrorContainer }
+            StateLayer { radius: 16; color: Colors.m3onErrorContainer; onClicked: Config.o.desktop[root.key] = false }
+        }
+
+        Rectangle {
+            id: grip
+            x: parent.width - 20
+            y: parent.height - 20
+            width: 36
+            height: 36
+            radius: 18
+            scale: editIn.value * (gripDrag.active ? 1.15 : 1)
+            color: Colors.m3primary
+            MIcon { anchors.centerIn: parent; icon: "open_in_full"; size: 18; color: Colors.m3onPrimary; rotation: 90 }
+            HoverHandler { cursorShape: Qt.SizeFDiagCursor }
+            property real startK: 1
+            DragHandler {
+                id: gripDrag
+                target: null
+                onActiveChanged: {
+                    if (active) { grip.startK = root.savedScale; return; }
+                    const s = Object.assign({}, Config.o.desktop.scales ?? {});
+                    s[root.key] = root.liveScale > 0 ? root.liveScale : root.savedScale;
+                    Config.o.desktop.scales = s;
+                    root.liveScale = 0;
+                }
+                onTranslationChanged: {
+                    if (!active) return;
+                    const base = (root.child?.width ?? 1) + (root.child?.height ?? 1);
+                    const k = grip.startK * (1 + (translation.x + translation.y) / base);
+                    root.liveScale = Math.max(0.5, Math.min(2, Math.round(k * 20) / 20));
+                }
+            }
+        }
+
+        Rectangle {
+            visible: gripDrag.active
+            anchors.centerIn: parent
+            width: kText.implicitWidth + 24
+            height: 32
+            radius: 16
+            color: Colors.m3inverseSurface
+            MText { id: kText; anchors.centerIn: parent; textStyle: Type.labelLargeEmph; color: Colors.m3inverseOnSurface; text: Math.round(root.kk * 100) + "%" }
+        }
     }
 }

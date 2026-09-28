@@ -5,6 +5,10 @@ Item {
 
     required property Flickable flick
     property real step: 1.5
+    property real touchpad: 1.7
+
+    property real speed: 0
+    property real lastAt: 0
 
     width: 0
     height: 0
@@ -39,9 +43,28 @@ Item {
         acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
         onWheel: event => {
             const f = root.flick;
-            if (event.pixelDelta.y !== 0 && event.device.type === PointerDevice.TouchPad) {
+            const pad = event.device.type === PointerDevice.TouchPad || (event.pixelDelta.y !== 0 && Math.abs(event.angleDelta.y) < 120);
+            if (pad) {
                 glide.running = false;
-                f.contentY = Math.max(root.minY, Math.min(root.maxY, f.contentY - event.pixelDelta.y));
+                const now = Date.now();
+                if (event.phase === Qt.ScrollBegin) { root.speed = 0; f.cancelFlick(); }
+                if (event.phase === Qt.ScrollEnd) {
+                    if (Math.abs(root.speed) > 150 && now - root.lastAt < 120) f.flick(0, -root.speed);
+                    root.speed = 0;
+                    return;
+                }
+                if (event.phase === Qt.ScrollMomentum) return;
+                const d = -(event.pixelDelta.y !== 0 ? event.pixelDelta.y : event.angleDelta.y / 8) * root.touchpad;
+                const dt = Math.max(4, Math.min(100, now - root.lastAt));
+                root.speed = root.speed * 0.6 + (d / dt * 1000) * 0.4;
+                root.lastAt = now;
+                const want = f.contentY + d;
+                const clamped = Math.max(root.minY, Math.min(root.maxY, want));
+                if (clamped !== want && Math.abs(want - clamped) > 2 && !kick.running) {
+                    kick.velocity = (want < clamped ? -1 : 1) * Math.min(1200, Math.abs(root.speed) * 0.5 + 300);
+                    kick.running = true;
+                }
+                f.contentY = clamped;
                 return;
             }
             if (!glide.running) { glide.value = f.contentY; glide.velocity = 0; root.goal = f.contentY; }
@@ -63,6 +86,8 @@ Item {
     }
 
     Component.onCompleted: {
+        flick.flickDeceleration = 2200;
+        flick.maximumFlickVelocity = 9000;
         flick.boundsBehavior = Flickable.DragAndOvershootBounds;
         flick.boundsMovement = Flickable.StopAtBounds;
         flick.contentItem.transform = [stretch];

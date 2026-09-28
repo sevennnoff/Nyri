@@ -6,6 +6,7 @@ Singleton {
     id: root
 
     property string current: ""
+    property bool deskEdit: false
     property string tab: ""
     property real anchorX: 0
     property real anchorW: 0

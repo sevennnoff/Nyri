@@ -45,6 +45,7 @@ Surface {
         { label: "Заблокировать", icon: "lock", keys: ["блок", "заблокировать", "lock"], run: () => Lock.lock() },
         { label: "Меню питания", icon: "power_settings_new", keys: ["выключ", "перезагр", "сон", "выйти", "power", "reboot", "shutdown", "logout", "sleep"], run: () => Panels.open("session") },
         { label: "Обои", icon: "wallpaper", keys: ["обои", "wallpaper"], run: () => Panels.open("wallpaper") },
+        { label: "Изменить рабочий стол", icon: "dashboard_customize", keys: ["виджет", "стол", "рабочий", "widget", "desk", "edit"], run: () => Panels.deskEdit = true },
         { label: "Буфер обмена", icon: "content_paste", keys: ["буфер", "clipboard", "история"], run: () => Panels.open("clipboard") },
         { label: "Центр управления", icon: "tune", keys: ["центр", "шторка", "панель", "control"], run: () => Panels.open("control") },
         { label: Toggles.dark ? "Светлая тема" : "Тёмная тема", icon: Toggles.dark ? "light_mode" : "dark_mode", keys: ["тема", "тёмн", "темн", "светл", "theme", "dark", "light"], run: () => Toggles.toggleDark() },

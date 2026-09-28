@@ -165,7 +165,7 @@ Surface {
                 model: Lyrics.lines.length
                 spacing: 6
                 interactive: true
-                boundsBehavior: Flickable.StopAtBounds
+                Overscroll { flick: lyricList }
                 highlightRangeMode: ListView.ApplyRange
                 preferredHighlightBegin: height * 0.35
                 preferredHighlightEnd: height * 0.5

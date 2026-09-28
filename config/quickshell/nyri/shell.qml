@@ -73,6 +73,7 @@ ShellRoot {
         function demoLook(key: string, index: int): void { if (Demo.allowed) Demo.lookRequested(key, index); }
         function demoDrag(key: string, x: real, y: real): void { if (Demo.allowed) Demo.dragRequested(key, x, y); }
         function dnd(): void { Notifs.dnd = !Notifs.dnd; }
+        function deskEdit(): void { Panels.deskEdit = !Panels.deskEdit; }
         function dark(): void { Toggles.toggleDark(); }
         function settings(): void { settingsApp.toggle(); }
         function settingsAt(page: string): void { Panels.openSettings(page); }

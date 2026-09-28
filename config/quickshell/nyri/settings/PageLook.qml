@@ -166,12 +166,21 @@ Column {
         }
 
         SettingRow {
-            icon: "restart_alt"
-            title: "Вернуть виджеты на место"
-            subtitle: "Столбиком слева, как было"
+            icon: "dashboard_customize"
+            title: "Изменить рабочий стол"
+            subtitle: "Добавить и убрать виджеты, двигать, менять размер; Esc — готово"
             enabled: Config.o.desktop.enabled
             clickable: true
-            onClicked: Config.o.desktop.positions = ({})
+            onClicked: { Panels.settingsOpen = false; Panels.deskEdit = true; }
+        }
+
+        SettingRow {
+            icon: "restart_alt"
+            title: "Вернуть виджеты на место"
+            subtitle: "Столбиком слева, как было, обычного размера и на всех столах"
+            enabled: Config.o.desktop.enabled
+            clickable: true
+            onClicked: { Config.o.desktop.positions = ({}); Config.o.desktop.scales = ({}); Config.o.desktop.only = ({}); }
         }
 
         SettingRow {

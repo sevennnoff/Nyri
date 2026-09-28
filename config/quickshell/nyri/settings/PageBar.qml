@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import qs.theme
 import qs.services
 import qs.widgets
@@ -45,6 +46,25 @@ Column {
     property point pointer: Qt.point(0, 0)
     property string overZone: ""
     property int overIndex: -1
+    property point grab: Qt.point(0, 0)
+    property string landing: ""
+    property var zoneItems: ({})
+    function drop(id, zone, index, moved) {
+        overZone = "";
+        landing = id;
+        held = "";
+        if (moved) move(id, zone, index);
+        Qt.callLater(() => ghostRef.land(slotIn(zone, id)));
+    }
+    property Item ghostRef: null
+    function slotIn(zone, id) {
+        const box = zoneItems[zone];
+        if (!box) return Qt.point(0, 0);
+        const list = ids(zone);
+        let x = 12;
+        for (const i of list) { if (i === id) break; x += chipWidth(i) + 8; }
+        return box.mapToItem(editor, x, 30);
+    }
 
     property var labelW: ({})
     function chipWidth(id) { return (labelW[id] ?? 60) + 16 + 20 + 8 + 16; }
@@ -96,9 +116,12 @@ Column {
                     width: zones.width
                     height: 76
                     radius: Shape.large
+                    Component.onCompleted: { const m = Object.assign({}, page.zoneItems); m[zone] = zoneBox; page.zoneItems = m; }
+                    SpringValue { id: swell; target: zoneBox.hot ? 1 : 0; damping: 0.55; stiffness: 520 }
+                    scale: 1 + 0.015 * swell.value
+                    border.width: zone === "hidden" ? 2 : 2 * swell.value
+                    border.color: zoneBox.hot ? Colors.m3primary : Colors.m3outlineVariant
                     color: hot ? Colors.m3secondaryContainer : zone === "hidden" ? "transparent" : Colors.m3surfaceContainerHigh
-                    border.width: zone === "hidden" ? 2 : 0
-                    border.color: Colors.m3outlineVariant
                     Behavior on color { ColorAnim {} }
 
                     MText {
@@ -143,6 +166,56 @@ Column {
                 }
             }
         }
+
+        Item {
+            id: ghost
+            z: 100
+            readonly property string id_: page.held || page.landing
+            visible: id_ !== ""
+            width: page.chipWidth(id_)
+            height: 36
+            property bool flying: false
+            property point dest: Qt.point(0, 0)
+            function snap(x, y) { gx.value = x; gy.value = y; gx.velocity = 0; gy.velocity = 0; flying = false; }
+            function land(p) { dest = p; flying = true; }
+            SpringValue {
+                id: gx
+                target: ghost.flying ? ghost.dest.x : page.pointer.x - page.grab.x
+                damping: ghost.flying ? 0.62 : 0.85; stiffness: ghost.flying ? 520 : 1800; epsilon: 0.3
+                onRunningChanged: if (!running && ghost.flying) ghost.done()
+            }
+            SpringValue {
+                id: gy
+                target: ghost.flying ? ghost.dest.y : page.pointer.y - page.grab.y
+                damping: ghost.flying ? 0.62 : 0.85; stiffness: ghost.flying ? 520 : 1800; epsilon: 0.3
+            }
+            function done() { flying = false; page.landing = ""; }
+            Component.onCompleted: page.ghostRef = ghost
+            Timer { running: page.landing !== "" && !ghost.flying; interval: 400; onTriggered: ghost.done() }
+            Timer { running: ghost.flying; interval: 700; onTriggered: ghost.done() }
+            x: gx.value
+            y: gy.value
+
+            SpringValue { id: gLift; target: page.held !== "" ? 1 : 0; damping: 0.5; stiffness: 600 }
+            readonly property real lean: Math.max(-1, Math.min(1, gx.velocity / 2200))
+            readonly property real fall: Math.max(-1, Math.min(1, gy.velocity / 2200))
+            rotation: lean * 10
+            transform: Scale {
+                origin.x: ghost.width / 2
+                origin.y: ghost.height / 2
+                xScale: 1 + gLift.value * 0.1 + Math.abs(ghost.lean) * 0.1 - Math.abs(ghost.fall) * 0.05
+                yScale: 1 + gLift.value * 0.1 - Math.abs(ghost.lean) * 0.07 + Math.abs(ghost.fall) * 0.08
+            }
+
+            RectangularShadow {
+                anchors.fill: face
+                radius: height / 2
+                offset.y: 4 + 6 * gLift.value
+                blur: 8 + 14 * gLift.value
+                color: Qt.alpha(Colors.m3shadow, 0.45 * Math.max(0, gLift.value))
+            }
+            PieceFace { id: face; anchors.fill: parent; chipId: ghost.id_; lifted: page.held !== "" }
+        }
     }
 
     component BarChip: Item {
@@ -155,37 +228,17 @@ Column {
 
         width: page.chipWidth(chipId)
         height: 36
-        z: dragging ? 10 : 0
+        opacity: dragging || page.landing === chipId ? 0 : 1
 
-        readonly property point held: parent ? parent.mapFromItem(editor, page.pointer.x - width / 2, page.pointer.y - height / 2) : Qt.point(0, 0)
-        SpringValue { id: sx; target: chip.dragging ? chip.held.x : chip.homeX; damping: chip.dragging ? 0.9 : 0.62; stiffness: chip.dragging ? 1600 : 420; epsilon: 0.1 }
-        SpringValue { id: sy; target: chip.dragging ? chip.held.y : chip.homeY; damping: chip.dragging ? 0.9 : 0.62; stiffness: chip.dragging ? 1600 : 420; epsilon: 0.1 }
+        SpringValue { id: sx; target: chip.homeX; damping: 0.62; stiffness: 420; epsilon: 0.1 }
+        SpringValue { id: sy; target: chip.homeY; damping: 0.62; stiffness: 420; epsilon: 0.1 }
         Component.onCompleted: { sx.value = homeX; sy.value = homeY; }
         x: sx.value
         y: sy.value
 
-        SpringValue { id: lift; target: chip.dragging ? 1 : 0; damping: 0.6; stiffness: 520 }
-        readonly property real lean: Math.max(-1, Math.min(1, sx.velocity / 2500))
-        rotation: lean * 8
-        transform: Scale {
-            origin.x: chip.width / 2
-            origin.y: chip.height / 2
-            xScale: 1 + Math.abs(chip.lean) * 0.08 + lift.value * 0.06
-            yScale: 1 - Math.abs(chip.lean) * 0.06 + lift.value * 0.06
-        }
+        rotation: Math.max(-1, Math.min(1, sx.velocity / 3000)) * 4
 
-        Rectangle {
-            anchors.fill: parent
-            radius: height / 2
-            color: chip.dragging ? Colors.m3primary : chip.zone === "hidden" ? Colors.m3surfaceContainerHighest : Colors.m3secondaryContainer
-            Behavior on color { ColorAnim {} }
-        }
-        Row {
-            anchors.centerIn: parent
-            spacing: 8
-            MIcon { anchors.verticalCenter: parent.verticalCenter; icon: page.info[chip.chipId]?.icon ?? ""; size: 20; fill: 1; color: chip.dragging ? Colors.m3onPrimary : Colors.m3onSecondaryContainer }
-            MText { anchors.verticalCenter: parent.verticalCenter; textStyle: Type.labelLargeEmph; color: chip.dragging ? Colors.m3onPrimary : Colors.m3onSecondaryContainer; text: page.info[chip.chipId]?.label ?? chip.chipId }
-        }
+        PieceFace { anchors.fill: parent; chipId: chip.chipId; lifted: false; dim: chip.zone === "hidden" }
 
         HoverHandler { cursorShape: chip.dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor }
         DragHandler {
@@ -194,16 +247,31 @@ Column {
             onCentroidChanged: if (active) page.pointer = chip.mapToItem(editor, centroid.position.x, centroid.position.y)
             onActiveChanged: {
                 if (active) {
+                    page.grab = Qt.point(centroid.pressPosition.x, centroid.pressPosition.y);
                     page.pointer = chip.mapToItem(editor, centroid.position.x, centroid.position.y);
+                    const at = chip.mapToItem(editor, 0, 0);
+                    ghost.snap(at.x, at.y);
                     page.heldW = chip.width;
                     page.held = chip.chipId;
                 } else {
-                    const zone = page.overZone, index = page.overIndex, id = page.held;
-                    page.held = "";
-                    page.overZone = "";
-                    if (zone) page.move(id, zone, index);
+                    page.drop(page.held, page.overZone || chip.zone, page.overIndex, page.overZone !== "");
                 }
             }
+        }
+    }
+
+    component PieceFace: Rectangle {
+        property string chipId
+        property bool lifted: false
+        property bool dim: false
+        radius: height / 2
+        color: lifted ? Colors.m3primary : dim ? Colors.m3surfaceContainerHighest : Colors.m3secondaryContainer
+        Behavior on color { ColorAnim {} }
+        Row {
+            anchors.centerIn: parent
+            spacing: 8
+            MIcon { anchors.verticalCenter: parent.verticalCenter; icon: page.info[parent.parent.chipId]?.icon ?? ""; size: 20; fill: 1; color: parent.parent.lifted ? Colors.m3onPrimary : Colors.m3onSecondaryContainer }
+            MText { anchors.verticalCenter: parent.verticalCenter; textStyle: Type.labelLargeEmph; color: parent.parent.lifted ? Colors.m3onPrimary : Colors.m3onSecondaryContainer; text: page.info[parent.parent.chipId]?.label ?? parent.parent.chipId }
         }
     }
 

@@ -13,6 +13,9 @@ Item {
     property real shiftX: 0
     property real shiftY: 0
     property bool bare: true
+    property string output: ""
+    property int wsIdx: 0
+    readonly property bool editing: Panels.deskEdit
 
     readonly property var cfg: Config.o.desktop
     visible: cfg.enabled
@@ -58,7 +61,7 @@ Item {
 
     readonly property var desks: [dClock, dGlance, dBattery, dMedia, dForecast, dCalendar, dSystem, dUsage]
     readonly property DeskItem held: desks.find(d => d.dragging) ?? null
-    SpringValue { id: gridIn; target: root.held && root.cfg.grid ? 1 : 0; damping: 0.9; stiffness: 400 }
+    SpringValue { id: gridIn; target: (root.held || root.editing) && root.cfg.grid ? 1 : 0; damping: 0.9; stiffness: 400 }
 
     Canvas {
         id: grid
@@ -101,16 +104,25 @@ Item {
         Region { item: dCalendar }
         Region { item: dSystem }
         Region { item: dUsage }
-        Region { item: menu.open ? catcher : null }
+        Region { item: menu.open || root.editing ? catcher : null }
         Region { item: menu.visible ? menu : null }
     }
 
     MouseArea {
         id: catcher
         anchors.fill: parent
-        enabled: menu.open
+        enabled: menu.open || root.editing
         acceptedButtons: Qt.LeftButton | Qt.RightButton
-        onClicked: menu.close()
+        onClicked: if (menu.open) menu.close()
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        z: -1
+        color: Colors.m3scrim
+        opacity: 0.45 * editS.value
+        visible: opacity > 0.01
+        SpringValue { id: editS; target: root.editing ? 1 : 0; damping: 0.9; stiffness: 300 }
     }
 
     Connections {
@@ -129,6 +141,7 @@ Item {
     Item {
         id: col
         anchors.fill: parent
+        z: root.held ? 250 : 0
 
         DeskItem {
             id: dClock
@@ -1091,6 +1104,33 @@ Item {
                 color: Colors.m3outlineVariant
             }
 
+            Repeater {
+                model: [
+                    { what: "ws", icon: "view_day", label: "Только на этом столе" },
+                    { what: "output", icon: "monitor", label: "Только на этом экране" }
+                ]
+                Item {
+                    id: pinRow
+                    required property var modelData
+                    readonly property bool on: pinRow.modelData.what === "ws" ? !!menu.target?.only?.ws : !!menu.target?.only?.output
+                    width: menuCol.width
+                    height: 44
+                    visible: pinRow.modelData.what === "ws" || Quickshell.screens.length > 1
+                    StateLayer { radius: Shape.medium; onClicked: menu.target.pinHere(pinRow.modelData.what) }
+                    MIcon { x: 12; anchors.verticalCenter: parent.verticalCenter; icon: pinRow.modelData.icon; size: 20; color: Colors.m3onSurfaceVariant }
+                    MText { x: 44; anchors.verticalCenter: parent.verticalCenter; textStyle: Type.labelLarge; text: pinRow.modelData.label }
+                    MSwitch { anchors.right: parent.right; anchors.rightMargin: 8; anchors.verticalCenter: parent.verticalCenter; scale: 0.8; checked: pinRow.on; onToggled: menu.target.pinHere(pinRow.modelData.what) }
+                }
+            }
+
+            Item {
+                width: menuCol.width
+                height: 44
+                StateLayer { radius: Shape.medium; onClicked: { menu.close(); Panels.deskEdit = true; } }
+                MIcon { x: 12; anchors.verticalCenter: parent.verticalCenter; icon: "edit"; size: 20; color: Colors.m3onSurfaceVariant }
+                MText { x: 44; anchors.verticalCenter: parent.verticalCenter; textStyle: Type.labelLarge; text: "Изменить стол" }
+            }
+
             Item {
                 width: menuCol.width
                 height: 44
@@ -1105,6 +1145,206 @@ Item {
                 MIcon { x: 12; anchors.verticalCenter: parent.verticalCenter; icon: "visibility_off"; size: 20; color: Colors.m3onSurfaceVariant }
                 MText { x: 44; anchors.verticalCenter: parent.verticalCenter; textStyle: Type.labelLarge; text: "Убрать со стола" }
             }
+        }
+    }
+
+    Timer {
+        id: arrive
+        property string key: ""
+        interval: 480
+        onTriggered: root.cfg[key] = true
+    }
+
+    Item {
+        id: sheet
+        readonly property var entries: root.desks
+        z: 200
+        visible: sheetIn.value > 0.01
+        SpringValue { id: sheetIn; target: root.editing ? 1 : 0; damping: 0.72; stiffness: 340 }
+        width: Math.min(root.width - 48, sheetRow.implicitWidth + 32)
+        height: 236
+        x: (root.width - width) / 2
+        y: root.height - height - 24 + (1 - sheetIn.value) * (height + 40)
+
+        property var dragging: null
+        property point ghost: Qt.point(0, 0)
+
+        Rectangle {
+            anchors.fill: parent
+            radius: Shape.extraLarge
+            color: Colors.m3surfaceContainer
+        }
+
+        Item {
+            x: 20
+            y: 12
+            width: parent.width - 40
+            height: 44
+            MText { anchors.verticalCenter: parent.verticalCenter; textStyle: Type.titleMediumEmph; text: "Виджеты" }
+            Row {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 8
+                FilterChip { text: "Сетка"; picked: root.cfg.grid; onClicked: root.cfg.grid = !root.cfg.grid }
+                Repeater {
+                    model: [16, 24, 32, 48]
+                    FilterChip {
+                        required property int modelData
+                        visible: root.cfg.grid
+                        text: String(modelData)
+                        picked: root.cfg.gridSize === modelData
+                        onClicked: { root.cfg.gridSize = modelData; grid.requestPaint(); }
+                    }
+                }
+                Rectangle {
+                    width: doneRow.implicitWidth + 32
+                    height: 40
+                    radius: doneLayer.pressed ? Shape.medium : 20
+                    color: Colors.m3primary
+                    Behavior on radius { SpatialAnim { speed: "fast" } }
+                    Row {
+                        id: doneRow
+                        anchors.centerIn: parent
+                        spacing: 6
+                        MIcon { anchors.verticalCenter: parent.verticalCenter; icon: "check"; size: 20; color: Colors.m3onPrimary }
+                        MText { anchors.verticalCenter: parent.verticalCenter; textStyle: Type.labelLargeEmph; color: Colors.m3onPrimary; text: "Готово" }
+                    }
+                    StateLayer { id: doneLayer; radius: parent.radius; color: Colors.m3onPrimary; onClicked: Panels.deskEdit = false }
+                }
+            }
+        }
+
+        Flickable {
+            x: 16
+            y: 64
+            width: parent.width - 32
+            height: 160
+            contentWidth: sheetRow.implicitWidth
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+
+            Row {
+                id: sheetRow
+                spacing: 10
+                Repeater {
+                    model: sheet.entries
+                    Item {
+                        id: tileItem
+                        required property var modelData
+                        readonly property var d: modelData
+                        readonly property bool placed: root.cfg[d.key] === true
+                        width: 168
+                        height: 160
+                        SpringValue { id: tileIn; target: sheetIn.value > 0.5 ? 1 : 0; damping: 0.62; stiffness: 420 }
+                        scale: 0.8 + 0.2 * tileIn.value * (tileDrag.active ? 0.9 : 1)
+                        opacity: tileDrag.active ? 0.4 : 1
+
+                        Rectangle {
+                            id: tileBox
+                            width: parent.width
+                            height: 124
+                            radius: Shape.large
+                            color: tileItem.placed ? Colors.m3secondaryContainer : Colors.m3surfaceContainerHighest
+                            border.width: tileItem.placed ? 2 : 0
+                            border.color: Colors.m3primary
+                            clip: true
+                            Loader {
+                                active: sheet.visible
+                                sourceComponent: tileItem.d.looks[tileItem.d.variant] ?? null
+                                readonly property real k: item ? Math.min(1, (tileBox.width - 20) / item.width, (tileBox.height - 20) / item.height) : 1
+                                x: (tileBox.width - (item?.width ?? 0) * k) / 2
+                                y: (tileBox.height - (item?.height ?? 0) * k) / 2
+                                scale: k
+                                transformOrigin: Item.TopLeft
+                                enabled: false
+                            }
+                            MIcon {
+                                visible: tileItem.d.looks.length === 0
+                                anchors.centerIn: parent
+                                icon: "music_note"; size: 40; fill: 1
+                                color: Colors.m3primary
+                            }
+                            Rectangle {
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 8
+                                width: 28; height: 28; radius: 14
+                                color: tileItem.placed ? Colors.m3primary : Colors.m3surfaceContainer
+                                MIcon { anchors.centerIn: parent; icon: tileItem.placed ? "check" : "add"; size: 18; color: tileItem.placed ? Colors.m3onPrimary : Colors.m3onSurface }
+                            }
+                        }
+                        MText {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.bottom: parent.bottom
+                            textStyle: tileItem.placed ? Type.labelLargeEmph : Type.labelLarge
+                            color: tileItem.placed ? Colors.m3primary : Colors.m3onSurfaceVariant
+                            text: tileItem.d.title
+                        }
+                        TapHandler { onTapped: root.cfg[tileItem.d.key] = !tileItem.placed }
+                        DragHandler {
+                            id: tileDrag
+                            target: null
+                            onCentroidChanged: if (active) sheet.ghost = tileItem.mapToItem(root, centroid.position.x, centroid.position.y)
+                            onActiveChanged: {
+                                if (active) { sheet.dragging = tileItem.d; return; }
+                                const p = sheet.ghost;
+                                const d = sheet.dragging;
+                                sheet.dragging = null;
+                                if (p.y > sheet.y - 20) return;
+                                const pos = Object.assign({}, root.cfg.positions ?? {});
+                                const w = (d.child?.width ?? 200) * d.kk, h = (d.child?.height ?? 120) * d.kk;
+                                const at = { x: d.clampX(d.snap(p.x - w / 2 - root.shiftX)), y: d.clampY(d.snap(p.y - h / 2 - root.shiftY)) };
+                                pos[d.placeKey] = at;
+                                root.cfg.positions = pos;
+                                incoming.lastD = d;
+                                incoming.settle(Qt.point(at.x + root.shiftX, at.y + root.shiftY));
+                                arrive.restart();
+                                arrive.key = d.key;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Item {
+        id: incoming
+        z: 300
+        visible: sheet.dragging !== null || settling
+        property bool settling: false
+        property point dest: Qt.point(0, 0)
+        readonly property var d: sheet.dragging ?? lastD
+        property var lastD: null
+        readonly property real w: (d?.child?.width ?? 200) * (d?.kk ?? 1)
+        readonly property real h: (d?.child?.height ?? 120) * (d?.kk ?? 1)
+        SpringValue { id: ix; target: incoming.settling ? incoming.dest.x : sheet.ghost.x - incoming.w / 2; damping: incoming.settling ? 0.65 : 0.85; stiffness: incoming.settling ? 420 : 1600; epsilon: 0.3 }
+        SpringValue { id: iy; target: incoming.settling ? incoming.dest.y : sheet.ghost.y - incoming.h / 2; damping: incoming.settling ? 0.65 : 0.85; stiffness: incoming.settling ? 420 : 1600; epsilon: 0.3 }
+        SpringValue { id: iS; target: sheet.dragging ? 1 : 0; damping: 0.6; stiffness: 420 }
+        x: ix.value
+        y: iy.value
+        width: w
+        height: h
+        rotation: Math.max(-1, Math.min(1, ix.velocity / 2500)) * 9
+        scale: incoming.settling ? 1 : 0.55 + 0.45 * Math.min(1, iS.value)
+        opacity: incoming.settling ? 1 : Math.min(1, iS.value * 1.5)
+        function settle(pt) { dest = pt; settling = true; settleEnd.restart(); }
+        Timer { id: settleEnd; interval: 520; onTriggered: { incoming.settling = false; incoming.lastD = null; } }
+        onDChanged: if (sheet.dragging) { lastD = sheet.dragging; ix.value = sheet.ghost.x - w / 2; iy.value = sheet.ghost.y - h / 2; }
+
+        Loader {
+            sourceComponent: incoming.d?.looks[incoming.d.variant] ?? null
+            scale: incoming.d?.kk ?? 1
+            transformOrigin: Item.TopLeft
+            enabled: false
+        }
+        MaterialShape {
+            visible: (incoming.d?.looks.length ?? 1) === 0
+            anchors.centerIn: parent
+            width: 96; height: 96
+            shape: "cookie9Sided"
+            color: Colors.m3primaryContainer
+            MIcon { anchors.centerIn: parent; icon: "music_note"; size: 40; fill: 1; color: Colors.m3onPrimaryContainer }
         }
     }
 }

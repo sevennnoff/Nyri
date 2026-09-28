@@ -81,6 +81,8 @@ Singleton {
                 property int gridSize: 24
                 property var positions: ({})
                 property var variants: ({})
+                property var scales: ({})
+                property var only: ({})
                 property bool clock: true
                 property bool glance: true
                 property bool battery: true

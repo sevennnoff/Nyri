@@ -150,14 +150,23 @@ Variants {
         visible: Config.o.desktop.enabled
 
         WlrLayershell.namespace: "nyri-desktop"
-        WlrLayershell.layer: WlrLayer.Bottom
+        WlrLayershell.layer: Panels.deskEdit ? WlrLayer.Top : WlrLayer.Bottom
+        WlrLayershell.keyboardFocus: Panels.deskEdit && scope.modelData.name === Niri.focusedOutput ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
         mask: widgets.mask
+
+        Shortcut {
+            sequence: "Escape"
+            enabled: Panels.deskEdit
+            onActivated: Panels.deskEdit = false
+        }
 
         DesktopWidgets {
             id: widgets
             anchors.fill: parent
-            bare: win.activeWs ? !Object.values(Niri.windows).some(w => w.workspace_id === win.activeWs.id) : true
+            output: scope.modelData.name
+            wsIdx: win.activeWs?.idx ?? 0
+            bare: Panels.deskEdit || (win.activeWs ? !Object.values(Niri.windows).some(w => w.workspace_id === win.activeWs.id) : true)
         }
     }
     }
