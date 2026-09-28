@@ -44,7 +44,7 @@ ShellRoot {
     ScreenCorners {}
     DemoPointer {}
 
-    Component.onCompleted: ScreenTime.since
+    Component.onCompleted: { ScreenTime.since; Schedule.on; Privacy.active; }
 
     Connections {
         target: Quickshell

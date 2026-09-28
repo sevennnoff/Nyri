@@ -55,6 +55,57 @@ Column {
         }
 
         SettingRow {
+            icon: "schedule"
+            title: "По расписанию"
+            subtitle: Config.o.theme.schedule === "off" ? "Тема меняется только вручную"
+                    : Config.o.theme.schedule === "sun" ? "Тёмная от заката до рассвета · " + Config.o.weather.city + " · " + Schedule.nextText
+                    : "Тёмная с " + Config.o.theme.darkAt + " до " + Config.o.theme.lightAt + " · " + Schedule.nextText
+
+            below: Column {
+                width: parent.width
+                spacing: 12
+
+                SegmentedButtons {
+                    width: parent.width
+                    value: Config.o.theme.schedule
+                    options: [{ value: "off", label: "Нет" }, { value: "sun", label: "Закат и рассвет" }, { value: "time", label: "По часам" }]
+                    onSelected: v => Config.o.theme.schedule = v
+                }
+
+                Row {
+                    visible: Config.o.theme.schedule === "time"
+                    spacing: 16
+                    Repeater {
+                        model: [{ key: "darkAt", icon: "bedtime", label: "Тёмная" }, { key: "lightAt", icon: "wb_sunny", label: "Светлая" }]
+                        Row {
+                            id: stepper
+                            required property var modelData
+                            spacing: 4
+                            function shift(d) {
+                                const m = Schedule.minutes(Config.o.theme[modelData.key]);
+                                const n = (m + d + 1440) % 1440;
+                                Config.o.theme[modelData.key] = String(Math.floor(n / 60)).padStart(2, "0") + ":" + String(n % 60).padStart(2, "0");
+                            }
+                            MIcon { anchors.verticalCenter: parent.verticalCenter; icon: stepper.modelData.icon; size: 20; color: Colors.m3primary }
+                            MText { anchors.verticalCenter: parent.verticalCenter; textStyle: Type.labelLarge; text: stepper.modelData.label }
+                            IconButton { anchors.verticalCenter: parent.verticalCenter; icon: "remove"; size: 32; iconSize: 18; onClicked: stepper.shift(-30) }
+                            RollingText { anchors.verticalCenter: parent.verticalCenter; textStyle: Type.titleMediumEmph; text: Config.o.theme[stepper.modelData.key] }
+                            IconButton { anchors.verticalCenter: parent.verticalCenter; icon: "add"; size: 32; iconSize: 18; onClicked: stepper.shift(30) }
+                        }
+                    }
+                }
+            }
+        }
+
+        SettingRow {
+            visible: Config.o.theme.schedule !== "off"
+            icon: "wallpaper"
+            title: "Ночные обои"
+            subtitle: "Сгенерированные обои на ночь перерисовываются в тёмной палитре из своего же акцента"
+            MSwitch { checked: Config.o.theme.walls; onToggled: c => Config.o.theme.walls = c }
+        }
+
+        SettingRow {
             icon: "colors"
             title: "Схема"
             subtitle: "Как matugen раскрашивает обои"

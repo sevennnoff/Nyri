@@ -65,6 +65,14 @@ Singleton {
 
             property JsonObject wallpaper: JsonObject {
                 property bool span: false
+                property real scale: 1.0
+            }
+
+            property JsonObject theme: JsonObject {
+                property string schedule: "off"
+                property string darkAt: "21:00"
+                property string lightAt: "07:00"
+                property bool walls: true
             }
 
             property JsonObject desktop: JsonObject {

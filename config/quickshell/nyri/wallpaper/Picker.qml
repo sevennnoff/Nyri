@@ -24,6 +24,7 @@ Scope {
     property string palette: "Терракота"
     property int seed: 1
     property bool grid: false
+    property real patternScale: 1.0
     property real hue: 0.72
     property bool customDark: false
     property int frame: 0
@@ -37,7 +38,12 @@ Scope {
     readonly property var styleInfo: styles[styleIndex] ?? null
     readonly property string paletteTitle: custom ? "Свой цвет" : palette
 
-    function args() { return grid ? ["--grid"] : []; }
+    function args() {
+        const a = grid ? ["--grid"] : [];
+        if (Math.abs(patternScale - 1) > 0.01) a.push("--scale", patternScale.toFixed(2));
+        return a;
+    }
+    Timer { id: scaleDebounce; interval: 150; onTriggered: root.refresh() }
     function regenerate() {
         frame = (frame + 1) % 2;
         make.command = [bin, "make", style, palette, String(seed), preview + frame + ".svg", "--size", "1440x900", ...args()];
@@ -93,6 +99,7 @@ Scope {
                 root.style = c.style;
                 root.seed = parseInt(c.seed);
                 root.grid = !!c.grid;
+                root.patternScale = c.scale ?? 1;
                 if (c.palette.startsWith("#")) {
                     const [hex, variant] = c.palette.split("/");
                     root.hue = Qt.color(hex).hslHue;
@@ -314,6 +321,31 @@ Scope {
                             text: "Сетка"
                             picked: root.grid
                             onClicked: { root.grid = !root.grid; root.refresh(); }
+                        }
+                    }
+
+                    Row {
+                        width: parent.width
+                        spacing: 12
+                        MIcon { anchors.verticalCenter: parent.verticalCenter; icon: "zoom_out"; size: 20; color: Colors.m3onSurfaceVariant }
+                        MSlider {
+                            id: scaleSlider
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width - 20 - 20 - 72 - 36
+                            value: (Math.log(root.patternScale) / Math.LN2 + 1) / 2
+                            onMoved: v => {
+                                const k = Math.pow(2, v * 2 - 1);
+                                root.patternScale = Math.abs(k - 1) < 0.06 ? 1 : Math.round(k * 20) / 20;
+                                scaleDebounce.restart();
+                            }
+                        }
+                        MIcon { anchors.verticalCenter: parent.verticalCenter; icon: "zoom_in"; size: 20; color: Colors.m3onSurfaceVariant }
+                        RollingText {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 72
+                            textStyle: Type.labelLargeEmph
+                            color: Colors.m3primary
+                            text: "×" + root.patternScale.toFixed(2).replace(/0$/, "").replace(/\.0$/, "")
                         }
                     }
 
