@@ -107,6 +107,21 @@ binds {
     Mod+WheelScrollRight { focus-column-right; }
     Mod+WheelScrollLeft  { focus-column-left; }
 
+    Mod+MouseMiddle hotkey-overlay-title="Обзор (колесо мыши)" { toggle-overview; }
+    Mod+MouseForward { focus-column-right; }
+    Mod+MouseBack    { focus-column-left; }
+    Mod+Shift+MouseForward { move-column-right; }
+    Mod+Shift+MouseBack    { move-column-left; }
+    Mod+Shift+WheelScrollDown { focus-column-right; }
+    Mod+Shift+WheelScrollUp   { focus-column-left; }
+    Mod+Ctrl+Shift+WheelScrollDown { move-column-right; }
+    Mod+Ctrl+Shift+WheelScrollUp   { move-column-left; }
+    Mod+Alt+WheelScrollUp   allow-when-locked=true hotkey-overlay-title="Громче (колесо)" { spawn-sh "~/nyri/bin/nyri audio volumeUp"; }
+    Mod+Alt+WheelScrollDown allow-when-locked=true hotkey-overlay-title="Тише (колесо)" { spawn-sh "~/nyri/bin/nyri audio volumeDown"; }
+    Mod+Alt+MouseMiddle  hotkey-overlay-title="Пауза (колесо)" { spawn-sh "~/nyri/bin/nyri mpris playPause"; }
+    Mod+Alt+MouseForward { spawn-sh "~/nyri/bin/nyri mpris next"; }
+    Mod+Alt+MouseBack    { spawn-sh "~/nyri/bin/nyri mpris previous"; }
+
     Print       hotkey-overlay-title="Снимок или запись" { spawn-sh "~/nyri/bin/nyri region menu"; }
     Shift+Print hotkey-overlay-title="Записать область" { spawn-sh "~/nyri/bin/nyri region record"; }
     Ctrl+Print  { screenshot-screen; }
