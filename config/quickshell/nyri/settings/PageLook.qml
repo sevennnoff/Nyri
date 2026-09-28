@@ -48,7 +48,7 @@ Column {
 
             choice: Colors.mode
             choices: [{ value: "dark", label: "Тёмная" }, { value: "light", label: "Светлая" }]
-            onChosen: v => page.apply(["NYRI_MODE=" + v])
+            onChosen: v => Toggles.setMode(v)
         }
 
         SettingRow {
@@ -95,10 +95,9 @@ Column {
         }
 
         SettingRow {
-            visible: Config.o.theme.schedule !== "off"
             icon: "wallpaper"
-            title: "Ночные обои"
-            subtitle: "Сгенерированные обои на ночь перерисовываются в тёмной палитре из своего же акцента"
+            title: "Обои вместе с темой"
+            subtitle: "Сгенерированные обои темнеют и светлеют с темой"
             MSwitch { checked: Config.o.theme.walls; onToggled: c => Config.o.theme.walls = c }
         }
 
