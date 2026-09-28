@@ -93,7 +93,9 @@ Column {
                 { label: "Процессор", value: SysStats.cpu, text: Math.round(SysStats.cpu * 100) + "%", sub: SysStats.temp > 0 ? Math.round(SysStats.temp) + " °C" : "" },
                 { label: "Память", value: SysStats.mem, text: Math.round(SysStats.mem * 100) + "%", sub: SysStats.memTotalGb ? SysStats.memUsedGb.toFixed(1) + " из " + SysStats.memTotalGb.toFixed(0) + " ГБ" : "" },
                 { label: "Диск", value: SysStats.disk, text: Math.round(SysStats.disk * 100) + "%", sub: SysStats.diskText },
-                { label: "Батарея", value: (page.info.battery?.health ?? 0) / 100, text: page.info.battery ? page.info.battery.health + "%" : "—", sub: page.info.battery?.cycles >= 0 ? page.info.battery.cycles + " циклов" : "" }
+                { label: "Батарея", value: Math.min(100, page.info.battery?.health ?? 0) / 100,
+                  text: page.info.battery ? Math.min(100, page.info.battery.health) + "%" : "—",
+                  sub: page.info.battery ? (page.info.battery.health >= 100 ? "как новая" : "") + (page.info.battery.cycles >= 0 ? (page.info.battery.health >= 100 ? " · " : "") + page.info.battery.cycles + " циклов" : "") : "" }
             ]
             Rectangle {
                 id: meter
