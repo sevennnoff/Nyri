@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell.Services.UPower
 import Quickshell.Widgets
 import qs.theme
+import qs.services
 import qs.widgets
 
 Row {
@@ -23,6 +24,7 @@ Row {
         anchors.verticalCenter: parent.verticalCenter
         size: 13
         textSize: 13
+        showText: Config.o.bar.percent
         level: root.level
         charging: root.charging
     }

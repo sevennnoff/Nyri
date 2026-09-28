@@ -324,31 +324,6 @@ Scope {
                         }
                     }
 
-                    Row {
-                        width: parent.width
-                        spacing: 12
-                        MIcon { anchors.verticalCenter: parent.verticalCenter; icon: "zoom_out"; size: 20; color: Colors.m3onSurfaceVariant }
-                        MSlider {
-                            id: scaleSlider
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width - 20 - 20 - 72 - 36
-                            value: (Math.log(root.patternScale) / Math.LN2 + 1) / 2
-                            onMoved: v => {
-                                const k = Math.pow(2, v * 2 - 1);
-                                root.patternScale = Math.abs(k - 1) < 0.06 ? 1 : Math.round(k * 20) / 20;
-                                scaleDebounce.restart();
-                            }
-                        }
-                        MIcon { anchors.verticalCenter: parent.verticalCenter; icon: "zoom_in"; size: 20; color: Colors.m3onSurfaceVariant }
-                        RollingText {
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 72
-                            textStyle: Type.labelLargeEmph
-                            color: Colors.m3primary
-                            text: "×" + root.patternScale.toFixed(2).replace(/0$/, "").replace(/\.0$/, "")
-                        }
-                    }
-
                     ListView {
                         id: styleList
                         width: parent.width
@@ -420,6 +395,52 @@ Scope {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: root.pickStyle(card.modelData.id)
+                            }
+                        }
+                    }
+
+                    Item {
+                        width: parent.width
+                        height: 48
+                        MText {
+                            id: scaleLabel
+                            anchors.verticalCenter: parent.verticalCenter
+                            textStyle: Type.labelLargeEmph
+                            color: Colors.m3onSurfaceVariant
+                            text: "Масштаб"
+                        }
+                        MSlider {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: scaleLabel.right
+                            anchors.leftMargin: 16
+                            anchors.right: scaleValue.left
+                            anchors.rightMargin: 12
+                            value: (Math.log(root.patternScale) / Math.LN2 + 1) / 2
+                            onMoved: v => {
+                                const k = Math.pow(2, v * 2 - 1);
+                                root.patternScale = Math.abs(k - 1) < 0.06 ? 1 : Math.round(k * 20) / 20;
+                                scaleDebounce.restart();
+                            }
+                        }
+                        Rectangle {
+                            id: scaleValue
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 64
+                            height: 32
+                            radius: 16
+                            color: Colors.m3secondaryContainer
+                            MText {
+                                anchors.centerIn: parent
+                                textStyle: Type.labelLargeEmph
+                                font.features: { "tnum": 1 }
+                                color: Colors.m3onSecondaryContainer
+                                text: "×" + (Math.round(root.patternScale * 100) / 100)
+                            }
+                            StateLayer {
+                                radius: 16
+                                color: Colors.m3onSecondaryContainer
+                                onClicked: { root.patternScale = 1; root.refresh(); }
                             }
                         }
                     }

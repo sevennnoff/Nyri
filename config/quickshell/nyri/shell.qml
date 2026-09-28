@@ -75,6 +75,7 @@ ShellRoot {
         function dnd(): void { Notifs.dnd = !Notifs.dnd; }
         function dark(): void { Toggles.toggleDark(); }
         function settings(): void { settingsApp.toggle(); }
+        function settingsAt(page: string): void { Panels.openSettings(page); }
         function crosshair(): void { Toggles.crosshair = !Toggles.crosshair; }
         function autohide(): void { Config.o.bar.autohide = !Config.o.bar.autohide; }
         function recording(on: bool): void { Toggles.recording = on; if (on) Toggles.recordingSince = Date.now(); }

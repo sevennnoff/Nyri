@@ -76,7 +76,7 @@ Island {
     }
 
     Chip {
-        visible: Audio.sink !== null
+        visible: Audio.sink !== null && Config.o.bar.volume
         onClicked: m => m.button === Qt.RightButton ? Panels.toggleFrom("control", root) : Audio.toggleMute()
         onWheel: event => Audio.setVolume(Audio.volume + (event.angleDelta.y > 0 ? 0.05 : -0.05))
 

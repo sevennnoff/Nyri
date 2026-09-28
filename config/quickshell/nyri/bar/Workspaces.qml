@@ -9,8 +9,9 @@ Island {
     required property string output
     readonly property var list: Niri.workspacesOn(output)
 
-    padding: 14
-    spacing: 6
+    readonly property string look: Config.o.bar.workspaces
+    padding: look === "numbers" ? 6 : 14
+    spacing: look === "numbers" ? 4 : 6
 
     Repeater {
         model: root.list.length
@@ -28,18 +29,37 @@ Island {
             width: w.value
             height: h.value
 
-            SpringValue { id: w; target: dot.active ? 36 : hit.containsMouse ? 14 : 10; damping: 0.55; stiffness: 700 }
-            SpringValue { id: h; target: dot.active ? 12 : 10; damping: 0.55; stiffness: 700 }
+            SpringValue {
+                id: w
+                target: root.look === "numbers" ? (dot.active ? 40 : 28)
+                      : root.look === "dots" ? (dot.active ? 14 : hit.containsMouse ? 10 : 8)
+                      : dot.active ? 36 : hit.containsMouse ? 14 : 10
+                damping: 0.55; stiffness: 700
+            }
+            SpringValue {
+                id: h
+                target: root.look === "numbers" ? 28 : root.look === "dots" ? (dot.active ? 14 : hit.containsMouse ? 10 : 8) : dot.active ? 12 : 10
+                damping: 0.55; stiffness: 700
+            }
 
             Rectangle {
                 anchors.fill: parent
                 radius: height / 2
                 color: dot.urgent ? Colors.m3error
                      : dot.active ? Colors.m3primary
+                     : root.look === "numbers" ? (dot.occupied ? Colors.m3secondaryContainer : "transparent")
                      : dot.occupied ? Colors.m3onSurfaceVariant
                      : Colors.m3outlineVariant
 
                 Behavior on color { ColorAnim {} }
+
+                MText {
+                    anchors.centerIn: parent
+                    visible: root.look === "numbers"
+                    textStyle: Type.labelLargeEmph
+                    color: dot.active ? Colors.m3onPrimary : dot.occupied ? Colors.m3onSecondaryContainer : Colors.m3onSurfaceVariant
+                    text: dot.ws?.idx ?? ""
+                }
             }
 
             MouseArea {

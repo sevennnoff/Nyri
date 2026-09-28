@@ -19,14 +19,14 @@ Island {
 
     SystemClock {
         id: clock
-        precision: SystemClock.Minutes
+        precision: Config.o.bar.seconds ? SystemClock.Seconds : SystemClock.Minutes
     }
 
     RollingText {
         anchors.verticalCenter: parent.verticalCenter
         textStyle: Type.titleMediumEmph
         color: Colors.m3onPrimaryContainer
-        text: Qt.formatTime(clock.date, "HH:mm")
+        text: Qt.formatTime(clock.date, Config.o.bar.seconds ? "HH:mm:ss" : "HH:mm")
     }
 
     Rectangle {

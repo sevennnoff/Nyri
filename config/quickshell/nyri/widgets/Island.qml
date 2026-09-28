@@ -41,7 +41,11 @@ Item {
         function onUnlocked() { root.intro = 0; introAnim.restart(); }
     }
 
+    readonly property string barStyle: Config.o.bar.style
+    readonly property bool plain: root.color === Colors.m3surfaceContainer
+
     RectangularShadow {
+        visible: root.barStyle === "islands"
         anchors.fill: bg
         radius: bg.radius
         offset.y: 2
@@ -53,7 +57,11 @@ Item {
         id: bg
         anchors.fill: parent
         radius: height / 2
-        color: root.color
+        color: root.barStyle === "strip" && root.plain ? "transparent"
+             : root.barStyle === "outline" && root.plain ? Qt.alpha(Colors.m3surface, 0.55)
+             : root.color
+        border.width: root.barStyle === "outline" ? 1.5 : 0
+        border.color: Qt.alpha(Colors.m3outline, 0.7)
 
         Behavior on color { ColorAnim {} }
     }
