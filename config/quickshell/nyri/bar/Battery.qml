@@ -21,9 +21,8 @@ Row {
 
     BatteryPill {
         anchors.verticalCenter: parent.verticalCenter
-        width: root.charging ? 52 : 42
-        height: 20
-        Behavior on width { SpatialAnim { speed: "fast" } }
+        size: 13
+        textSize: 13
         level: root.level
         charging: root.charging
     }

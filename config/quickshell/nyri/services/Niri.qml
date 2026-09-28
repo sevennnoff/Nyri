@@ -12,6 +12,8 @@ Singleton {
     property var layoutNames: []
     property int layoutIndex: 0
     property bool overviewOpen: false
+    property var casts: []
+    readonly property var activeCasts: casts.filter(c => c.is_active !== false)
 
     readonly property string focusedOutput: workspaces.find(ws => ws.is_focused)?.output ?? ""
     readonly property var focusedWindow: focusedWindowId !== null ? (windows[focusedWindowId] ?? null) : null
@@ -23,6 +25,12 @@ Singleton {
 
     function workspacesOn(output) {
         return workspaces.filter(ws => ws.output === output);
+    }
+
+    function windowOfPid(pid) {
+        for (const id in windows)
+            if (windows[id].pid === pid) return windows[id];
+        return null;
     }
 
     function windowCount(workspaceId) {
@@ -105,6 +113,14 @@ Singleton {
             if (ev.ConfigLoaded.failed)
                 Quickshell.execDetached(["notify-send", "-a", "niri", "-u", "critical", "-i", "dialog-error",
                     "Ошибка в конфиге niri", "Работает прежняя версия. Подробности: niri validate"]);
+        } else if (ev.CastsChanged) {
+            root.casts = ev.CastsChanged.casts ?? [];
+        } else if (ev.CastStartedOrChanged) {
+            const c = ev.CastStartedOrChanged.cast;
+            root.casts = root.casts.filter(x => x.stream_id !== c.stream_id).concat([c]);
+        } else if (ev.CastStopped) {
+            const id = ev.CastStopped.stream_id;
+            root.casts = root.casts.filter(x => x.stream_id !== id);
         } else if (ev.OverviewOpenedOrClosed) {
             root.overviewOpen = ev.OverviewOpenedOrClosed.is_open;
         }

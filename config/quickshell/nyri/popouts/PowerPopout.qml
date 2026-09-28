@@ -156,11 +156,11 @@ Surface {
                     spacing: 18
 
                     BatteryPill {
-                        width: 150
-                        height: 72
+                        anchors.verticalCenter: parent.verticalCenter
+                        size: 40
                         level: root.level
                         charging: root.charging
-                        textSize: 34
+                        textSize: 38
                         textWeight: 700
                     }
 

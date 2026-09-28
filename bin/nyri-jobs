@@ -1,0 +1,145 @@
+#!/usr/bin/env python3
+import json, sys
+from gi.repository import Gio, GLib
+
+XML = """<node>
+<interface name="org.kde.JobViewServer">
+  <method name="requestView">
+    <arg type="s" direction="in"/><arg type="s" direction="in"/><arg type="i" direction="in"/>
+    <arg type="o" direction="out"/>
+  </method>
+</interface>
+<interface name="org.kde.JobViewServerV2">
+  <method name="requestView">
+    <arg type="s" direction="in"/><arg type="i" direction="in"/><arg type="a{sv}" direction="in"/>
+    <arg type="o" direction="out"/>
+  </method>
+</interface>
+</node>"""
+
+JOB_XML = """<node>
+<interface name="org.kde.JobViewV2">
+  <method name="terminate"><arg type="s" direction="in"/></method>
+  <method name="setSuspended"><arg type="b" direction="in"/></method>
+  <method name="setTotalAmount"><arg type="t" direction="in"/><arg type="s" direction="in"/></method>
+  <method name="setProcessedAmount"><arg type="t" direction="in"/><arg type="s" direction="in"/></method>
+  <method name="setPercent"><arg type="u" direction="in"/></method>
+  <method name="setSpeed"><arg type="t" direction="in"/></method>
+  <method name="setInfoMessage"><arg type="s" direction="in"/></method>
+  <method name="setDescriptionField">
+    <arg type="u" direction="in"/><arg type="s" direction="in"/><arg type="s" direction="in"/>
+    <arg type="b" direction="out"/>
+  </method>
+  <method name="clearDescriptionField"><arg type="u" direction="in"/></method>
+  <method name="setDestUrl"><arg type="v" direction="in"/></method>
+  <method name="setError"><arg type="u" direction="in"/></method>
+  <signal name="cancelRequested"/><signal name="suspendRequested"/><signal name="resumeRequested"/>
+</interface>
+<interface name="org.kde.JobViewV3">
+  <method name="terminate"><arg type="u" direction="in"/><arg type="s" direction="in"/><arg type="a{sv}" direction="in"/></method>
+  <method name="update"><arg type="a{sv}" direction="in"/></method>
+  <signal name="cancelRequested"/><signal name="suspendRequested"/><signal name="resumeRequested"/>
+</interface>
+</node>"""
+
+jobs = {}
+regs = {}
+next_id = [1]
+bus = None
+
+def emit(obj):
+    print(json.dumps(obj, ensure_ascii=False), flush=True)
+
+def publish(jid):
+    emit(dict(jobs[jid], op="update", id=jid))
+
+def end(jid):
+    for r in regs.pop(jid, []):
+        bus.unregister_object(r)
+    if jobs.pop(jid, None) is not None:
+        emit({"op": "end", "id": jid})
+
+def job_call(jid):
+    def call(conn, sender, path, iface, method, params, inv):
+        s = jobs.get(jid)
+        args = params.unpack()
+        if s is None:
+            inv.return_value(None)
+            return
+        if method == "terminate":
+            end(jid)
+        elif method == "update":
+            p = args[0]
+            for key, field in (("title", "title"), ("infoMessage", "info"), ("percent", "percent"),
+                               ("speed", "speed"), ("totalBytes", "total"), ("processedBytes", "processed"),
+                               ("suspended", "suspended"), ("descriptionLabel1", "label1"),
+                               ("descriptionValue1", "value1"), ("descriptionLabel2", "label2"),
+                               ("descriptionValue2", "value2")):
+                if key in p:
+                    s[field] = p[key]
+            publish(jid)
+        elif method == "setSuspended":
+            s["suspended"] = args[0]; publish(jid)
+        elif method == "setTotalAmount":
+            if args[1] == "bytes": s["total"] = args[0]; publish(jid)
+        elif method == "setProcessedAmount":
+            if args[1] == "bytes": s["processed"] = args[0]; publish(jid)
+        elif method == "setPercent":
+            s["percent"] = args[0]; publish(jid)
+        elif method == "setSpeed":
+            s["speed"] = args[0]; publish(jid)
+        elif method == "setInfoMessage":
+            s["info"] = args[0]; publish(jid)
+        elif method == "setDescriptionField":
+            n, name, value = args
+            if n in (0, 1):
+                s["label%d" % (n + 1)] = name
+                s["value%d" % (n + 1)] = value
+                publish(jid)
+            inv.return_value(GLib.Variant("(b)", (True,)))
+            return
+        inv.return_value(None)
+    return call
+
+def request(conn, sender, path, iface, method, params, inv):
+    args = params.unpack()
+    jid = next_id[0]
+    next_id[0] += 1
+    if iface == "org.kde.JobViewServerV2":
+        app, hints = args[0], args[2]
+        icon = hints.get("desktop-entry", app)
+    else:
+        app, icon = args[0], args[1]
+    jobs[jid] = {"app": app, "icon": icon, "title": "", "info": "", "percent": -1,
+                 "speed": 0, "total": 0, "processed": 0, "suspended": False}
+    path = f"/org/kde/nyri/jobs/{jid}"
+    regs[jid] = [bus.register_object(path, i, job_call(jid), None, None)
+                 for i in Gio.DBusNodeInfo.new_for_xml(JOB_XML).interfaces]
+    publish(jid)
+    Gio.bus_watch_name_on_connection(bus, sender, Gio.BusNameWatcherFlags.NONE, None,
+                                     lambda *_: end(jid))
+    inv.return_value(GLib.Variant("(o)", (path,)))
+
+def stdin_line(channel, cond):
+    line = channel.readline()
+    if not line:
+        GLib.MainLoop().quit()
+        sys.exit(0)
+    parts = line.split()
+    if len(parts) == 2 and parts[1].isdigit() and int(parts[1]) in jobs:
+        sig = {"cancel": "cancelRequested", "suspend": "suspendRequested", "resume": "resumeRequested"}.get(parts[0])
+        if sig:
+            path = f"/org/kde/nyri/jobs/{parts[1]}"
+            for iface in ("org.kde.JobViewV2", "org.kde.JobViewV3"):
+                bus.emit_signal(None, path, iface, sig, None)
+    return True
+
+def lost(*_):
+    sys.exit(0)
+
+bus = Gio.bus_get_sync(Gio.BusType.SESSION)
+for i in Gio.DBusNodeInfo.new_for_xml(XML).interfaces:
+    bus.register_object("/JobViewServer", i, request, None, None)
+Gio.bus_own_name_on_connection(bus, "org.kde.JobViewServer", Gio.BusNameOwnerFlags.DO_NOT_QUEUE, None, lost)
+GLib.io_add_watch(GLib.IOChannel.unix_new(sys.stdin.fileno()), GLib.IO_IN | GLib.IO_HUP, stdin_line)
+GLib.MainLoop().run()

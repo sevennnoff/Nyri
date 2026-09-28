@@ -280,7 +280,8 @@ Scope {
                     readonly property bool charging: UPower.displayDevice?.state === UPowerDeviceState.Charging
                     BatteryPill {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: parent.charging ? 54 : 44; height: 22
+                        size: 14
+                        textSize: 14
                         level: parent.level
                         charging: parent.charging
                     }

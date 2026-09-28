@@ -12,3 +12,5 @@ include "motion.kdl"
 include "rules.kdl"
 include "startup.kdl"
 include "binds.kdl"
+
+include optional=true "live.kdl"

@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+import ctypes, json, os, select, struct, sys, time
+from pathlib import Path
+
+IN_OPEN, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE = 0x20, 0x08, 0x10
+IGNORE = {"pipewire", "wireplumber", "pipewire-pulse", "xdg-desktop-portal"}
+
+libc = ctypes.CDLL(None, use_errno=True)
+fd = libc.inotify_init1(os.O_NONBLOCK | os.O_CLOEXEC)
+devices = sorted(str(p) for p in Path("/dev").glob("video*"))
+for dev in devices:
+    libc.inotify_add_watch(fd, dev.encode(), IN_OPEN | IN_CLOSE_WRITE | IN_CLOSE_NOWRITE)
+if fd < 0 or not devices:
+    print("[]", flush=True)
+    sys.exit(0)
+
+me = os.getpid()
+
+def users():
+    out = {}
+    for proc in Path("/proc").iterdir():
+        if not proc.name.isdigit() or int(proc.name) == me:
+            continue
+        try:
+            for link in (proc / "fd").iterdir():
+                target = os.readlink(link)
+                if target.startswith("/dev/video"):
+                    comm = (proc / "comm").read_text().strip()
+                    if comm not in IGNORE:
+                        out[int(proc.name)] = {"pid": int(proc.name), "app": comm, "dev": target[5:]}
+                    break
+        except OSError:
+            continue
+    return sorted(out.values(), key=lambda u: u["pid"])
+
+last = json.dumps(users())
+print(last, flush=True)
+while True:
+    select.select([fd], [], [])
+    time.sleep(0.25)
+    try:
+        while os.read(fd, 4096):
+            pass
+    except BlockingIOError:
+        pass
+    now = json.dumps(users())
+    if now != last:
+        last = now
+        print(now, flush=True)

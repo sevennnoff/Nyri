@@ -35,6 +35,8 @@ ShellRoot {
     PowerPopout {}
     WindowMenu {}
     TrayPopout {}
+    LivePopout {}
+    PlayerPopout {}
     Settings { id: settingsApp }
     Crosshair {}
     SnipMenu {}
@@ -77,5 +79,9 @@ ShellRoot {
         function autohide(): void { Config.o.bar.autohide = !Config.o.bar.autohide; }
         function recording(on: bool): void { Toggles.recording = on; if (on) Toggles.recordingSince = Date.now(); }
         function switcher(dir: string): void { altTab.step(dir === "prev" ? -1 : 1); }
+        function activity(json: string): void { Activities.push(json); }
+        function activityEnd(id: string, done: string): void { Activities.end(id, done); }
+        function timer(spec: string, label: string): void { Activities.addTimer(Activities.parseDuration(spec), label); }
+        function privacy(): void { Config.o.privacy.mode = !Config.o.privacy.mode; }
     }
 }

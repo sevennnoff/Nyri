@@ -25,6 +25,15 @@ Singleton {
                 property bool tray: true
                 property bool layout: true
                 property bool date: true
+                property var left: ["launcher", "workspaces", "title"]
+                property var center: ["clock", "live"]
+                property var right: ["tray", "status", "control"]
+                property string style: "islands"
+                property bool seconds: false
+                property string workspaces: "pills"
+                property bool volume: true
+                property bool percent: true
+                property bool mediaTitle: true
             }
 
             property JsonObject notifications: JsonObject {
@@ -76,6 +85,12 @@ Singleton {
 
             property JsonObject screenTime: JsonObject {
                 property bool enabled: true
+            }
+
+            property JsonObject privacy: JsonObject {
+                property bool mode: false
+                property bool autoOnCast: true
+                property bool dndWhenActive: true
             }
         }
     }

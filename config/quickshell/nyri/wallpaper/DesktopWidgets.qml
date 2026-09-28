@@ -478,17 +478,17 @@ Item {
                 Component {
                     id: battBar
                     Rectangle {
-                        width: 220
                         height: 76
                         radius: height / 2
                         color: Colors.m3surfaceContainer
+                        width: bigBatt.implicitWidth + 48
                         BatteryPill {
-                            anchors.fill: parent
-                            anchors.margins: 8
-                            color: Colors.m3secondaryContainer
+                            id: bigBatt
+                            anchors.centerIn: parent
+                            size: 32
                             level: root.level
                             charging: root.charging
-                            textSize: 26
+                            textSize: 30
                             textWeight: 700
                         }
                     }

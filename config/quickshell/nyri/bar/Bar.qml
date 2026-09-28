@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Services.SystemTray as ST
 import qs.theme
 import qs.services
 import qs.widgets
@@ -76,6 +77,60 @@ Variants {
             onTriggered: bar.pointerIn = false
         }
 
+        Rectangle {
+            visible: Config.o.bar.style === "strip"
+            width: bar.width
+            height: bar.stripHeight + 4 - bar.gap / 2
+            y: (1 - reveal.value) * -(bar.stripHeight + 12)
+            color: Colors.m3surfaceContainer
+            opacity: Math.min(1, reveal.value * 2)
+            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Colors.m3outlineVariant; opacity: 0.6 }
+        }
+
+        readonly property var leftIds: Array.isArray(Config.o.bar.left) ? Config.o.bar.left : ["launcher", "workspaces", "title"]
+        readonly property var centerIds: Array.isArray(Config.o.bar.center) ? Config.o.bar.center : ["clock", "live"]
+        readonly property var rightIds: Array.isArray(Config.o.bar.right) ? Config.o.bar.right : ["tray", "status", "control"]
+
+        readonly property var registry: ({
+            launcher: launcherC, workspaces: workspacesC, title: titleC, clock: clockC, live: liveC,
+            tray: trayC, status: statusC, control: controlC, weather: weatherC, media: mediaC
+        })
+        function wants(id) {
+            if (id === "tray") return ST.SystemTray.items.values.length > 0;
+            if (id === "weather") return Weather.ready;
+            if (id === "media") return Media.player !== null;
+            if (id === "title") return Niri.focusedWindow !== null;
+            return true;
+        }
+        Component { id: launcherC; LauncherButton {} }
+        Component { id: workspacesC; Workspaces { output: bar.modelData.name } }
+        Component { id: titleC; WindowTitle { maxTextWidth: 360 } }
+        Component { id: clockC; Clock {} }
+        Component { id: liveC; LiveIsland {} }
+        Component { id: trayC; Tray { barWindow: bar } }
+        Component { id: statusC; Status {} }
+        Component { id: controlC; PanelButton {} }
+        Component { id: weatherC; WeatherIsland {} }
+        Component { id: mediaC; MediaIsland {} }
+
+        component Section: Row {
+            id: sec
+            property var ids: []
+            property int base: 0
+            spacing: 8
+            Repeater {
+                model: sec.ids
+                Loader {
+                    required property string modelData
+                    required property int index
+                    anchors.verticalCenter: parent?.verticalCenter
+                    sourceComponent: bar.registry[modelData] ?? null
+                    visible: bar.wants(modelData)
+                    onLoaded: if (item.introIndex !== undefined) item.introIndex = sec.base + index
+                }
+            }
+        }
+
         Item {
             id: content
             width: bar.width
@@ -83,37 +138,28 @@ Variants {
             transform: Translate { y: (1 - reveal.value) * -(bar.stripHeight + 12) }
             opacity: Math.min(1, reveal.value * 2)
 
-            Row {
+            Section {
                 id: left
                 x: bar.gap
                 y: bar.gap
-                spacing: 8
-
-                LauncherButton {}
-                Workspaces { output: bar.modelData.name; introIndex: 1 }
-                WindowTitle {
-                    introIndex: 2
-                    visible: Config.o.bar.title && opacity > 0
-                    maxTextWidth: Math.max(80, center.x - left.x - 40 - 8 - 200 - 60)
-                }
+                ids: bar.leftIds
+                base: 0
             }
 
-            Clock {
+            Section {
                 id: center
-                introIndex: 3
                 x: (bar.width - width) / 2
                 y: bar.gap
+                ids: bar.centerIds
+                base: bar.leftIds.length
             }
 
-            Row {
+            Section {
                 id: right
                 x: bar.width - width - bar.gap
                 y: bar.gap
-                spacing: 8
-
-                Tray { barWindow: bar; visible: Config.o.bar.tray && hasItems; introIndex: 4 }
-                Status { introIndex: 5 }
-                PanelButton {}
+                ids: bar.rightIds
+                base: bar.leftIds.length + bar.centerIds.length
             }
         }
     }
