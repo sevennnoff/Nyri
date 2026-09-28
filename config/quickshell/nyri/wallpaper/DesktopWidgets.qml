@@ -642,7 +642,7 @@ Item {
 
         DeskItem {
             id: dMedia
-            shown: root.cfg.media
+            shown: root.cfg.media && (mediaBox.wanted || mediaBox.p > 0.01)
             key: "media"
             desk: root
             defaultY: 572
@@ -653,7 +653,7 @@ Item {
             Item {
                 id: mediaBox
                 width: 380
-                readonly property bool wanted: root.cfg.media && Media.player !== null
+                readonly property bool wanted: root.cfg.media && (Media.player !== null || root.editing)
                 SpringValue { id: mediaIn; target: mediaBox.wanted ? 1 : 0; damping: 0.72; stiffness: 260 }
                 readonly property real p: Math.max(0, mediaIn.value)
                 height: card.implicitHeight * Math.min(1, p)

@@ -89,7 +89,7 @@ Variants {
             return !ws || Niri.windowCount(ws.id) === 0;
         }
         property bool pointerIn: false
-        readonly property bool revealed: items.length > 0 && (!cfg.autohide || pointerIn || emptyDesk || menu.item !== null || drag.key !== "")
+        readonly property bool revealed: !Panels.deskEdit && items.length > 0 && (!cfg.autohide || pointerIn || emptyDesk || menu.item !== null || drag.key !== "")
         SpringValue { id: reveal; target: win.revealed ? 1 : 0; damping: win.revealed ? 0.62 : 1; stiffness: win.revealed ? 420 : 380 }
 
         mask: Region {
