@@ -32,7 +32,14 @@ Singleton {
                 let m;
                 while ((m = re.exec(text)) !== null)
                     pts.push({ t: parseInt(m[1]) * 1000, v: parseFloat(m[2]), charging: m[3] === "1" || m[3] === "4" });
-                root.history = pts.reverse();
+                pts.reverse();
+                const clean = pts.filter((p, i) => {
+                    if (p.v <= 0.5) return false;
+                    const a = pts[i - 1], b = pts[i + 1];
+                    if (!a || !b) return true;
+                    return !((p.v - a.v) * (p.v - b.v) > 0 && Math.abs(p.v - a.v) > 12 && Math.abs(p.v - b.v) > 12);
+                });
+                root.history = clean;
             }
         }
     }

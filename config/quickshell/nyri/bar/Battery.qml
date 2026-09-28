@@ -19,19 +19,11 @@ Row {
     visible: dev?.isLaptopBattery ?? false
     spacing: 2
 
-    MIcon {
-        anchors.verticalCenter: parent.verticalCenter
-        visible: root.charging
-        icon: "bolt"
-        size: 16
-        fill: 1
-        color: Colors.m3primary
-    }
-
     BatteryPill {
         anchors.verticalCenter: parent.verticalCenter
-        width: 38
+        width: root.charging ? 52 : 42
         height: 20
+        Behavior on width { SpatialAnim { speed: "fast" } }
         level: root.level
         charging: root.charging
     }

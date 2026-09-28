@@ -482,26 +482,14 @@ Item {
                         height: 76
                         radius: height / 2
                         color: Colors.m3surfaceContainer
-                        Rectangle {
-                            x: 8
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width - 16
-                            height: parent.height - 16
-                            radius: height / 2
+                        BatteryPill {
+                            anchors.fill: parent
+                            anchors.margins: 8
                             color: Colors.m3secondaryContainer
-                            Rectangle {
-                                SpringValue { id: battFill; target: root.level; damping: 0.9; stiffness: 60; epsilon: 0.001 }
-                                width: Math.max(height, parent.width * battFill.value)
-                                height: parent.height
-                                radius: height / 2
-                                color: root.level <= 0.15 && !root.charging ? Colors.m3error : Colors.m3primary
-                            }
-                            Row {
-                                anchors.centerIn: parent
-                                spacing: 6
-                                MIcon { anchors.verticalCenter: parent.verticalCenter; visible: root.charging; icon: "bolt"; size: 22; fill: 1; color: root.level > 0.5 ? Colors.m3onPrimary : Colors.m3onSecondaryContainer }
-                                RollingText { anchors.verticalCenter: parent.verticalCenter; pixelSize: 26; weight: 700; color: root.level > 0.5 ? Colors.m3onPrimary : Colors.m3onSecondaryContainer; text: Math.round(root.level * 100) + "%" }
-                            }
+                            level: root.level
+                            charging: root.charging
+                            textSize: 26
+                            textWeight: 700
                         }
                     }
                 }
