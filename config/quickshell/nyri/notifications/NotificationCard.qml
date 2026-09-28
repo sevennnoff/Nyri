@@ -11,6 +11,7 @@ Card {
 
     required property var notif
     property bool popup: false
+    readonly property bool masked: popup && Privacy.active
     readonly property bool critical: notif?.urgency === NotificationUrgency.Critical
     readonly property string iconSource: {
         const n = notif;
@@ -54,7 +55,7 @@ Card {
                     anchors.fill: parent
                     radius: 20
                     color: Colors.m3secondaryContainer
-                    visible: !!root.notif?.image
+                    visible: !!root.notif?.image && !root.masked
 
                     Image {
                         anchors.fill: parent
@@ -69,7 +70,7 @@ Card {
                     anchors.fill: parent
                     radius: 20
                     color: Colors.m3secondaryContainer
-                    visible: !root.notif?.image
+                    visible: !root.notif?.image || root.masked
 
                     IconImage {
                         anchors.centerIn: parent
@@ -108,7 +109,7 @@ Card {
                     textStyle: Type.titleSmall
                     font.variableAxes: ({ "wght": 600 })
                     color: root.critical ? Colors.m3onErrorContainer : Colors.m3onSurface
-                    text: root.notif?.summary ?? ""
+                    text: root.masked ? "Новое уведомление" : root.notif?.summary ?? ""
                 }
 
                 MText {
@@ -122,7 +123,7 @@ Card {
                     color: root.critical ? Colors.m3onErrorContainer : Colors.m3onSurfaceVariant
                     linkColor: Colors.m3primary
                     onLinkActivated: link => Qt.openUrlExternally(link)
-                    text: root.notif?.body ?? ""
+                    text: root.masked ? "" : root.notif?.body ?? ""
                 }
             }
 

@@ -82,7 +82,8 @@ Singleton {
             const a = Object.assign({}, root.arrived);
             a[n.id] = new Date();
             root.arrived = a;
-            if (!n.lastGeneration && (!root.dnd || n.urgency === NotificationUrgency.Critical)) {
+            const quiet = root.dnd || (Privacy.active && Config.o.privacy.dndWhenActive);
+            if (!n.lastGeneration && (!quiet || n.urgency === NotificationUrgency.Critical)) {
                 root.hidePopup(n.id);
                 root.popups.insert(0, { nid: n.id });
             }

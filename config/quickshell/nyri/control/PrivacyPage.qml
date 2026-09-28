@@ -37,6 +37,8 @@ Column {
         property bool blocked: false
         property string apps: ""
         property string action: ""
+        property string freeText: "Свободен"
+        property string offText: "Выключен"
         signal act
         width: (root.width - 16) / 3
         height: 148
@@ -75,7 +77,7 @@ Column {
                 elide: Text.ElideRight
                 textStyle: Type.labelMedium
                 color: sensor.on ? Colors.m3onErrorContainer : Colors.m3onSurfaceVariant
-                text: sensor.on ? sensor.apps : sensor.blocked ? "Выключен" : "Свободен"
+                text: sensor.on ? sensor.apps : sensor.blocked ? sensor.offText : sensor.freeText
             }
             FlowText {
                 visible: sensor.action !== ""
@@ -97,7 +99,7 @@ Column {
             onAct: Privacy.muteMic(!Privacy.micBlocked)
         }
         Sensor {
-            icon: "videocam"; offIcon: "videocam_off"; label: "Камера"; property bool fem: true
+            icon: "videocam"; offIcon: "videocam_off"; label: "Камера"; freeText: "Свободна"; offText: "Выключена"
             on: Privacy.camOn
             apps: Privacy.camApps.join(", ")
             action: Privacy.camOn ? "Отключить" : ""

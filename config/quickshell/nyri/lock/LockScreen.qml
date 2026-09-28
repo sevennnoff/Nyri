@@ -257,6 +257,66 @@ Scope {
             }
 
             Row {
+                id: liveRow
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: 24 - (1 - surface.e) * 40
+                spacing: 8
+                opacity: surface.e
+
+                property real now: Date.now()
+                Timer {
+                    running: Lock.locked && liveRow.visible
+                    interval: 1000
+                    repeat: true
+                    onTriggered: liveRow.now = Date.now()
+                }
+                function clock(ms) {
+                    const s = Math.max(0, Math.round(ms / 1000)), m = Math.floor(s / 60), r = s % 60;
+                    return m + ":" + String(r).padStart(2, "0");
+                }
+
+                Repeater {
+                    model: ScriptModel { values: Activities.list.filter(a => !a.ambient || a.kind === "bt").slice(0, 3); objectProp: "id" }
+                    Rectangle {
+                        id: pill
+                        required property var modelData
+                        required property int index
+                        readonly property bool loud: modelData.tone === "error"
+                        height: 40
+                        width: pillRow.implicitWidth + 24
+                        radius: 20
+                        color: loud ? Colors.m3errorContainer : Colors.m3surfaceContainerHigh
+                        SpringValue { id: pillIn; target: 1; damping: 0.6; stiffness: 420; Component.onCompleted: { value = 0; running = true; } }
+                        scale: 0.6 + 0.4 * pillIn.value
+                        opacity: Math.min(1, pillIn.value)
+                        Row {
+                            id: pillRow
+                            anchors.centerIn: parent
+                            spacing: 8
+                            MIcon { anchors.verticalCenter: parent.verticalCenter; icon: pill.modelData.icon; size: 20; fill: 1; color: pill.loud ? Colors.m3error : Colors.m3primary }
+                            MText {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: Math.min(implicitWidth, 220)
+                                elide: Text.ElideRight
+                                textStyle: Type.labelLargeEmph
+                                color: pill.loud ? Colors.m3onErrorContainer : Colors.m3onSurface
+                                text: pill.modelData.title
+                            }
+                            MText {
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: text !== ""
+                                textStyle: Type.labelLargeEmph
+                                font.features: { "tnum": 1 }
+                                color: pill.loud ? Colors.m3error : Colors.m3primary
+                                text: pill.modelData.until > 0 ? liveRow.clock(pill.modelData.until - liveRow.now)
+                                    : pill.modelData.since > 0 ? liveRow.clock(liveRow.now - pill.modelData.since) : ""
+                            }
+                        }
+                    }
+                }
+            }
+
+            Row {
                 anchors.top: parent.top
                 anchors.right: parent.right
                 anchors.margins: 24
