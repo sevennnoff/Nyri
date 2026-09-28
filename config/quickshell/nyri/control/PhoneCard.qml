@@ -26,9 +26,9 @@ Rectangle {
     Column {
         id: col
         x: 16
-        y: 16
+        anchors.verticalCenter: parent.verticalCenter
         width: parent.width - 32
-        spacing: 18
+        spacing: 14
 
         Item {
             width: parent.width
@@ -71,7 +71,7 @@ Rectangle {
                     textStyle: Type.labelMedium
                     color: Colors.m3onSurfaceVariant
                     text: !root.p ? "Не связан" : !root.on ? "Не в сети"
-                        : (root.charging ? "Заряжается" : "На связи") + (root.p.signal ? " · " + root.p.signal.type : "")
+                        : "На связи"
                 }
             }
 
@@ -99,15 +99,38 @@ Rectangle {
             }
         }
 
-        WavyProgress {
-            width: parent.width
-            height: 20
-            visible: root.on && Phone.battery !== null
-            value: root.level
-            wavy: root.charging
-            flowing: root.charging && root.visible
-            activeColor: root.low ? Colors.m3error : Colors.m3primary
+        Row {
+            height: 32
+            spacing: 6
+            visible: root.on
+            Repeater {
+                model: [
+                    root.p?.signal ? { icon: "signal_cellular_" + Math.max(0, Math.min(4, root.p.signal.strength ?? 4)) + "_bar", text: root.p.signal.type } : null,
+                    Phone.battery ? { icon: root.charging ? "battery_charging_full" : root.low ? "battery_alert" : "battery_full", text: root.charging ? "Заряжается" : "От батареи" } : null,
+                    { icon: "content_paste", text: "Общий буфер" }
+                ].filter(Boolean)
+                Rectangle {
+                    id: fact
+                    required property var modelData
+                    required property int index
+                    height: 32
+                    width: factRow.implicitWidth + 24
+                    radius: Shape.small
+                    color: Colors.m3surfaceContainerHighest
+                    SpringValue { id: factIn; target: root.visible ? 1 : 0; damping: 0.6; stiffness: 360 - fact.index * 60; Component.onCompleted: { value = 0; running = true; } }
+                    opacity: Math.max(0, Math.min(1, factIn.value))
+                    transform: Translate { x: (1 - factIn.value) * 16 }
+                    Row {
+                        id: factRow
+                        anchors.centerIn: parent
+                        spacing: 6
+                        MIcon { anchors.verticalCenter: parent.verticalCenter; icon: fact.modelData.icon; size: 16; fill: 1; color: Colors.m3onSurfaceVariant }
+                        MText { anchors.verticalCenter: parent.verticalCenter; textStyle: Type.labelMedium; color: Colors.m3onSurfaceVariant; text: fact.modelData.text }
+                    }
+                }
+            }
         }
+        Item { width: 1; height: 32; visible: !root.on }
 
         Row {
             id: group
@@ -145,11 +168,11 @@ Rectangle {
                     scale: pop.value
                     SpringValue { id: pop; target: 1; damping: 0.4; stiffness: 700; epsilon: 0.001 }
 
-                    Row {
+                    Column {
                         anchors.centerIn: parent
-                        spacing: 6
-                        MIcon { anchors.verticalCenter: parent.verticalCenter; icon: seg.modelData.icon; size: 20; fill: 1; color: Colors.m3onSecondaryContainer }
-                        MText { anchors.verticalCenter: parent.verticalCenter; visible: seg.width > 96; textStyle: Type.labelLargeEmph; color: Colors.m3onSecondaryContainer; text: seg.modelData.label }
+                        spacing: 2
+                        MIcon { anchors.horizontalCenter: parent.horizontalCenter; icon: seg.modelData.icon; size: 20; fill: 1; color: Colors.m3onSecondaryContainer }
+                        MText { anchors.horizontalCenter: parent.horizontalCenter; textStyle: Type.labelMedium; color: Colors.m3onSecondaryContainer; text: seg.modelData.label }
                     }
                     StateLayer {
                         id: segLayer

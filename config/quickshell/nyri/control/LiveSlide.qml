@@ -74,9 +74,19 @@ Rectangle {
         }
     }
 
-    Item {
+    component Face: Item {
+        id: face
+        property bool on: false
         anchors.fill: parent
-        visible: root.kind === "timer"
+        SpringValue { id: fv; target: face.on ? 1 : 0; damping: 0.72; stiffness: 360; epsilon: 0.002 }
+        readonly property real v: Math.max(0, fv.value)
+        visible: v > 0.01
+        opacity: Math.min(1, v * v * 1.2)
+        scale: 0.92 + 0.08 * v
+    }
+
+    Face {
+        on: root.kind === "timer"
 
         Item {
             id: ring
@@ -84,11 +94,11 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             width: 168
             height: 168
-            SpringValue { id: ringV; target: Math.max(0, Math.min(1, root.a?.progress ?? 0)); damping: 1; stiffness: 60; epsilon: 0.0005 }
+            SpringValue { id: ringV; target: root.kind === "timer" ? 1 - Math.max(0, Math.min(1, root.a?.progress ?? 0)) : 0; damping: 1; stiffness: 60; epsilon: 0.0005 }
             CircularProgress {
                 anchors.fill: parent
                 stroke: 12
-                value: 1 - ringV.value
+                value: ringV.value
                 animated: false
                 activeColor: Colors.m3primary
             }
@@ -137,9 +147,8 @@ Rectangle {
         }
     }
 
-    Item {
-        anchors.fill: parent
-        visible: root.kind === "stopwatch"
+    Face {
+        on: root.kind === "stopwatch"
 
         Column {
             x: 24
@@ -177,9 +186,8 @@ Rectangle {
         }
     }
 
-    Item {
-        anchors.fill: parent
-        visible: ["timer", "stopwatch", "timer-idle", "stopwatch-idle"].indexOf(root.kind) < 0
+    Face {
+        on: ["timer", "stopwatch", "timer-idle", "stopwatch-idle"].indexOf(root.kind) < 0
 
         MaterialShape {
             id: shape
@@ -226,9 +234,8 @@ Rectangle {
         }
     }
 
-    Item {
-        anchors.fill: parent
-        visible: root.kind === "timer-idle"
+    Face {
+        on: root.kind === "timer-idle"
 
         Item {
             id: idleRing
@@ -268,9 +275,8 @@ Rectangle {
         }
     }
 
-    Item {
-        anchors.fill: parent
-        visible: root.kind === "stopwatch-idle"
+    Face {
+        on: root.kind === "stopwatch-idle"
 
         Column {
             x: 24

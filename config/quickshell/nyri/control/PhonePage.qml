@@ -89,14 +89,22 @@ Column {
         property string icon
         property string label
         property string sub: ""
+        property bool first: false
+        property bool last: false
         signal clicked
-        width: (root.width - 8) / 2
-        height: 84
-        radius: Shape.large
+        width: root.width
+        height: 72
+        readonly property real big: Shape.large
+        SpringValue { id: roundOff; target: actLayer.containsMouse ? 1 : 0; damping: 0.6; stiffness: 600 }
+        readonly property real inner: 4 + (big - 4) * Math.max(0, Math.min(1, roundOff.value))
+        topLeftRadius: first ? big : inner
+        topRightRadius: first ? big : inner
+        bottomLeftRadius: last ? big : inner
+        bottomRightRadius: last ? big : inner
         color: Colors.m3surfaceContainerHigh
         opacity: enabled ? 1 : 0.45
         scale: sq.value * pop.value
-        SpringValue { id: sq; target: actLayer.pressed ? 0.95 : 1; damping: 0.5; stiffness: 800; epsilon: 0.001 }
+        SpringValue { id: sq; target: actLayer.pressed ? 0.97 : 1; damping: 0.5; stiffness: 800; epsilon: 0.001 }
         SpringValue { id: pop; target: 1; damping: 0.4; stiffness: 600; epsilon: 0.001 }
         Row {
             x: 16
@@ -112,27 +120,42 @@ Column {
             }
             Column {
                 anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - 56
-                MText { width: parent.width; elide: Text.ElideRight; textStyle: Type.labelLargeEmph; text: act.label }
-                MText { width: parent.width; visible: text !== ""; elide: Text.ElideRight; textStyle: Type.labelMedium; color: Colors.m3onSurfaceVariant; text: act.sub }
+                width: parent.width - 56 - 24
+                spacing: 2
+                MText { width: parent.width; elide: Text.ElideRight; textStyle: Type.titleSmall; text: act.label }
+                MText { width: parent.width; visible: text !== ""; elide: Text.ElideRight; textStyle: Type.bodySmall; color: Colors.m3onSurfaceVariant; text: act.sub }
             }
+        }
+        MIcon {
+            anchors.right: parent.right
+            anchors.rightMargin: 16
+            anchors.verticalCenter: parent.verticalCenter
+            icon: "chevron_right"
+            size: 20
+            color: Colors.m3onSurfaceVariant
+            opacity: actLayer.containsMouse ? 1 : 0.5
+            transform: Translate { x: nudge.value }
+            SpringValue { id: nudge; target: actLayer.containsMouse ? 4 : 0; damping: 0.55; stiffness: 600 }
         }
         StateLayer {
             id: actLayer
-            radius: act.radius
+            topLeftRadius: act.topLeftRadius
+            topRightRadius: act.topRightRadius
+            bottomLeftRadius: act.bottomLeftRadius
+            bottomRightRadius: act.bottomRightRadius
             onClicked: { pop.value = 0.9; pop.running = true; act.clicked(); }
         }
     }
 
-    Flow {
+    Column {
         width: root.width
-        spacing: 8
+        spacing: 4
         enabled: Phone.reachable
 
-        Action { icon: "ring_volume"; label: "Найти телефон"; sub: "Позвонит на полную"; onClicked: Phone.ring() }
+        Action { first: true; icon: "ring_volume"; label: "Найти телефон"; sub: "Позвонит на полную"; onClicked: Phone.ring() }
         Action { icon: "upload_file"; label: "Отправить файл"; sub: "Попадёт в загрузки"; onClicked: picker.open() }
         Action { icon: "content_paste_go"; label: "Отправить буфер"; sub: "Что скопировано здесь"; onClicked: Phone.sendClipboard() }
-        Action { icon: "folder_open"; label: "Файлы телефона"; sub: "Открыть его память"; onClicked: { Panels.close(); Phone.browse(); } }
+        Action { last: true; icon: "folder_open"; label: "Файлы телефона"; sub: "Открыть его память"; onClicked: { Panels.close(); Phone.browse(); } }
     }
 
     FileDialog {

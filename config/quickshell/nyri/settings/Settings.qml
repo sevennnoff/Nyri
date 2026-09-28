@@ -278,8 +278,8 @@ Scope {
 
                         property real enter: 1
                         opacity: Math.min(1, enter * 1.4)
-                        y: (1 - enter) * 40
-                        onLoaded: { enter = 0; rise.restart(); if (win.pendingRow) Qt.callLater(win.reveal); }
+                        onLoaded: { enter = 0; rise.restart(); if (!win.pendingRow) Qt.callLater(() => cascade.play(item)); else Qt.callLater(win.reveal); }
+                        Cascade { id: cascade; rise: 44 }
                         SpatialAnim { id: rise; target: pageLoader; property: "enter"; from: 0; to: 1; speed: "default" }
                     }
                 }

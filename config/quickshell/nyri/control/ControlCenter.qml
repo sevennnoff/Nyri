@@ -102,7 +102,8 @@ Surface {
                 opacity: frame.o ? Math.max(0, Math.min(1, (slide.value - 0.35) / 0.45)) : slide.value
                 visible: opacity > 0.01
                 source: ({ audio: "AudioPage.qml", wifi: "WifiPage.qml", bt: "BtPage.qml", privacy: "PrivacyPage.qml", phone: "PhonePage.qml" })[root.shownPage] ?? ""
-                onLoaded: item.width = Qt.binding(() => sub.width)
+                onLoaded: { item.width = Qt.binding(() => sub.width); cascade.play(item); }
+                Cascade { id: cascade; rise: 36 }
 
                 Connections {
                     target: sub.item
