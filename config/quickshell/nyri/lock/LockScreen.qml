@@ -278,26 +278,21 @@ Scope {
                         return p > 1 ? p / 100 : p;
                     }
                     readonly property bool charging: UPower.displayDevice?.state === UPowerDeviceState.Charging
-                    MIcon {
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: parent.charging
-                        icon: "bolt"; size: 16; fill: 1
-                        color: Colors.m3primary
-                    }
                     BatteryPill {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 40; height: 20
+                        width: parent.charging ? 54 : 44; height: 22
                         level: parent.level
                         charging: parent.charging
                     }
                 }
             }
 
-            Column {
+            Item {
                 id: auth
                 anchors.horizontalCenter: parent.horizontalCenter
                 y: glance.y + glance.height + 40 + (1 - surface.w) * 60
-                spacing: 16
+                width: field.width
+                height: field.height
                 opacity: surface.wc * surface.dim
                 visible: opacity > 0.01
                 enabled: root.awake
@@ -375,13 +370,14 @@ Scope {
                     id: capsChip
                     anchors.horizontalCenter: parent.horizontalCenter
                     readonly property bool on: Toggles.capsLock
+                    y: field.height + 16 - 10 * (1 - capsIn.value)
                     width: capsRow.implicitWidth + 28
-                    height: 36 * capsIn.value
+                    height: 36
                     radius: 18
                     color: Colors.m3secondaryContainer
-                    opacity: Math.min(1, capsIn.value)
-                    visible: capsIn.value > 0.02
-                    clip: true
+                    opacity: Math.max(0, Math.min(1, capsIn.value))
+                    scale: 0.7 + 0.3 * capsIn.value
+                    visible: opacity > 0.01
                     SpringValue { id: capsIn; target: capsChip.on ? 1 : 0; damping: 0.7; stiffness: 400 }
 
                     Row {

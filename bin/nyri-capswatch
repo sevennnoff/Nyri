@@ -3,7 +3,7 @@ import os, select, struct, sys, time
 from pathlib import Path
 
 EVENT = struct.Struct("llHHi")
-EV_KEY, KEY_CAPSLOCK = 1, 58
+EV_KEY, EV_LED, KEY_CAPSLOCK, LED_CAPSL = 1, 0x11, 58, 1
 
 leds = sorted(Path("/sys/class/leds").glob("*::capslock"))
 devices = {}
@@ -22,9 +22,17 @@ if not devices:
 
 last = state()
 print(last, flush=True)
+
+def report(now):
+    global last
+    if now != last:
+        last = now
+        print(now, flush=True)
+
+pending = 0.0
 while True:
-    ready, _, _ = select.select(list(devices), [], [])
-    changed = False
+    ready, _, _ = select.select(list(devices), [], [], 0.08 if pending else None)
+    led = None
     for fd in ready:
         try:
             data = os.read(fd, EVENT.size * 64)
@@ -32,11 +40,14 @@ while True:
             continue
         for off in range(0, len(data) - EVENT.size + 1, EVENT.size):
             _, _, etype, code, value = EVENT.unpack_from(data, off)
-            if etype == EV_KEY and code == KEY_CAPSLOCK and value == 1:
-                changed = True
-    if changed:
-        time.sleep(0.04)
-        now = state()
-        if now != last:
-            last = now
-            print(now, flush=True)
+            if etype == EV_LED and code == LED_CAPSL:
+                led = "1" if value else "0"
+            elif etype == EV_KEY and code == KEY_CAPSLOCK and value == 1:
+                pending = time.monotonic() + 0.6
+    if led is not None:
+        pending = 0.0
+        report(led)
+    elif pending:
+        report(state())
+        if time.monotonic() > pending:
+            pending = 0.0
