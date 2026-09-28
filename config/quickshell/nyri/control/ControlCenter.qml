@@ -158,12 +158,6 @@ Surface {
                         }
 
                         IconButton {
-                            icon: "wallpaper"
-                            style: "tonal"
-                            onClicked: Panels.open("wallpaper")
-                        }
-
-                        IconButton {
                             icon: "lock"
                             style: "tonal"
                             onClicked: { Panels.close(); Lock.lock(); }

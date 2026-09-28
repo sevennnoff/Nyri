@@ -198,9 +198,7 @@ Scope {
                 FlowText {
                     x: 28
                     y: 40 + (18 - 40) * pageBox.collapse
-                    textStyle: ({ size: 32, weight: 550, rond: 100 })
-                    scale: 1 - (1 - 22 / 32) * pageBox.collapse
-                    transformOrigin: Item.TopLeft
+                    textStyle: ({ size: Math.round(32 - 10 * pageBox.collapse), weight: 550 + 50 * pageBox.collapse, rond: 100 })
                     text: root.pages.find(p => p.id === Panels.settingsPage)?.label ?? ""
                 }
             }

@@ -62,8 +62,25 @@ Item {
     readonly property DeskItem held: desks.find(d => d.dragging) ?? null
     SpringValue { id: gridIn; target: (root.held || root.editing) && root.cfg.grid ? 1 : 0; damping: 0.9; stiffness: 400 }
 
+    readonly property real zoomTarget: editing ? Math.max(0.6, (height - 236 - 24 - 32) / height) : 1
+    SpringValue { id: zoomS; target: root.zoomTarget; damping: 0.78; stiffness: 300; epsilon: 0.0005 }
+    readonly property real zoom: zoomS.value
+    Scale { id: deskScale; origin.x: root.width / 2; origin.y: 16; xScale: root.zoom; yScale: root.zoom }
+
+    Rectangle {
+        anchors.fill: parent
+        transform: deskScale
+        visible: zoomS.value < 0.995
+        opacity: Math.min(1, (1 - zoomS.value) * 8)
+        radius: 36
+        color: "transparent"
+        border.width: 2 / Math.max(0.5, root.zoom)
+        border.color: Qt.alpha(Colors.m3primary, 0.5)
+    }
+
     Canvas {
         id: grid
+        transform: deskScale
         anchors.fill: parent
         opacity: gridIn.value
         visible: opacity > 0.01
@@ -80,6 +97,9 @@ Item {
         }
     }
 
+    Item {
+        anchors.fill: parent
+        transform: deskScale
     Rectangle {
         visible: root.held !== null
         SpringValue { id: slotX; target: root.held ? root.held.dropX : 0; damping: 0.7; stiffness: 700 }
@@ -92,6 +112,7 @@ Item {
         color: Qt.alpha(Colors.m3primaryContainer, 0.35)
         border.width: 2
         border.color: Qt.alpha(Colors.m3primary, 0.6)
+    }
     }
 
     readonly property Region mask: Region {
@@ -153,6 +174,7 @@ Item {
     Item {
         id: col
         anchors.fill: parent
+        transform: deskScale
         visible: root.cfg.enabled
         z: root.held ? 250 : 0
 
@@ -1025,7 +1047,7 @@ Item {
 
         z: 100
         visible: target !== null && p > 0.01
-        width: Math.max(240, previews.width + 16)
+        width: Math.max(320, previews.width + 16)
         height: menuCol.implicitHeight + 16
         readonly property bool below: target ? target.y - height - 8 < 8 : false
         x: target ? Math.max(8, Math.min(root.width - width - 8, target.x + target.width / 2 - width / 2)) : 0
@@ -1132,8 +1154,8 @@ Item {
                     visible: pinRow.modelData.what === "ws" || Quickshell.screens.length > 1
                     StateLayer { radius: Shape.medium; onClicked: menu.target.pinHere(pinRow.modelData.what) }
                     MIcon { x: 12; anchors.verticalCenter: parent.verticalCenter; icon: pinRow.modelData.icon; size: 20; color: Colors.m3onSurfaceVariant }
-                    MText { x: 44; anchors.verticalCenter: parent.verticalCenter; textStyle: Type.labelLarge; text: pinRow.modelData.label }
-                    MSwitch { anchors.right: parent.right; anchors.rightMargin: 8; anchors.verticalCenter: parent.verticalCenter; scale: 0.8; checked: pinRow.on; onToggled: menu.target.pinHere(pinRow.modelData.what) }
+                    MText { x: 44; width: pinSwitch.x - 44 - 8; elide: Text.ElideRight; anchors.verticalCenter: parent.verticalCenter; textStyle: Type.labelLarge; text: pinRow.modelData.label }
+                    MSwitch { id: pinSwitch; anchors.right: parent.right; anchors.rightMargin: 4; anchors.verticalCenter: parent.verticalCenter; scale: 0.8; checked: pinRow.on; onToggled: menu.target.pinHere(pinRow.modelData.what) }
                 }
             }
 
@@ -1301,17 +1323,19 @@ Item {
                             onCentroidChanged: if (active) sheet.ghost = tileItem.mapToItem(root, centroid.position.x, centroid.position.y)
                             onActiveChanged: {
                                 if (active) { sheet.dragging = tileItem.d; return; }
-                                const p = sheet.ghost;
+                                const g = sheet.ghost;
                                 const d = sheet.dragging;
                                 sheet.dragging = null;
-                                if (p.y > sheet.y - 20) return;
+                                if (g.y > sheet.y - 20) return;
+                                const p = col.mapFromItem(root, g.x, g.y);
                                 const pos = Object.assign({}, root.cfg.positions ?? {});
                                 const w = (d.child?.width ?? 200) * d.kk, h = (d.child?.height ?? 120) * d.kk;
                                 const at = { x: d.clampX(d.snap(p.x - w / 2 - root.shiftX)), y: d.clampY(d.snap(p.y - h / 2 - root.shiftY)) };
                                 pos[d.placeKey] = at;
                                 root.cfg.positions = pos;
                                 incoming.lastD = d;
-                                incoming.settle(Qt.point(at.x + root.shiftX, at.y + root.shiftY));
+                                const c = root.mapFromItem(col, at.x + root.shiftX, at.y + root.shiftY);
+                                incoming.settle(Qt.point(c.x, c.y));
                                 arrive.restart();
                                 arrive.key = d.key;
                             }
@@ -1332,15 +1356,16 @@ Item {
         property var lastD: null
         readonly property real w: (d?.child?.width ?? 200) * (d?.kk ?? 1)
         readonly property real h: (d?.child?.height ?? 120) * (d?.kk ?? 1)
-        SpringValue { id: ix; target: incoming.settling ? incoming.dest.x : sheet.ghost.x - incoming.w / 2; damping: incoming.settling ? 0.65 : 0.85; stiffness: incoming.settling ? 420 : 1600; epsilon: 0.3 }
-        SpringValue { id: iy; target: incoming.settling ? incoming.dest.y : sheet.ghost.y - incoming.h / 2; damping: incoming.settling ? 0.65 : 0.85; stiffness: incoming.settling ? 420 : 1600; epsilon: 0.3 }
+        SpringValue { id: ix; target: incoming.settling ? incoming.dest.x : sheet.ghost.x - incoming.w * root.zoom / 2; damping: incoming.settling ? 0.65 : 0.85; stiffness: incoming.settling ? 420 : 1600; epsilon: 0.3 }
+        SpringValue { id: iy; target: incoming.settling ? incoming.dest.y : sheet.ghost.y - incoming.h * root.zoom / 2; damping: incoming.settling ? 0.65 : 0.85; stiffness: incoming.settling ? 420 : 1600; epsilon: 0.3 }
         SpringValue { id: iS; target: sheet.dragging ? 1 : 0; damping: 0.6; stiffness: 420 }
         x: ix.value
         y: iy.value
         width: w
         height: h
         rotation: Math.max(-1, Math.min(1, ix.velocity / 2500)) * 9
-        scale: incoming.settling ? 1 : 0.55 + 0.45 * Math.min(1, iS.value)
+        transformOrigin: Item.TopLeft
+        scale: (incoming.settling ? 1 : 0.55 + 0.45 * Math.min(1, iS.value)) * root.zoom
         opacity: incoming.settling ? 1 : Math.min(1, iS.value * 1.5)
         function settle(pt) { dest = pt; settling = true; settleEnd.restart(); }
         Timer { id: settleEnd; interval: 520; onTriggered: { incoming.settling = false; incoming.lastD = null; } }

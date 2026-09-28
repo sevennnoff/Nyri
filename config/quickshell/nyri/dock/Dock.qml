@@ -144,8 +144,14 @@ Variants {
                 return { at: out, width: Math.max(win.sz, x - 8 + win.pad + (drag.key !== "" && !drag.away && drag.to >= i ? win.sz + 8 : 0)) };
             }
             SpringValue { id: dockW; target: dock.slots.width; damping: 0.7; stiffness: 420; epsilon: 0.3 }
+            readonly property real peak: {
+                let k = 1;
+                for (const it of win.items) k = Math.max(k, win.swell(dock.slots.at[it.key] ?? -1e6));
+                return k;
+            }
+            SpringValue { id: pillH; target: win.sz * dock.peak + 2 * win.pad; damping: 0.62; stiffness: 520; epsilon: 0.2 }
             width: dockW.value
-            height: win.dockH
+            height: pillH.value
             x: (win.width - width) / 2
             y: win.height - height - 12 - win.lift + (1 - reveal.value) * (win.dockH + 24)
             opacity: Math.min(1, reveal.value * 2)
@@ -185,7 +191,7 @@ Variants {
                     width: size.value
                     height: size.value
                     x: cx.value - width / 2
-                    y: (slot.held ? Math.min(win.pad, drag.y) : win.dockH - win.pad - height) + hop.value
+                    y: (slot.held ? Math.min(win.pad, drag.y) : dock.height - win.pad - height) + hop.value
                     scale: Math.min(1, born.value)
                     opacity: slot.held && drag.away ? 0.5 : 1
                     rotation: Math.max(-1, Math.min(1, cx.velocity / 2500)) * 10
