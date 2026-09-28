@@ -147,7 +147,7 @@ Scope {
                     width: win.compact ? Math.min(420, win.width - nav.width - 72) : nav.width - 32
                     z: 50
                     icon: "search"
-                    placeholder: "Найти настройку"
+                    placeholder: "Поиск"
                     input.onTextChanged: { win.query = input.text; if (input.text) win.indexing = true; }
                     input.Keys.onPressed: event => {
                         if (event.key === Qt.Key_Escape) { input.text = ""; win.searchOpen = false; event.accepted = true; }
