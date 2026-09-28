@@ -42,7 +42,7 @@ Island {
         onClicked: m => {
             if (m.button === Qt.RightButton || !root.main) Panels.toggleFrom("live", root);
             else if (root.main.kind === "media") Panels.toggleFrom("player", root);
-            else if (["record", "timer", "job", "copy", "update", "done", "downloaded"].indexOf(root.main.kind) >= 0) Panels.toggleFrom("live", root);
+            else if (["record", "timer", "stopwatch", "job", "copy", "update", "done", "downloaded"].indexOf(root.main.kind) >= 0) Panels.toggleFrom("live", root);
             else Activities.open(root.main);
         }
     }
@@ -141,7 +141,8 @@ Island {
         visible: text !== ""
         textStyle: Type.labelLargeEmph
         color: root.loud ? Colors.m3error : Colors.m3primary
-        text: root.main?.until > 0 ? root.clock(root.main.until - root.now)
+        text: (root.main?.frozen ?? -1) >= 0 ? root.clock(root.main.frozen)
+            : root.main?.until > 0 ? root.clock(root.main.until - root.now)
             : root.main?.since > 0 ? root.clock(root.now - root.main.since) : ""
     }
 

@@ -30,7 +30,22 @@ Surface {
 
     function tileOn(id) { return !(Array.isArray(Config.o.control.hidden) && Config.o.control.hidden.indexOf(id) >= 0); }
 
-    readonly property var liveCards: Activities.list.filter(a => a.kind !== "media" && a.kind !== "phone")
+    readonly property var carousel: {
+        const out = [];
+        const playing = Media.player?.isPlaying ?? false;
+        if (playing) out.push({ id: "media", kind: "media", active: true });
+        const live = Activities.list.filter(a => ["media", "phone", "timer", "stopwatch"].indexOf(a.kind) < 0);
+        for (const a of live) out.push({ id: "live:" + a.id, kind: "live", a, active: true });
+        if (!playing) out.push({ id: "media", kind: "media", active: false });
+        if (Phone.daemon) out.push({ id: "phone", kind: "phone", active: false });
+        const timers = Activities.list.filter(a => a.kind === "timer");
+        if (!timers.length) out.push({ id: "timer", kind: "live", a: { id: "idle:timer", kind: "timer-idle", actions: [] }, active: false });
+        timers.forEach((a, i) => out.push({ id: i ? "live:" + a.id : "timer", kind: "live", a, active: true }));
+        const sw = Activities.list.find(a => a.kind === "stopwatch");
+        out.push({ id: "stopwatch", kind: "live", a: sw ?? { id: "idle:stopwatch", kind: "stopwatch-idle", actions: [] }, active: !!sw });
+        return out;
+    }
+    function slideOf(id) { return carousel.find(c => c.id === id) ?? null; }
 
     function duration(sec) {
         const total = Math.round(sec / 60), h = Math.floor(total / 60), m = total % 60;
@@ -316,39 +331,171 @@ Surface {
 
                 Collapse {
                     width: parent.width
-                    shown: root.liveCards.length > 0
-                Column {
-                    width: parent.width
-                    spacing: 8
-                    Repeater {
-                        model: ScriptModel { values: root.liveCards; objectProp: "id" }
-                        ActivityCard {
-                            required property var modelData
+                    shown: root.carousel.length > 0
+
+                    Item {
+                        width: parent.width
+                        readonly property real slideH: 212
+                        height: slideH + (root.carousel.length > 1 ? 26 : 0)
+
+                        ListView {
+                            id: carList
+                            property string held: ""
+                            function hold() { held = root.carousel[currentIndex]?.id ?? ""; }
+                            function show(i) {
+                                currentIndex = Math.max(0, Math.min(count - 1, i));
+                                hold();
+                            }
+                            Connections {
+                                target: root
+                                function onCarouselChanged() { Qt.callLater(carList.keep); }
+                            }
+                            function keep() {
+                                const i = root.carousel.findIndex(c => c.id === held);
+                                if (i < 0) { hold(); return; }
+                                if (i !== currentIndex) { currentIndex = i; jump(); }
+                            }
+                            function jump() { glide.value = currentIndex * step; glide.velocity = 0; glide.running = false; contentX = glide.value; }
+
                             width: parent.width
-                            activity: modelData
+                            height: parent.slideH
+                            orientation: ListView.Horizontal
+                            spacing: 10
+                            clip: true
+                            interactive: false
+                            highlightFollowsCurrentItem: false
+                            model: ScriptModel { values: root.carousel; objectProp: "id" }
+                            readonly property real step: width + spacing
+
+                            SpringValue {
+                                id: glide
+                                target: carList.currentIndex * carList.step
+                                damping: 0.86
+                                stiffness: 560
+                                epsilon: 0.3
+                                onValueChanged: if (!swipe.active) carList.contentX = value
+                            }
+
+                            DragHandler {
+                                id: swipe
+                                target: null
+                                yAxis.enabled: false
+                                property real from: 0
+                                onActiveChanged: {
+                                    if (active) {
+                                        glide.running = false;
+                                        from = carList.contentX;
+                                        return;
+                                    }
+                                    const moved = -translation.x, v = -centroid.velocity.x;
+                                    let i = Math.round(from / carList.step);
+                                    if (moved > carList.step * 0.18 || v > 350) i++;
+                                    else if (moved < -carList.step * 0.18 || v < -350) i--;
+                                    glide.value = carList.contentX;
+                                    glide.velocity = v;
+                                    carList.show(i);
+                                    glide.running = true;
+                                }
+                                onTranslationChanged: {
+                                    if (!active) return;
+                                    const max = Math.max(0, (carList.count - 1) * carList.step);
+                                    let x = from - translation.x;
+                                    if (x < 0) x = -48 * (1 - Math.exp(x / 160));
+                                    else if (x > max) x = max + 48 * (1 - Math.exp(-(x - max) / 160));
+                                    carList.contentX = x;
+                                }
+                            }
+
+                            Connections {
+                                target: root
+                                function onOpenChanged() {
+                                    if (!root.open) return;
+                                    carList.show(root.carousel.findIndex(c => c.active));
+                                    carList.jump();
+                                }
+                            }
+
+                            delegate: Item {
+                                id: slide
+                                required property var modelData
+                                required property int index
+                                width: carList.width
+                                height: carList.height
+                                readonly property real d: Math.min(1, Math.abs(x - carList.contentX) / width)
+                                scale: 1 - 0.07 * d
+                                opacity: 1 - 0.45 * d
+                                transformOrigin: x < carList.contentX ? Item.Right : Item.Left
+
+                                Loader {
+                                    id: body
+                                    width: parent.width
+                                    height: parent.height
+                                    readonly property var cur: root.slideOf(slide.modelData.id) ?? slide.modelData
+                                    sourceComponent: cur.kind === "media" ? mediaC : cur.kind === "phone" ? phoneC : liveC
+                                    property var a: cur.a
+                                }
+                            }
+                        }
+
+                        MouseArea {
+                            anchors.fill: carList
+                            acceptedButtons: Qt.NoButton
+                            property real acc: 0
+                            property real last: 0
+                            property int axis: 0
+                            property bool flipped: false
+                            function flip(dir) {
+                                carList.show(carList.currentIndex + dir);
+                            }
+                            onWheel: w => {
+                                const now = Date.now();
+                                const gap = now - last;
+                                last = now;
+                                const pad = w.pixelDelta.x !== 0 || w.pixelDelta.y !== 0;
+                                if (!pad) {
+                                    if (gap > 300) acc = 0;
+                                    acc += Math.abs(w.angleDelta.x) > Math.abs(w.angleDelta.y) ? w.angleDelta.x : w.angleDelta.y;
+                                    if (Math.abs(acc) >= 120) { flip(acc < 0 ? 1 : -1); acc = 0; }
+                                    return;
+                                }
+                                if (w.phase === Qt.ScrollBegin || gap > 180) { axis = 0; acc = 0; flipped = false; }
+                                if (axis === 0) {
+                                    const dx = Math.abs(w.pixelDelta.x), dy = Math.abs(w.pixelDelta.y);
+                                    if (dx + dy >= 3) axis = dx > dy ? 1 : 2;
+                                }
+                                if (axis !== 1) { w.accepted = false; return; }
+                                if (w.phase === Qt.ScrollEnd) return;
+                                acc += w.pixelDelta.x;
+                                if (!flipped && Math.abs(acc) >= 60) { flip(acc < 0 ? 1 : -1); flipped = true; }
+                            }
+                        }
+
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            y: parent.slideH + 12
+                            spacing: 6
+                            visible: root.carousel.length > 1
+                            Repeater {
+                                model: root.carousel.length
+                                Rectangle {
+                                    required property int index
+                                    readonly property bool cur: index === carList.currentIndex
+                                    SpringValue { id: dotW; target: parent.parent ? (cur ? 22 : 8) : 8; damping: 0.6; stiffness: 600 }
+                                    width: dotW.value
+                                    height: 8
+                                    radius: 4
+                                    color: cur ? Colors.m3primary : Colors.m3outlineVariant
+                                    Behavior on color { ColorAnim {} }
+                                    MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: carList.show(parent.index) }
+                                }
+                            }
                         }
                     }
                 }
-                }
 
-                Collapse {
-                    width: parent.width
-                    shown: Media.player !== null
-                    MediaCard {
-                        width: parent.width
-                        active: root.open
-                    }
-                }
-
-                Collapse {
-                    width: parent.width
-                    shown: Phone.phone !== null
-                    PhoneCard {
-                        id: phoneCard
-                        width: parent.width
-                        onOpened: root.openFrom(phoneCard, "phone")
-                    }
-                }
+                Component { id: mediaC; MediaCard { active: root.open } }
+                Component { id: phoneC; PhoneCard { onOpened: root.page = "phone" } }
+                Component { id: liveC; LiveSlide { activity: parent.a } }
 
                 Item {
                     width: parent.width

@@ -35,7 +35,7 @@ Rectangle {
         const s = Math.max(0, Math.round(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), r = s % 60;
         return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(r).padStart(2, "0");
     }
-    readonly property string time: a?.until > 0 ? clock(a.until - now) : a?.since > 0 ? clock(now - a.since) : ""
+    readonly property string time: a?.frozen >= 0 && a?.frozen !== undefined ? clock(a.frozen) : a?.until > 0 ? clock(a.until - now) : a?.since > 0 ? clock(now - a.since) : ""
 
     StateLayer {
         radius: root.radius

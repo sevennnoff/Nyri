@@ -53,6 +53,8 @@ Surface {
         if (!open) return;
         hidden = false;
         dragging = false;
+        const want = actions.findIndex(a => a.id === Panels.tab);
+        if (want >= 0) current = want;
         x0 = y0 = x1 = y1 = 0;
         keys.forceActiveFocus();
     }

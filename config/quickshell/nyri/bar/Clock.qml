@@ -14,7 +14,8 @@ Island {
     StateLayer {
         parent: root
         color: Colors.m3onPrimaryContainer
-        onClicked: Panels.toggleFrom("dashboard", root)
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onClicked: m => Panels.toggleFrom(m.button === Qt.RightButton ? "live" : "dashboard", root)
     }
 
     SystemClock {

@@ -86,6 +86,7 @@ ShellRoot {
         function activity(json: string): void { Activities.push(json); }
         function activityEnd(id: string, done: string): void { Activities.end(id, done); }
         function timer(spec: string, label: string): void { Activities.addTimer(Activities.parseDuration(spec), label); }
+        function stopwatch(): void { Activities.startStopwatch(); }
         function privacy(): void { Config.o.privacy.mode = !Config.o.privacy.mode; }
     }
 }

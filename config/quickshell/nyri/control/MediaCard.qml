@@ -124,6 +124,9 @@ ClippingRectangle {
         x: 14
         y: 110
         spacing: 6
+        enabled: root.player !== null
+        opacity: enabled ? 1 : 0.4
+        Behavior on opacity { EffectAnim {} }
 
         IconButton {
             anchors.verticalCenter: parent.verticalCenter
@@ -159,7 +162,7 @@ ClippingRectangle {
                 id: playArea
                 radius: width / 2
                 color: Colors.m3onPrimary
-                onClicked: root.player.togglePlaying()
+                onClicked: root.player?.togglePlaying()
             }
         }
 

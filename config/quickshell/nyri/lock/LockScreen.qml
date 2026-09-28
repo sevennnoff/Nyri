@@ -311,7 +311,8 @@ Scope {
                                 textStyle: Type.labelLargeEmph
                                 font.features: { "tnum": 1 }
                                 color: pill.loud ? Colors.m3error : Colors.m3primary
-                                text: pill.modelData.until > 0 ? liveRow.clock(pill.modelData.until - liveRow.now)
+                                text: (pill.modelData.frozen ?? -1) >= 0 ? liveRow.clock(pill.modelData.frozen)
+                                    : pill.modelData.until > 0 ? liveRow.clock(pill.modelData.until - liveRow.now)
                                     : pill.modelData.since > 0 ? liveRow.clock(liveRow.now - pill.modelData.since) : ""
                             }
                         }

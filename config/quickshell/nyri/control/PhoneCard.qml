@@ -9,123 +9,157 @@ Rectangle {
 
     readonly property var p: Phone.phone
     readonly property bool on: Phone.reachable
+    readonly property real level: (Phone.battery?.charge ?? 0) / 100
+    readonly property bool charging: Phone.battery?.charging ?? false
+    readonly property bool low: on && level <= 0.15 && !charging
     signal opened
 
-    implicitHeight: 148
+    implicitHeight: 212
     radius: Shape.extraLarge
-    color: on ? Colors.m3primaryContainer : Colors.m3surfaceContainerHigh
-    Behavior on color { ColorAnim {} }
-    readonly property color ink: on ? Colors.m3onPrimaryContainer : Colors.m3onSurface
-    readonly property color soft: on ? Colors.m3onPrimaryContainer : Colors.m3onSurfaceVariant
+    color: Colors.m3surfaceContainerHigh
 
     StateLayer {
         radius: root.radius
-        color: root.ink
         onClicked: root.opened()
     }
 
-    Item {
-        id: slab
-        x: 20
-        anchors.verticalCenter: parent.verticalCenter
-        width: 58
-        height: 104
-        SpringValue { id: tilt; target: root.on ? -8 : 0; damping: 0.5; stiffness: 160 }
-        rotation: tilt.value
-
-        Rectangle {
-            anchors.fill: parent
-            radius: 16
-            color: root.on ? Colors.m3primary : Colors.m3surfaceContainerHighest
-            Behavior on color { ColorAnim {} }
-        }
-        Rectangle {
-            x: 5
-            width: parent.width - 10
-            SpringValue { id: charge; target: (Phone.battery?.charge ?? 0) / 100; damping: 0.8; stiffness: 90 }
-            height: Math.max(0, (parent.height - 10) * charge.value)
-            y: parent.height - 5 - height
-            radius: 12
-            color: root.on ? Qt.alpha(Colors.m3onPrimary, 0.28) : "transparent"
-        }
-        Rectangle {
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: 8
-            width: 16
-            height: 4
-            radius: 2
-            color: root.on ? Colors.m3onPrimary : Colors.m3onSurfaceVariant
-            opacity: 0.6
-        }
-        MIcon {
-            anchors.centerIn: parent
-            visible: Phone.battery?.charging ?? false
-            icon: "bolt"
-            size: 26
-            fill: 1
-            color: Colors.m3onPrimary
-        }
-    }
-
     Column {
-        anchors.left: slab.right
-        anchors.leftMargin: 22
-        anchors.right: parent.right
-        anchors.rightMargin: 16
-        y: 18
-        spacing: 2
+        id: col
+        x: 16
+        y: 16
+        width: parent.width - 32
+        spacing: 18
 
-        FlowText {
+        Item {
             width: parent.width
-            elide: Text.ElideRight
-            textStyle: Type.titleMediumEmph
-            color: root.ink
-            text: root.p?.name ?? "Телефон"
+            height: 64
+
+            MaterialShape {
+                id: badge
+                width: 64
+                height: 64
+                shape: root.on ? "cookie9Sided" : "circle"
+                color: root.low ? Colors.m3errorContainer : root.on ? Colors.m3primaryContainer : Colors.m3surfaceContainerHighest
+                SpringValue { id: turn; target: root.on ? 0 : -40; damping: 0.5; stiffness: 180 }
+                rotation: turn.value
+                MIcon {
+                    anchors.centerIn: parent
+                    rotation: -badge.rotation
+                    icon: root.on ? "mobile_2" : "mobile_off"
+                    size: 30
+                    fill: root.on ? 1 : 0
+                    color: root.low ? Colors.m3onErrorContainer : root.on ? Colors.m3onPrimaryContainer : Colors.m3onSurfaceVariant
+                }
+            }
+
+            Column {
+                anchors.left: badge.right
+                anchors.leftMargin: 16
+                anchors.right: pct.left
+                anchors.rightMargin: 12
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 2
+                FlowText {
+                    width: parent.width
+                    elide: Text.ElideRight
+                    textStyle: Type.titleMediumEmph
+                    text: root.p?.name ?? "Телефон"
+                }
+                FlowText {
+                    width: parent.width
+                    elide: Text.ElideRight
+                    textStyle: Type.labelMedium
+                    color: Colors.m3onSurfaceVariant
+                    text: !root.p ? "Не связан" : !root.on ? "Не в сети"
+                        : (root.charging ? "Заряжается" : "На связи") + (root.p.signal ? " · " + root.p.signal.type : "")
+                }
+            }
+
+            Row {
+                id: pct
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                visible: root.on && Phone.battery !== null
+                spacing: 2
+                MIcon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: root.charging
+                    icon: "bolt"
+                    size: 24
+                    fill: 1
+                    color: Colors.m3primary
+                }
+                RollingText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    pixelSize: 34
+                    weight: 650
+                    color: root.low ? Colors.m3error : Colors.m3onSurface
+                    text: Math.round(root.level * 100) + "%"
+                }
+            }
         }
-        FlowText {
+
+        WavyProgress {
             width: parent.width
-            elide: Text.ElideRight
-            textStyle: Type.labelMedium
-            color: root.soft
-            text: !root.p ? "Не связан" : !root.on ? "Не в сети"
-                : (Phone.battery ? Phone.battery.charge + "%" + (Phone.battery.charging ? " · заряжается" : "") : "На связи")
-                  + (root.p.signal ? " · " + root.p.signal.type : "")
+            height: 20
+            visible: root.on && Phone.battery !== null
+            value: root.level
+            wavy: root.charging
+            flowing: root.charging && root.visible
+            activeColor: root.low ? Colors.m3error : Colors.m3primary
         }
-    }
 
-    Row {
-        anchors.left: slab.right
-        anchors.leftMargin: 16
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: 16
-        spacing: 6
-        enabled: root.on
-        opacity: root.on ? 1 : 0.45
-        Behavior on opacity { EffectAnim {} }
+        Row {
+            id: group
+            width: parent.width
+            height: 56
+            spacing: 3
+            enabled: root.on
+            opacity: root.on ? 1 : 0.45
+            Behavior on opacity { EffectAnim {} }
 
-        Repeater {
-            model: [
-                { icon: "ring_volume", act: () => Phone.ring() },
-                { icon: "upload_file", act: () => picker.open() },
-                { icon: "content_paste_go", act: () => Phone.sendClipboard() },
-                { icon: "folder_open", act: () => { Panels.close(); Phone.browse(); } }
+            readonly property var acts: [
+                { icon: "ring_volume", label: "Найти", act: () => Phone.ring() },
+                { icon: "upload_file", label: "Файл", act: () => picker.open() },
+                { icon: "content_paste_go", label: "Буфер", act: () => Phone.sendClipboard() },
+                { icon: "folder_open", label: "Память", act: () => { Panels.close(); Phone.browse(); } }
             ]
-            Rectangle {
-                id: btn
-                required property var modelData
-                width: 48
-                height: 48
-                radius: btnLayer.pressed ? Shape.medium : height / 2
-                color: root.on ? Colors.m3primary : Colors.m3surfaceContainerHighest
-                Behavior on radius { SpatialAnim { speed: "fast" } }
-                scale: pop.value
-                SpringValue { id: pop; target: 1; damping: 0.4; stiffness: 700; epsilon: 0.001 }
-                MIcon { anchors.centerIn: parent; icon: btn.modelData.icon; size: 22; fill: 1; color: root.on ? Colors.m3onPrimary : Colors.m3onSurfaceVariant }
-                StateLayer {
-                    id: btnLayer
-                    radius: btn.radius
-                    color: Colors.m3onPrimary
-                    onClicked: { pop.value = 0.85; pop.running = true; btn.modelData.act(); }
+
+            Repeater {
+                model: group.acts
+                Rectangle {
+                    id: seg
+                    required property var modelData
+                    required property int index
+                    readonly property bool first: index === 0
+                    readonly property bool last: index === group.acts.length - 1
+                    width: (group.width - group.spacing * (group.acts.length - 1)) / group.acts.length
+                    height: group.height
+                    SpringValue { id: r; target: segLayer.pressed || segLayer.containsMouse ? 1 : 0; damping: 0.55; stiffness: 700 }
+                    readonly property real inner: 8 + (height / 2 - 8) * Math.max(0, Math.min(1, r.value))
+                    topLeftRadius: first ? height / 2 : inner
+                    bottomLeftRadius: first ? height / 2 : inner
+                    topRightRadius: last ? height / 2 : inner
+                    bottomRightRadius: last ? height / 2 : inner
+                    color: Colors.m3secondaryContainer
+                    scale: pop.value
+                    SpringValue { id: pop; target: 1; damping: 0.4; stiffness: 700; epsilon: 0.001 }
+
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: 6
+                        MIcon { anchors.verticalCenter: parent.verticalCenter; icon: seg.modelData.icon; size: 20; fill: 1; color: Colors.m3onSecondaryContainer }
+                        MText { anchors.verticalCenter: parent.verticalCenter; visible: seg.width > 96; textStyle: Type.labelLargeEmph; color: Colors.m3onSecondaryContainer; text: seg.modelData.label }
+                    }
+                    StateLayer {
+                        id: segLayer
+                        topLeftRadius: seg.topLeftRadius
+                        bottomLeftRadius: seg.bottomLeftRadius
+                        topRightRadius: seg.topRightRadius
+                        bottomRightRadius: seg.bottomRightRadius
+                        color: Colors.m3onSecondaryContainer
+                        onClicked: { pop.value = 0.9; pop.running = true; seg.modelData.act(); }
+                    }
                 }
             }
         }

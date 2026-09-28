@@ -152,7 +152,8 @@ Surface {
         if (open) {
             cascade = true;
             cascadeOff.restart();
-            field.text = "";
+            field.text = Panels.prefill;
+            Panels.prefill = "";
             filter = "all";
             fileHits = [];
             list.currentIndex = 0;
