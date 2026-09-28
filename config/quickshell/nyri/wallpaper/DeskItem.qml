@@ -90,14 +90,16 @@ Item {
     function drop() {
         const p = Object.assign({}, Config.o.desktop.positions ?? {});
         p[root.placeKey] = { x: root.dropX, y: root.dropY };
+        for (const d of desk.desks)
+            if (d !== root && (Math.abs(d.push.x) > 0.5 || Math.abs(d.push.y) > 0.5))
+                p[d.placeKey] = { x: d.moveTo.x, y: d.moveTo.y };
         fake.active = false;
         Demo.holding = false;
         Config.o.desktop.positions = p;
     }
 
-    readonly property point landing: dragging ? desk.freeSpot(root, clampX(snap(heldX)), clampY(snap(heldY))) : Qt.point(homeX, homeY)
-    readonly property real dropX: landing.x
-    readonly property real dropY: landing.y
+    readonly property real dropX: clampX(snap(heldX))
+    readonly property real dropY: clampY(snap(heldY))
 
     function snap(v) {
         const g = Config.o.desktop.gridSize;
@@ -115,17 +117,8 @@ Item {
     height: on ? (child?.height ?? 0) * kS.value : 0
     visible: on
 
-    readonly property point push: {
-        const h = desk.held;
-        if (!h || h === root || !on) return Qt.point(0, 0);
-        const ox = Math.min(h.dropX + h.width, homeX + width) - Math.max(h.dropX, homeX);
-        const oy = Math.min(h.dropY + h.height, homeY + height) - Math.max(h.dropY, homeY);
-        if (ox <= 0 || oy <= 0) return Qt.point(0, 0);
-        const dx = (homeX + width / 2) - (h.dropX + h.width / 2);
-        const dy = (homeY + height / 2) - (h.dropY + h.height / 2);
-        if (ox < oy) return Qt.point(Math.sign(dx || 1) * Math.min(56, ox + 12), 0);
-        return Qt.point(0, Math.sign(dy || 1) * Math.min(56, oy + 12));
-    }
+    readonly property point moveTo: desk.displaced[key] ?? Qt.point(homeX, homeY)
+    readonly property point push: Qt.point(moveTo.x - homeX, moveTo.y - homeY)
 
     SpringValue { id: sx; target: root.dragging ? root.heldX : root.homeX + root.push.x; damping: 0.62; stiffness: root.dragging ? 2400 : 300; epsilon: 0.1 }
     SpringValue { id: sy; target: root.dragging ? root.heldY : root.homeY + root.push.y; damping: 0.62; stiffness: root.dragging ? 2400 : 300; epsilon: 0.1 }

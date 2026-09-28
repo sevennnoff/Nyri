@@ -62,11 +62,17 @@ Item {
     readonly property DeskItem held: desks.find(d => d.dragging) ?? null
 
     function freeSpot(it, x, y) {
+        return freeSpotAmong(it, x, y, desks.filter(d => d !== it && d.on && d.width > 0 && d.height > 0)
+                                           .map(d => ({ x: d.homeX, y: d.homeY, w: d.width, h: d.height })));
+    }
+    function overlaps(a, b) {
+        const m = 12;
+        return !(a.x + a.w + m <= b.x || b.x + b.w + m <= a.x || a.y + a.h + m <= b.y || b.y + b.h + m <= a.y);
+    }
+    function freeSpotAmong(it, x, y, others) {
         const g = cfg.grid && cfg.gridSize > 0 ? cfg.gridSize : 8;
-        const w = it.width, h = it.height, m = 12;
-        const others = desks.filter(d => d !== it && d.on && d.width > 0 && d.height > 0);
-        const ok = (px, py) => others.every(o => px + w + m <= o.homeX || o.homeX + o.width + m <= px
-                                                 || py + h + m <= o.homeY || o.homeY + o.height + m <= py);
+        const w = it.width, h = it.height;
+        const ok = (px, py) => others.every(o => !overlaps({ x: px, y: py, w, h }, o));
         if (ok(x, y)) return Qt.point(x, y);
         for (let r = 1; r < 80; r++) {
             let best = null, bestD = Infinity;
@@ -80,6 +86,28 @@ Item {
         }
         return Qt.point(x, y);
     }
+    readonly property var displaced: {
+        const h = held;
+        if (!h) return ({});
+        const out = {};
+        const others = desks.filter(d => d !== h && d.on && d.width > 0 && d.height > 0);
+        const cur = {};
+        for (const d of others) cur[d.key] = { x: d.homeX, y: d.homeY, w: d.width, h: d.height };
+        const landing = { x: h.dropX, y: h.dropY, w: h.width, h: h.height };
+        const placed = [landing];
+        for (const d of others) {
+            const r = cur[d.key];
+            if (placed.some(p => overlaps(r, p))) {
+                const rest = placed.concat(others.filter(o => o !== d && placed.indexOf(cur[o.key]) < 0).map(o => cur[o.key]));
+                const p = freeSpotAmong(d, r.x, r.y, rest);
+                cur[d.key] = { x: p.x, y: p.y, w: r.w, h: r.h };
+                out[d.key] = p;
+            }
+            placed.push(cur[d.key]);
+        }
+        return out;
+    }
+
     function tidy() {
         if (held || editing && sheet.dragging) return;
         const pos = Object.assign({}, cfg.positions ?? {});
