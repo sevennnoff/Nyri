@@ -207,7 +207,7 @@ Surface {
                 visible: root.mode === "apps"
                 model: root.results
                 clip: true
-                boundsBehavior: Flickable.StopAtBounds
+                Overscroll { flick: list; step: 0.47 }
                 highlightMoveDuration: 0
                 highlightFollowsCurrentItem: false
 

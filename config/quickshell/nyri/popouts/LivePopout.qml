@@ -18,11 +18,12 @@ Surface {
         Behavior on toH { SpatialAnim {} }
 
         Flickable {
+            id: flick
             anchors.fill: parent
             anchors.margins: 16
             contentHeight: col.implicitHeight
             clip: true
-            boundsBehavior: Flickable.StopAtBounds
+            Overscroll { flick: flick }
 
             Column {
                 id: col

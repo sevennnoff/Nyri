@@ -68,7 +68,12 @@ PanelWindow {
             readonly property var notif: Notifs.find(nid)
 
             width: list.width
-            height: card.implicitHeight
+            height: swipe.implicitHeight
+
+            Swipeable {
+                id: swipe
+                width: parent.width
+                onDismissed: Notifs.hidePopup(slot.nid)
 
             NotificationCard {
                 id: card
@@ -83,6 +88,7 @@ PanelWindow {
                 radius: height / 2 + (Shape.largeIncreased - height / 2) * Math.min(1, born)
                 scale: 0.88 + 0.12 * born
                 transformOrigin: Item.Right
+            }
             }
 
             HoverHandler { id: hover }

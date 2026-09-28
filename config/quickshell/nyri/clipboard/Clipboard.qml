@@ -96,6 +96,7 @@ Surface {
                 model: root.shown
                 clip: true
                 spacing: 2
+                Overscroll { flick: list; step: 0.6 }
                 boundsBehavior: Flickable.StopAtBounds
                 highlightFollowsCurrentItem: false
 

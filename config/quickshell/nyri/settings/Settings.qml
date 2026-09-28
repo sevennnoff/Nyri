@@ -171,7 +171,7 @@ Scope {
                     topMargin: pageBox.largeH
                     bottomMargin: 28
                     contentHeight: pageLoader.item?.implicitHeight ?? 0
-                    boundsBehavior: Flickable.StopAtBounds
+                    Overscroll { flick: flick }
 
                     Loader {
                         id: pageLoader

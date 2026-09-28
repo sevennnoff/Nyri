@@ -8,11 +8,12 @@
     nyri-wall apply STYLE PALETTE SEED [--grid] [--scale K] render, save, recolor the desktop
     nyri-wall variant dark|light                     the current wallpaper for night / day
 
-PALETTE is a palette name, or a colour — "#7c4dff" (light) or "#7c4dff/dark"
+PALETTE is a palette name ("Терракота", or "Терракота/dark" and
+"Терракота/light" for its dark and light versions), or a colour — "#7c4dff" (light) or "#7c4dff/dark"
 — to build the whole palette from that one hue. --grid adds graph paper;
 --scale sizes the pattern (1 as designed; 0.5 twice as small and denser, 2
-twice as big). `variant dark` redraws the current wallpaper in a dark palette
-built from its own accent (the day one is remembered); `variant light` brings
+twice as big). `variant dark` redraws the current wallpaper in the dark version of
+its palette (the day one is remembered); `variant light` brings
 the day one back. Both recolour the desktop in that mode.
 
 A wallpaper is a pure function of (style, palette, seed, size): no effects,
@@ -107,6 +108,23 @@ def custom_palette(spec):
     if variant == "dark":
         return [tone(0.1, s_ * 0.45), tone(0.28, s_ * 0.7, -0.01), tone(0.46, s_ * 0.85), tone(0.66, s_ * 0.9, 0.015), tone(0.84, s_ * 0.6, 0.02)]
     return [tone(0.9, s_ * 0.55), tone(0.22, s_ * 0.65, -0.01), tone(0.42, s_ * 0.85), tone(0.62, s_ * 0.9, 0.015), tone(0.78, s_ * 0.75, 0.02)]
+
+def toned(colors, variant):
+    def hls(c):
+        return colorsys.rgb_to_hls(*hexrgb(c))
+    bh, bl, bs = hls(colors[0])
+    out = []
+    if variant == "dark":
+        out.append(rgbhex(*colorsys.hls_to_rgb(bh, 0.1, min(bs, 0.4))))
+        for c in colors[1:]:
+            h, l, s_ = hls(c)
+            out.append(rgbhex(*colorsys.hls_to_rgb(h, 0.2 + l * 0.46, min(1, s_ * 1.05))))
+    else:
+        out.append(rgbhex(*colorsys.hls_to_rgb(bh, 0.93, min(bs, 0.55))))
+        for c in colors[1:]:
+            h, l, s_ = hls(c)
+            out.append(rgbhex(*colorsys.hls_to_rgb(h, 0.5 + l * 0.38, min(1, s_ * 1.05))))
+    return out
 
 def luminance(hex_):
     r, g, b = (int(hex_[i:i + 2], 16) / 255 for i in (1, 3, 5))
@@ -630,6 +648,9 @@ RENDER = {"bauhaus": bauhaus, "arches": arches, "waves": waves, "hills": hills, 
 def palette_by_name(name):
     if name.startswith("#"):
         return custom_palette(name)
+    base, _, variant = name.partition("/")
+    if variant in ("dark", "light"):
+        return toned(palette_by_name(base), variant)
     for p in PALETTES:
         if p["name"] == name:
             return p["colors"]
@@ -653,7 +674,8 @@ def apply(style, pal, seed, grid=False, scale=1.0, env=None):
     if pal.startswith("#"):
         tag = "c" + pal[1:].replace("/", "-")
     else:
-        tag = "p%02d" % next(i for i, p in enumerate(PALETTES) if p["name"] == pal)
+        base, _, variant = pal.partition("/")
+        tag = "p%02d" % next(i for i, p in enumerate(PALETTES) if p["name"] == base) + (f"-{variant}" if variant else "")
     sc = "" if abs(scale - 1) < 1e-3 else f"-x{scale:g}"
     stem = WALLS / f"{style}-{tag}-{seed}{'-grid' if grid else ''}{sc}"
     stem.with_suffix(".svg").write_text(make(style, pal, seed, grid=grid, scale=scale))
@@ -703,13 +725,13 @@ def main(argv):
             subprocess.run([str(nyri / "nyri-theme")], check=True, env=env)
             return 0
         pal = cur["palette"]
-        dark_now = pal.endswith("/dark") or (not pal.startswith("#") and luminance(palette_by_name(pal)[0]) < 0.35)
+        dark_now = luminance(palette_by_name(pal)[0]) < 0.35
         if want == "dark":
             if dark_now:
                 subprocess.run([str(nyri / "nyri-theme")], check=True, env=env)
                 return 0
             (WALLS / "day.json").write_text(json.dumps(cur, ensure_ascii=False))
-            night = (pal if pal.startswith("#") else accent(palette_by_name(pal))) + "/dark"
+            night = pal.split("/")[0] + "/dark"
             print(apply(cur["style"], night, cur["seed"], cur.get("grid", False), cur.get("scale", 1.0), env))
         else:
             day = json.loads((WALLS / "day.json").read_text()) if (WALLS / "day.json").exists() else None

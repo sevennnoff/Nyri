@@ -85,8 +85,8 @@ Surface {
             id: flick
             anchors.fill: parent
             anchors.margins: 16
-            boundsBehavior: Flickable.StopAtBounds
             clip: true
+            Overscroll { flick: flick }
 
             contentHeight: root.page === "main" ? content.implicitHeight : sub.implicitHeight
 
@@ -400,11 +400,16 @@ Surface {
                     Repeater {
                         model: Notifs.list
 
-                        NotificationCard {
+                        Swipeable {
+                            id: sw
                             required property var modelData
                             width: parent.width
-                            height: implicitHeight
-                            notif: modelData
+                            onDismissed: sw.modelData.dismiss()
+                            NotificationCard {
+                                width: sw.width
+                                height: implicitHeight
+                                notif: sw.modelData
+                            }
                         }
                     }
                 }

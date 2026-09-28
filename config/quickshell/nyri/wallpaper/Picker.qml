@@ -26,13 +26,14 @@ Scope {
     property bool grid: false
     property real patternScale: 1.0
     property real hue: 0.72
-    property bool customDark: false
+    property string tone: ""
     property int frame: 0
     property int thumbGen: 0
     property bool applying: false
 
     readonly property bool custom: palette.startsWith("#")
-    readonly property string customSpec: Qt.hsla(hue, 0.62, 0.5, 1).toString() + (customDark ? "/dark" : "")
+    readonly property string customSpec: Qt.hsla(hue, 0.62, 0.5, 1).toString() + (tone === "dark" ? "/dark" : "")
+    readonly property string spec: custom ? customSpec : palette + (tone ? "/" + tone : "")
     readonly property int styleIndex: styles.findIndex(s => s.id === style)
     readonly property int paletteIndex: custom ? -1 : palettes.findIndex(p => p.name === palette)
     readonly property var styleInfo: styles[styleIndex] ?? null
@@ -46,11 +47,11 @@ Scope {
     Timer { id: scaleDebounce; interval: 150; onTriggered: root.refresh() }
     function regenerate() {
         frame = (frame + 1) % 2;
-        make.command = [bin, "make", style, palette, String(seed), preview + frame + ".svg", "--size", "1440x900", ...args()];
+        make.command = [bin, "make", style, spec, String(seed), preview + frame + ".svg", "--size", "1440x900", ...args()];
         make.running = true;
     }
     function rethumb() {
-        thumbs.command = [bin, "thumbs", palette, String(seed), thumbDir, ...args()];
+        thumbs.command = [bin, "thumbs", spec, String(seed), thumbDir, ...args()];
         thumbs.running = true;
     }
     function refresh() { regenerate(); rethumb(); }
@@ -61,7 +62,7 @@ Scope {
     function apply() {
         if (applying) return;
         applying = true;
-        applier.command = [bin, "apply", style, palette, String(seed), ...args()];
+        applier.command = [bin, "apply", style, spec, String(seed), ...args()];
         applier.running = true;
     }
 
@@ -100,12 +101,14 @@ Scope {
                 root.seed = parseInt(c.seed);
                 root.grid = !!c.grid;
                 root.patternScale = c.scale ?? 1;
-                if (c.palette.startsWith("#")) {
-                    const [hex, variant] = c.palette.split("/");
-                    root.hue = Qt.color(hex).hslHue;
-                    root.customDark = variant === "dark";
+                const [base, variant] = c.palette.split("/");
+                root.tone = variant ?? "";
+                if (base.startsWith("#")) {
+                    root.hue = Qt.color(base).hslHue;
+                    root.palette = root.customSpec;
+                } else {
+                    root.palette = base;
                 }
-                root.palette = c.palette;
                 if (root.styles.length) root.refresh();
             } catch (e) {}
         }
@@ -174,7 +177,7 @@ Scope {
                 id: flick
                 anchors.fill: parent
                 contentHeight: col.implicitHeight + 40
-                boundsBehavior: Flickable.StopAtBounds
+                Overscroll { flick: flick }
 
                 Column {
                     id: col
@@ -570,15 +573,14 @@ Scope {
                         id: customBox
                         width: parent.width
                         SpringValue { id: cOpen; target: root.custom ? 1 : 0; damping: 0.78; stiffness: 360 }
-                        height: 56 * Math.max(0, cOpen.value)
-                        clip: true
-                        visible: height > 0.5
-                        opacity: Math.min(1, cOpen.value * 1.3)
+                        height: 56
 
                         Item {
                             id: hueBar
                             anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width - modes.width - 16
+                            width: Math.max(0, parent.width - modes.width - 16)
+                            opacity: Math.max(0, Math.min(1, cOpen.value * 1.3))
+                            visible: opacity > 0.01
                             height: 48
 
                             Rectangle {
@@ -626,10 +628,16 @@ Scope {
                             id: modes
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            width: 260
-                            value: root.customDark ? "dark" : "light"
-                            options: [{ value: "light", label: "Светлые", icon: "light_mode" }, { value: "dark", label: "Тёмные", icon: "dark_mode" }]
-                            onSelected: v => root.customDark = v === "dark"
+                            width: root.custom ? 260 : parent.width
+                            Behavior on width { SpatialAnim {} }
+                            value: root.custom && root.tone === "" ? "light" : root.tone
+                            options: root.custom
+                                ? [{ value: "light", label: "Светлые", icon: "light_mode" }, { value: "dark", label: "Тёмные", icon: "dark_mode" }]
+                                : [{ value: "", label: "Как есть", icon: "palette" }, { value: "light", label: "Светлые", icon: "light_mode" }, { value: "dark", label: "Тёмные", icon: "dark_mode" }]
+                            onSelected: v => {
+                                root.tone = root.custom && v === "light" ? "" : v;
+                                if (!root.custom) root.refresh();
+                            }
                         }
                     }
 
