@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell.Widgets
+import Quickshell.Services.Mpris
 import qs.theme
 import qs.services
 import qs.widgets
@@ -16,7 +17,7 @@ Surface {
 
     onOpenChanged: {
         if (open) Lyrics.wanted++;
-        else Lyrics.wanted = Math.max(0, Lyrics.wanted - 1);
+        else { Lyrics.wanted = Math.max(0, Lyrics.wanted - 1); Media.chosen = null; }
     }
     Timer {
         running: root.open && root.playing
@@ -49,80 +50,124 @@ Surface {
         progress: root.progress
         toW: root.lyricsOn && !Lyrics.none ? 760 : 420
         toX: Math.max(12, Math.min(parent.width - toW - 12, (Panels.anchorW > 0 ? Panels.anchorX + Panels.anchorW / 2 : parent.width / 2) - toW / 2))
-        toH: 500
+        toH: side.implicitHeight + 40
         Behavior on toW { SpatialAnim {} }
 
-        Item {
+        Column {
             id: side
             x: 20
             y: 20
             width: 380
-            height: parent.height - 40
+            spacing: 14
 
-            Item { id: coverSlot; width: 380; height: 230 }
-
-            Column {
-                y: coverSlot.height + 16
+            Flow {
                 width: parent.width
-                spacing: 4
-
-                FlowText {
-                    width: parent.width
-                    elide: Text.ElideRight
-                    textStyle: ({ size: 22, weight: 650, rond: 50 })
-                    text: root.player?.trackTitle || "Ничего не играет"
+                spacing: 6
+                visible: Media.players.length > 1
+                Repeater {
+                    model: Media.players
+                    FilterChip {
+                        required property var modelData
+                        text: modelData.identity || "Плеер"
+                        picked: modelData === root.player
+                        onClicked: Media.chosen = modelData
+                    }
                 }
-                FlowText {
-                    width: parent.width
-                    elide: Text.ElideRight
-                    textStyle: Type.bodyMedium
+            }
+
+            Item {
+                width: parent.width
+                height: coverSlot.height
+                Item { id: coverSlot; width: 148; height: 148 }
+                Rectangle {
+                    anchors.left: coverSlot.right
+                    anchors.leftMargin: 18
+                    anchors.top: coverSlot.top
+                    visible: (root.player?.identity ?? "") !== ""
+                    width: srcRow.implicitWidth + 20
+                    height: 26
+                    radius: 13
+                    color: Colors.m3secondaryContainer
+                    Row {
+                        id: srcRow
+                        anchors.centerIn: parent
+                        spacing: 5
+                        MIcon { anchors.verticalCenter: parent.verticalCenter; icon: root.playing ? "graphic_eq" : "pause"; size: 14; fill: 1; color: Colors.m3onSecondaryContainer }
+                        MText { anchors.verticalCenter: parent.verticalCenter; textStyle: Type.labelMedium; color: Colors.m3onSecondaryContainer; text: root.player?.identity ?? "" }
+                    }
+                }
+
+                Column {
+                    anchors.left: coverSlot.right
+                    anchors.leftMargin: 18
+                    anchors.right: parent.right
+                    anchors.bottom: coverSlot.bottom
+                    anchors.bottomMargin: -3
+                    spacing: 4
+                    MText {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        maximumLineCount: 2
+                        elide: Text.ElideRight
+                        textStyle: ({ size: 22, weight: 650, rond: 50 })
+                        text: root.player?.trackTitle || "Ничего не играет"
+                    }
+                    FlowText {
+                        width: parent.width
+                        elide: Text.ElideRight
+                        textStyle: Type.bodyMedium
+                        color: Colors.m3onSurfaceVariant
+                        text: [root.player?.trackArtist, root.player?.trackAlbum].filter(Boolean).join(" · ")
+                    }
+                }
+            }
+
+            Item {
+                width: parent.width
+                height: 28
+                visible: root.player?.lengthSupported ?? false
+                MText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 36
+                    textStyle: Type.labelMedium
+                    font.features: { "tnum": 1 }
                     color: Colors.m3onSurfaceVariant
-                    text: [root.player?.trackArtist, root.player?.identity].filter(Boolean).join(" · ")
+                    text: root.fmt(root.player?.position ?? 0)
                 }
-
-                Item {
-                    width: parent.width
-                    height: 28
-                    visible: root.player?.lengthSupported ?? false
-                    MText {
-                        id: posT
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 36
-                        textStyle: Type.labelMedium
-                        font.features: { "tnum": 1 }
-                        color: Colors.m3onSurfaceVariant
-                        text: root.fmt(root.player?.position ?? 0)
-                    }
-                    WavyProgress {
-                        anchors.verticalCenter: parent.verticalCenter
-                        x: 44
-                        width: parent.width - 88
-                        value: root.player && root.player.length > 0 ? root.player.position / root.player.length : 0
-                        wavy: root.playing
-                        flowing: root.open && root.playing
-                        onSeek: v => { if (root.player?.canSeek) root.player.position = v * root.player.length }
-                    }
-                    MText {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        textStyle: Type.labelMedium
-                        font.features: { "tnum": 1 }
-                        color: Colors.m3onSurfaceVariant
-                        text: root.fmt(root.player?.length ?? 0)
-                    }
+                WavyProgress {
+                    anchors.verticalCenter: parent.verticalCenter
+                    x: 44
+                    width: parent.width - 88
+                    value: root.player && root.player.length > 0 ? root.player.position / root.player.length : 0
+                    wavy: root.playing
+                    flowing: root.open && root.playing
+                    onSeek: v => { if (root.player?.canSeek) root.player.position = v * root.player.length }
                 }
+                MText {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    textStyle: Type.labelMedium
+                    font.features: { "tnum": 1 }
+                    color: Colors.m3onSurfaceVariant
+                    text: root.fmt(root.player?.length ?? 0)
+                }
+            }
 
+            Item {
+                width: parent.width
+                height: 76
+
+                IconButton {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    icon: "shuffle"
+                    visible: root.player?.shuffleSupported ?? false
+                    style: root.player?.shuffle ? "tonal" : "standard"
+                    onClicked: root.player.shuffle = !root.player.shuffle
+                }
                 Row {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    spacing: 10
-                    topPadding: 4
-
-                    IconButton {
-                        anchors.verticalCenter: parent.verticalCenter
-                        icon: "lyrics"
-                        style: root.lyricsOn ? "tonal" : "standard"
-                        onClicked: root.lyricsOn = !root.lyricsOn
-                    }
+                    anchors.centerIn: parent
+                    spacing: 14
                     IconButton {
                         anchors.verticalCenter: parent.verticalCenter
                         icon: "skip_previous"; size: 52; iconSize: 30
@@ -132,18 +177,28 @@ Surface {
                     }
                     Item {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 72; height: 72
+                        SpringValue { id: playW; target: root.playing ? 96 : 76; damping: 0.6; stiffness: 520 }
+                        width: playW.value
+                        height: 76
                         scale: sq.value
-                        SpringValue { id: sq; target: playL.pressed ? 0.86 : 1; damping: 0.45; stiffness: 900; epsilon: 0.001 }
-                        MaterialShape {
+                        SpringValue { id: sq; target: playL.pressed ? 0.88 : 1; damping: 0.45; stiffness: 900; epsilon: 0.001 }
+                        Rectangle {
                             anchors.fill: parent
-                            shape: root.playing ? "square" : "cookie9Sided"
+                            visible: root.playing
+                            radius: Shape.large
                             color: Colors.m3primary
-                            rotation: root.playing ? 0 : spinS.value
+                        }
+                        MaterialShape {
+                            anchors.centerIn: parent
+                            width: 76; height: 76
+                            visible: !root.playing
+                            shape: "cookie9Sided"
+                            color: Colors.m3primary
+                            rotation: spinS.value
                             SpringValue { id: spinS; target: root.playing ? 0 : 20; damping: 0.6; stiffness: 200 }
                         }
-                        MIcon { anchors.centerIn: parent; icon: root.playing ? "pause" : "play_arrow"; size: 34; fill: 1; color: Colors.m3onPrimary }
-                        StateLayer { id: playL; radius: width / 2; color: Colors.m3onPrimary; onClicked: root.player.togglePlaying() }
+                        MIcon { anchors.centerIn: parent; icon: root.playing ? "pause" : "play_arrow"; size: 36; fill: 1; color: Colors.m3onPrimary }
+                        StateLayer { id: playL; radius: Shape.large; color: Colors.m3onPrimary; onClicked: root.player.togglePlaying() }
                     }
                     IconButton {
                         anchors.verticalCenter: parent.verticalCenter
@@ -152,11 +207,54 @@ Surface {
                         opacity: enabled ? 1 : 0.4
                         onClicked: root.player.next()
                     }
-                    IconButton {
-                        anchors.verticalCenter: parent.verticalCenter
-                        icon: "queue_music"
-                        onClicked: { Panels.close(); root.player?.raise(); }
-                    }
+                }
+                IconButton {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: root.player?.loopSupported ?? false
+                    icon: root.player?.loopState === MprisLoopState.Track ? "repeat_one" : "repeat"
+                    style: (root.player?.loopState ?? MprisLoopState.None) !== MprisLoopState.None ? "tonal" : "standard"
+                    onClicked: root.player.loopState = root.player.loopState === MprisLoopState.None ? MprisLoopState.Playlist
+                                                     : root.player.loopState === MprisLoopState.Playlist ? MprisLoopState.Track : MprisLoopState.None
+                }
+            }
+
+            Row {
+                width: parent.width
+                height: 44
+                spacing: 8
+                MIcon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: root.player?.volumeSupported ?? false
+                    icon: (root.player?.volume ?? 1) < 0.01 ? "volume_off" : "volume_down"
+                    size: 22
+                    color: Colors.m3onSurfaceVariant
+                }
+                MSlider {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: root.player?.volumeSupported ?? false
+                    width: parent.width - 30 - 2 * 48 - 3 * 8
+                    trackHeight: 24
+                    value: root.player?.volume ?? 1
+                    onMoved: v => root.player.volume = v
+                }
+                Item {
+                    visible: !(root.player?.volumeSupported ?? false)
+                    width: parent.width - 2 * 48 - 8
+                    height: 1
+                }
+                IconButton {
+                    anchors.verticalCenter: parent.verticalCenter
+                    icon: "lyrics"
+                    style: root.lyricsOn ? "tonal" : "standard"
+                    onClicked: root.lyricsOn = !root.lyricsOn
+                }
+                IconButton {
+                    anchors.verticalCenter: parent.verticalCenter
+                    icon: "open_in_new"
+                    enabled: root.player?.canRaise ?? false
+                    opacity: enabled ? 1 : 0.4
+                    onClicked: { Panels.close(); root.player?.raise(); }
                 }
             }
         }
@@ -166,7 +264,7 @@ Surface {
             x: side.x + side.width + 16
             y: 20
             width: card.toW - x - 20
-            height: parent.height - 40
+            height: card.toH - 40
             radius: Shape.large
             color: Colors.m3surfaceContainerHigh
             visible: root.lyricsOn && !Lyrics.none && width > 40
@@ -193,19 +291,21 @@ Surface {
                     readonly property bool now: index === Lyrics.current
                     readonly property bool past: Lyrics.synced && index < Lyrics.current
                     width: lyricList.width
-                    height: txt.implicitHeight + 8
+                    height: txt.implicitHeight * (1 + 0.1 * lit.value) + 10
                     SpringValue { id: lit; target: line.now ? 1 : 0; damping: 0.7; stiffness: 380 }
 
                     MText {
                         id: txt
-                        width: parent.width - 16
+                        width: (parent.width - 22) / 1.1
                         x: 8 + 6 * lit.value
-                        y: 4
+                        y: 5
                         wrapMode: Text.Wrap
-                        font.pixelSize: 18
-                        font.variableAxes: ({ "wght": line.now ? 720 : 500 })
+                        lineHeight: 1.12
+                        font.pixelSize: 19
+                        font.variableAxes: ({ "wght": 600, "ROND": 60 })
+                        renderType: Text.CurveRendering
                         scale: 1 + 0.1 * lit.value
-                        transformOrigin: Item.Left
+                        transformOrigin: Item.TopLeft
                         color: line.now ? Colors.m3primary : Colors.m3onSurface
                         opacity: !Lyrics.synced ? 0.9 : line.now ? 1 : line.past ? 0.35 : 0.6
                         textFormat: line.now ? Text.StyledText : Text.PlainText
@@ -262,7 +362,7 @@ Surface {
             anchors.fill: parent
             source: root.player?.trackArtUrl ?? ""
             fillMode: Image.PreserveAspectCrop
-            sourceSize: Qt.size(760, 480)
+            sourceSize: Qt.size(320, 320)
             asynchronous: true
         }
         MaterialShape {
