@@ -17,8 +17,8 @@ Scope {
         { id: "dock",   icon: "dock_to_bottom",      label: "Док",                   short: "Док" },
         { id: "notif",  icon: "notifications",       label: "Уведомления",  short: "Уведомления" },
         { id: "lock",   icon: "lock",                label: "Блокировка",            short: "Блок." },
-        { id: "power",  icon: "battery_full",        label: "Питание и сон",         short: "Питание" },
-        { id: "usage",  icon: "hourglass_top",       label: "Экранное время",        short: "Время" },
+        { id: "power",  icon: "electric_bolt",        label: "Питание и сон",         short: "Питание" },
+        { id: "usage",  icon: "hourglass",       label: "Экранное время",        short: "Время" },
         { id: "search", icon: "search",              label: "Поиск",                 short: "Поиск" },
         { id: "about",  icon: "info",                label: "Система",               short: "Система" }
     ]
@@ -287,8 +287,14 @@ Scope {
                 Rectangle {
                     width: parent.width
                     height: pageBox.headH
-                    color: Colors.m3surfaceContainer
+                    color: Colors.m3surfaceContainerLow
                     opacity: pageBox.collapse
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        width: parent.width
+                        height: 1
+                        color: Colors.m3outlineVariant
+                    }
                 }
 
                 FlowText {

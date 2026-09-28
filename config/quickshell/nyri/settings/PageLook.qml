@@ -105,7 +105,6 @@ Column {
         SettingRow {
             icon: "colors"
             title: "Схема"
-            subtitle: "Как matugen раскрашивает обои"
 
             below: Flow {
                 width: parent.width

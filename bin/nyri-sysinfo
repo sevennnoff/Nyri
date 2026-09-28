@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+import json, os, platform, re, shutil, socket, subprocess
+from pathlib import Path
+
+def run(*cmd):
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=3).stdout.strip()
+    except Exception:
+        return ""
+
+def read(path):
+    try:
+        return Path(path).read_text().strip()
+    except OSError:
+        return ""
+
+info = {}
+
+info["hostname"] = socket.gethostname()
+vendor, product = read("/sys/class/dmi/id/sys_vendor"), read("/sys/class/dmi/id/product_name")
+version = read("/sys/class/dmi/id/product_version")
+info["model"] = " ".join(x for x in (vendor, version if version and version.lower() not in ("none", "default string") else product) if x)
+osr = dict(re.findall(r'^(\w+)="?([^"\n]*)"?', read("/etc/os-release"), re.M))
+info["os"] = osr.get("PRETTY_NAME", "Linux")
+info["kernel"] = platform.release()
+info["uptime"] = float(read("/proc/uptime").split()[0] or 0)
+
+cpu = read("/proc/cpuinfo")
+m = re.search(r"model name\s*:\s*(.+)", cpu)
+name = m.group(1) if m else ""
+igpu = re.search(r"(?:w/|with)\s+(Radeon[^,]*)", name)
+info["cpu"] = re.sub(r"\s+", " ", re.sub(r"\(R\)|\(TM\)|CPU|Processor|(?:w/|with) Radeon.*|\d+-Core", "", name)).strip()
+info["threads"] = os.cpu_count() or 0
+cores = {(a, b) for a, b in re.findall(r"physical id\s*:\s*(\d+).*?core id\s*:\s*(\d+)", cpu, re.S)}
+info["cores"] = len(cores) or info["threads"]
+mx = read("/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq")
+info["ghz"] = round(int(mx) / 1e6, 1) if mx.isdigit() else 0
+gpus = [re.sub(r".*?: ", "", l) for l in run("lspci").splitlines() if re.search(r"VGA|3D|Display", l)]
+info["gpus"] = [re.sub(r"\s*\(rev .*\)|Advanced Micro Devices, Inc\. \[AMD/ATI\]|Corporation", "", g).strip() for g in gpus]
+if igpu and info["gpus"] and not re.search(r"Radeon|GeForce|Intel|Arc", info["gpus"][0]):
+    info["gpus"][0] = igpu.group(1).strip()
+
+mem = dict((k, int(v)) for k, v in re.findall(r"^(\w+):\s+(\d+)", read("/proc/meminfo"), re.M))
+info["memTotal"] = mem.get("MemTotal", 0) * 1024
+info["memUsed"] = (mem.get("MemTotal", 0) - mem.get("MemAvailable", 0)) * 1024
+info["swapTotal"] = mem.get("SwapTotal", 0) * 1024
+info["swapUsed"] = (mem.get("SwapTotal", 0) - mem.get("SwapFree", 0)) * 1024
+disks, seen = [], set()
+for mount in ("/", "/home", "/boot"):
+    if not os.path.ismount(mount):
+        continue
+    st = os.statvfs(mount)
+    key = (st.f_blocks, st.f_bfree)
+    if key in seen:
+        continue
+    seen.add(key)
+    total = st.f_blocks * st.f_frsize
+    disks.append({"mount": mount, "total": total, "used": total - st.f_bavail * st.f_frsize})
+info["disks"] = disks
+
+outs = []
+try:
+    for name, o in json.loads(run("niri", "msg", "-j", "outputs") or "{}").items():
+        mode = (o.get("modes") or [{}])[o.get("current_mode") or 0] if o.get("current_mode") is not None else {}
+        outs.append({"name": name, "make": " ".join(x for x in (o.get("make"), o.get("model")) if x),
+                     "w": mode.get("width", 0), "h": mode.get("height", 0),
+                     "hz": round(mode.get("refresh_rate", 0) / 1000), "scale": (o.get("logical") or {}).get("scale", 1)})
+except Exception:
+    pass
+info["outputs"] = outs
+
+try:
+    addrs = json.loads(run("ip", "-j", "-4", "addr", "show", "scope", "global") or "[]")
+    info["ips"] = [{"dev": a["ifname"], "ip": x["local"]} for a in addrs for x in a.get("addr_info", [])]
+except Exception:
+    info["ips"] = []
+
+bat = next(iter(sorted(Path("/sys/class/power_supply").glob("BAT*"))), None)
+if bat:
+    full = read(bat / "energy_full") or read(bat / "charge_full")
+    design = read(bat / "energy_full_design") or read(bat / "charge_full_design")
+    info["battery"] = {
+        "health": round(int(full) / int(design) * 100) if full.isdigit() and design.isdigit() and int(design) else 0,
+        "cycles": int(read(bat / "cycle_count") or 0) if read(bat / "cycle_count").isdigit() else -1,
+        "designWh": round(int(design) / 1e6, 1) if design.isdigit() else 0,
+        "fullWh": round(int(full) / 1e6, 1) if full.isdigit() else 0,
+        "tech": read(bat / "technology"), "maker": read(bat / "manufacturer"),
+    }
+
+info["niri"] = run("niri", "--version")
+info["quickshell"] = run("qs", "--version").splitlines()[0] if run("qs", "--version") else ""
+info["packages"] = len(run("pacman", "-Qq").splitlines()) if shutil.which("pacman") else 0
+root = Path(os.environ.get("NYRI_ROOT", Path.home() / "nyri"))
+info["nyri"] = run("git", "-C", str(root), "log", "-1", "--format=%h · %cr")
+info["branch"] = run("git", "-C", str(root), "rev-parse", "--abbrev-ref", "HEAD")
+rss = 0
+nested = os.environ.get("NYRI_NESTED") == "1"
+for pid in run("pgrep", "-x", "qs").split():
+    try:
+        env = Path(f"/proc/{pid}/environ").read_bytes().split(b"\0")
+    except OSError:
+        continue
+    if (b"NYRI_NESTED=1" in env) != nested:
+        continue
+    for line in read(f"/proc/{pid}/status").splitlines():
+        if line.startswith("VmRSS:"):
+            rss += int(line.split()[1]) * 1024
+info["shellMemory"] = rss
+
+print(json.dumps(info, ensure_ascii=False))
