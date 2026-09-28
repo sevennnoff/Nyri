@@ -23,17 +23,41 @@ Surface {
     property var today: ({})
     property var week: []
     property var weekLabels: []
+    property var weekDays: []
+    property int day: 6
+    property string openApp: ""
 
     function refreshUsage() {
-        today = ScreenTime.dayTotals(new Date());
-        const vals = [], labels = [];
+        const vals = [], labels = [], days = [];
         for (let i = 6; i >= 0; i--) {
             const d = new Date(Date.now() - i * 86400000);
-            vals.push(ScreenTime.total(ScreenTime.dayTotals(d)));
+            const t = ScreenTime.dayTotals(d);
+            days.push(t);
+            vals.push(ScreenTime.total(t));
             labels.push(Qt.locale().toString(d, "ddd"));
         }
+        weekDays = days;
         week = vals;
         weekLabels = labels;
+        today = days[day] ?? {};
+    }
+    onDayChanged: { today = weekDays[day] ?? {}; openApp = ""; }
+    function appWeek(app) { return weekDays.map(t => t[app] ?? 0); }
+    function dayTitle() {
+        if (day === 6) return "Сегодня за экраном";
+        if (day === 5) return "Вчера за экраном";
+        const d = new Date(Date.now() - (6 - day) * 86400000);
+        const s = d.toLocaleDateString(Qt.locale("ru_RU"), "dddd, d MMMM");
+        return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+    function openAppNow(app) {
+        const w = Object.values(Niri.windows).find(w => w.app_id === app);
+        Panels.close();
+        if (w) Niri.action("focus-window", "--id", String(w.id));
+        else {
+            const e = DesktopEntries.heuristicLookup(app);
+            if (e) Apps.launch(e);
+        }
     }
 
     readonly property var topApps: Object.entries(today)
@@ -42,6 +66,8 @@ Surface {
     onOpenChanged: {
         if (open) {
             page = Panels.tab || "battery";
+            day = 6;
+            openApp = "";
             BatteryInfo.refresh();
             refreshUsage();
         }
@@ -208,10 +234,10 @@ Surface {
                 Column {
                     spacing: 2
 
-                    MText {
+                    FlowText {
                         textStyle: Type.labelLarge
                         color: Colors.m3onSurfaceVariant
-                        text: "Сегодня за экраном"
+                        text: root.dayTitle()
                     }
 
                     MText {
@@ -234,6 +260,9 @@ Surface {
                         barHeight: 120
                         values: root.week
                         labels: root.weekLabels
+                        selected: root.day
+                        interactive: true
+                        onPicked: i => root.day = i
                     }
                 }
 
@@ -251,12 +280,31 @@ Surface {
                             required property var modelData
                             readonly property var entry: DesktopEntries.heuristicLookup(modelData[0])
                             readonly property real share: modelData[1] / Math.max(1, root.topApps[0][1])
+                            readonly property bool unfolded: root.openApp === modelData[0]
+                            SpringValue { id: unfold; target: app.unfolded ? 1 : 0; damping: 0.72; stiffness: 420; epsilon: 0.002 }
+                            readonly property real u: Math.max(0, unfold.value)
 
                             width: col.width
-                            height: 56
+                            height: 56 + (detail.implicitHeight + 8) * u
+                            clip: true
+
+                            Rectangle {
+                                anchors.fill: parent
+                                anchors.margins: -2
+                                radius: Shape.large
+                                color: Colors.m3surfaceContainerHigh
+                                opacity: app.u
+                            }
+
+                            StateLayer {
+                                width: parent.width
+                                height: 56
+                                radius: Shape.large
+                                onClicked: root.openApp = app.unfolded ? "" : app.modelData[0]
+                            }
 
                             IconImage {
-                                anchors.verticalCenter: parent.verticalCenter
+                                y: 12
                                 x: 4
                                 implicitSize: 32
                                 source: Quickshell.iconPath(Apps.iconFor(app.modelData[0]), "application-x-executable")
@@ -273,6 +321,7 @@ Surface {
 
                             MText {
                                 anchors.right: parent.right
+                                anchors.rightMargin: 4
                                 y: 8
                                 textStyle: Type.labelLarge
                                 color: Colors.m3onSurfaceVariant
@@ -282,7 +331,7 @@ Surface {
                             Rectangle {
                                 x: 50
                                 y: 34
-                                width: parent.width - 50
+                                width: parent.width - 54
                                 height: 8
                                 radius: 4
                                 color: Colors.m3secondaryContainer
@@ -294,6 +343,41 @@ Surface {
                                     color: Colors.m3primary
 
                                     Behavior on width { SpatialAnim {} }
+                                }
+                            }
+
+                            Column {
+                                id: detail
+                                x: 12
+                                y: 64
+                                width: parent.width - 24
+                                spacing: 10
+                                opacity: Math.max(0, app.u * 1.5 - 0.5)
+                                visible: app.u > 0.01
+
+                                WeekBars {
+                                    width: parent.width
+                                    barHeight: 56
+                                    values: app.unfolded ? root.appWeek(app.modelData[0]) : [0, 0, 0, 0, 0, 0, 0]
+                                    labels: root.weekLabels
+                                    selected: root.day
+                                }
+
+                                Row {
+                                    spacing: 8
+                                    bottomPadding: 4
+
+                                    Chip {
+                                        onClicked: root.openAppNow(app.modelData[0])
+                                        MIcon { anchors.verticalCenter: parent.verticalCenter; icon: "open_in_new"; size: 18; color: Colors.m3onSurfaceVariant }
+                                        MText { anchors.verticalCenter: parent.verticalCenter; textStyle: Type.labelLarge; text: "Открыть" }
+                                    }
+                                    MText {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        textStyle: Type.labelMedium
+                                        color: Colors.m3onSurfaceVariant
+                                        text: "за неделю " + ScreenTime.fmt(root.appWeek(app.modelData[0]).reduce((a, b) => a + b, 0))
+                                    }
                                 }
                             }
                         }
