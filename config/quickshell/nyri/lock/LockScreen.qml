@@ -126,7 +126,6 @@ Scope {
             Image {
                 id: wall
                 anchors.fill: parent
-                visible: false
                 source: Colors.wallpaper ? "file://" + Colors.wallpaper : ""
                 fillMode: Image.PreserveAspectCrop
                 sourceSize: Qt.size(surface.width, surface.height)
