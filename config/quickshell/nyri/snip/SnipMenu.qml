@@ -10,13 +10,17 @@ Surface {
     name: "snip"
 
     readonly property var actions: [
-        { id: "screenshot", icon: "screenshot_region", label: "Снимок", hint: "Выделите область — снимок в буфер и в Картинки" },
-        { id: "edit", icon: "draw", label: "Нарисовать", hint: "Выделите область — откроется в Swappy" },
-        { id: "ocr", icon: "text_select_start", label: "Текст", hint: "Выделите область — текст скопируется" },
-        { id: "search", icon: "image_search", label: "Lens", hint: "Выделите область — поиск в Google Lens" },
-        { id: "record", icon: "videocam", label: "Запись", hint: "Выделите область — начнётся запись" },
-        { id: "recordWithSound", icon: "mic", label: "Со звуком", hint: "Выделите область — запись со звуком" }
+        { id: "screenshot", icon: "screenshot_region", label: "Снимок", hint: "Выделите область или нажмите — весь экран в буфер и в Картинки" },
+        { id: "edit", icon: "draw", label: "Нарисовать", hint: "Выделите область или нажмите — откроется в Swappy" },
+        { id: "ocr", icon: "text_select_start", label: "Текст", hint: "Выделите область или нажмите — текст скопируется" },
+        { id: "search", icon: "image_search", label: "Lens", hint: "Выделите область или нажмите — поиск в Google Lens" },
+        { id: "record", icon: "videocam", label: "Запись", hint: "Выделите область или нажмите — запись всего экрана" }
     ]
+    readonly property bool recording: actions[current]?.id === "record"
+    readonly property string sound: {
+        const c = Config.o.capture;
+        return c.system && c.mic ? "both" : c.system ? "system" : c.mic ? "mic" : "";
+    }
     readonly property var groupEnds: [1, 3]
     property int current: 0
 
@@ -35,7 +39,7 @@ Surface {
         const s = Panels.screen;
         const geom = Math.round((s?.x ?? 0) + geomX) + "," + Math.round((s?.y ?? 0) + geomY)
                    + " " + Math.round(geomW) + "x" + Math.round(geomH);
-        go.cmd = [Paths.bin + "/nyri", "region", actions[current].id, geom];
+        go.cmd = [Paths.bin + "/nyri", "region", actions[current].id, geom].concat(recording ? [sound] : []);
         root.hidden = true;
         Panels.close();
         go.restart();
@@ -137,7 +141,7 @@ Surface {
         onReleased: {
             root.dragging = false;
             if (root.selW >= 6 && root.selH >= 6) root.run(root.selX, root.selY, root.selW, root.selH);
-            else root.x0 = root.y0 = root.x1 = root.y1 = 0;
+            else root.runFull();
         }
     }
 
@@ -145,7 +149,9 @@ Surface {
         id: dock
         anchors.horizontalCenter: parent.horizontalCenter
         width: toolbar.width + 12 + fab.width
-        height: 64
+        SpringValue { id: soundRow; target: root.recording ? 1 : 0; damping: 0.7; stiffness: 520 }
+        readonly property real extra: 60 * Math.max(0, soundRow.value)
+        height: 64 + extra
         y: parent.height - height - 32 + (1 - root.progress) * 96
         opacity: root.fade * (root.dragging ? 0.35 : 1)
         Behavior on opacity { EffectAnim {} }
@@ -252,10 +258,45 @@ Surface {
             }
         }
 
+        Row {
+            anchors.horizontalCenter: toolbar.horizontalCenter
+            y: 64 + 12 - (1 - soundRow.value) * 12
+            spacing: 8
+            visible: soundRow.value > 0.02
+            opacity: Math.max(0, Math.min(1, soundRow.value * 1.4 - 0.2))
+            Repeater {
+                model: [{ key: "system", icon: "volume_up", off: "volume_off", label: "Звук системы" }, { key: "mic", icon: "mic", off: "mic_off", label: "Микрофон" }]
+                Card {
+                    id: sw
+                    required property var modelData
+                    readonly property bool on: Config.o.capture[modelData.key]
+                    width: swRow.implicitWidth + 28
+                    height: 48
+                    radius: height / 2
+                    color: on ? Colors.m3secondaryContainer : Colors.m3surfaceContainerHigh
+                    elevation: 2
+                    Behavior on color { ColorAnim {} }
+                    Row {
+                        id: swRow
+                        anchors.centerIn: parent
+                        spacing: 10
+                        MIcon { anchors.verticalCenter: parent.verticalCenter; icon: sw.on ? sw.modelData.icon : sw.modelData.off; size: 20; fill: sw.on ? 1 : 0; color: sw.on ? Colors.m3onSecondaryContainer : Colors.m3onSurfaceVariant }
+                        MText { anchors.verticalCenter: parent.verticalCenter; textStyle: Type.labelLargeEmph; color: sw.on ? Colors.m3onSecondaryContainer : Colors.m3onSurfaceVariant; text: sw.modelData.label }
+                        MSwitch { anchors.verticalCenter: parent.verticalCenter; scale: 0.8; checked: sw.on; onToggled: c => Config.o.capture[sw.modelData.key] = c }
+                    }
+                    StateLayer {
+                        radius: sw.radius
+                        color: sw.on ? Colors.m3onSecondaryContainer : Colors.m3onSurface
+                        onClicked: Config.o.capture[sw.modelData.key] = !sw.on
+                    }
+                }
+            }
+        }
+
         Card {
             id: fab
             anchors.right: parent.right
-            anchors.verticalCenter: toolbar.verticalCenter
+            y: toolbar.y
             width: 64
             height: 64
             radius: fabLayer.pressed ? Shape.medium : Shape.large

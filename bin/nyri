@@ -42,9 +42,9 @@ region() {
             printf '%s' "$text" | wl-copy
             notify-send -a nyri "Текст скопирован" "${text:0:120}" ;;
         record)
-            record "" "$geom" ;;
+            record "${3:-}" "$geom" ;;
         recordWithSound)
-            record "--audio" "$geom" ;;
+            record both "$geom" ;;
         search)
             lens "$geom" ;;
     esac
@@ -73,13 +73,29 @@ record() {
     if pkill -INT -x wf-recorder; then
         return
     fi
-    local geom="${2:-}" file
+    local sound="${1:-}" geom="${2:-}" file sink src m
+    local audio=() mods=()
     [[ -n $geom ]] || geom="$(slurp)" || exit 0
     mkdir -p "$CLIPS"
     file="$CLIPS/$(date +%Y-%m-%d_%H-%M-%S).mp4"
+    sink="$(pactl get-default-sink 2>/dev/null)"
+    src="$(pactl get-default-source 2>/dev/null)"
+    case "$sound" in
+        system) [[ -n $sink ]] && audio=("--audio=$sink.monitor") ;;
+        mic)    [[ -n $src ]] && audio=("--audio=$src") ;;
+        both)
+            if m="$(pactl load-module module-null-sink sink_name=nyri_rec sink_properties=device.description=Nyri-запись 2>/dev/null)"; then
+                mods+=("$m")
+                [[ -n $sink ]] && m="$(pactl load-module module-loopback source="$sink.monitor" sink=nyri_rec latency_msec=30 2>/dev/null)" && mods+=("$m")
+                [[ -n $src ]] && m="$(pactl load-module module-loopback source="$src" sink=nyri_rec latency_msec=30 2>/dev/null)" && mods+=("$m")
+                [[ -n $sink ]] && pactl set-default-sink "$sink"
+                audio=("--audio=nyri_rec.monitor")
+            fi ;;
+    esac
     shell recording true
     (
-        wf-recorder $1 -g "$geom" -f "$file" &>/dev/null
+        wf-recorder "${audio[@]}" -g "$geom" -f "$file" &>/dev/null
+        for m in "${mods[@]}"; do pactl unload-module "$m" 2>/dev/null; done
         shell recording false
         a=$(notify-send -a "Запись экрана" -i video-x-generic -A open=Открыть -A folder=Папка \
             "Запись сохранена" "${file##*/}")

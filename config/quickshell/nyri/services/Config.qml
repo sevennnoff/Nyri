@@ -119,6 +119,11 @@ Singleton {
                 property bool seeded: false
             }
 
+            property JsonObject capture: JsonObject {
+                property bool system: true
+                property bool mic: false
+            }
+
             property JsonObject osd: JsonObject {
                 property string position: "bar"
             }
