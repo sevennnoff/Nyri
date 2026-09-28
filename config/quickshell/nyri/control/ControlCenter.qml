@@ -15,9 +15,20 @@ Surface {
 
     property string page: "main"
     property string shownPage: ""
-    onPageChanged: if (page !== "main") shownPage = page
-    onOpenChanged: if (open) page = Panels.tab || "main"
-    SpringValue { id: slide; target: root.page === "main" ? 0 : 1; damping: 0.8; stiffness: 480; epsilon: 0.001 }
+    onPageChanged: { if (page !== "main") shownPage = page; flick.contentY = 0; }
+    onOpenChanged: if (open) { origin = null; page = Panels.tab || "main"; }
+    SpringValue { id: slide; target: root.page === "main" ? 0 : 1; damping: 0.78; stiffness: 360; epsilon: 0.001 }
+
+    property var origin: null
+    function openFrom(tile, pageId) {
+        const pt = tile.mapToItem(card, 0, 0);
+        origin = { x: pt.x, y: pt.y, w: tile.width, h: tile.height, radius: tile.checked ? tile.height / 2 : Shape.largeIncreased,
+                   color: tile.checked ? Colors.m3primary : Colors.m3surfaceContainerHighest,
+                   ink: tile.checked ? Colors.m3onPrimary : Colors.m3onSurface, icon: tile.icon, label: tile.label };
+        page = pageId;
+    }
+
+    readonly property var liveCards: Activities.list.filter(a => a.kind !== "media")
 
     function duration(sec) {
         const total = Math.round(sec / 60), h = Math.floor(total / 60), m = total % 60;
@@ -36,7 +47,42 @@ Surface {
         defaultFromX: parent.width - 12 - 200
         defaultFromW: 200
 
+        Rectangle {
+            id: morph
+            readonly property var o: root.origin
+            readonly property real t: Math.max(0, Math.min(1.04, slide.value))
+            readonly property real fade: slide.value > 0.55 ? Math.max(0, 1 - (slide.value - 0.55) / 0.4) : 1
+            visible: o !== null && slide.value > 0.005 && slide.value < 0.995
+            z: 5
+            x: o ? o.x + (16 - o.x) * t : 0
+            y: o ? o.y + (16 - o.y) * t : 0
+            width: o ? o.w + (card.width - 32 - o.w) * t : 0
+            height: o ? o.h + (Math.min(card.height - 32, 360) - o.h) * t : 0
+            radius: o ? o.radius + (Shape.large - o.radius) * Math.min(1, t) : 0
+            color: o ? Qt.tint(o.color, Qt.alpha(Colors.m3surfaceContainer, Math.min(1, t))) : "transparent"
+            opacity: fade
+
+            MIcon {
+                x: 18 + (44 - 18) * morph.t
+                y: (morph.o ? morph.o.h / 2 : 0) - size / 2 + (24 - (morph.o ? morph.o.h / 2 : 0)) * morph.t
+                icon: morph.o?.icon ?? ""
+                size: 22
+                fill: 1
+                color: morph.o ? Qt.tint(morph.o.ink, Qt.alpha(Colors.m3onSurface, Math.min(1, morph.t))) : "transparent"
+                opacity: 1 - Math.min(1, morph.t * 1.4)
+            }
+            MText {
+                x: 52 + (56 - 52) * morph.t
+                y: (morph.o ? morph.o.h / 2 - 10 : 0) + (12 - (morph.o ? morph.o.h / 2 - 10 : 0)) * morph.t
+                font.pixelSize: 14 + 8 * Math.min(1, morph.t)
+                font.variableAxes: ({ "wght": 600 - 150 * Math.min(1, morph.t) })
+                color: morph.o ? Qt.tint(morph.o.ink, Qt.alpha(Colors.m3onSurface, Math.min(1, morph.t))) : "transparent"
+                text: morph.o?.label ?? ""
+            }
+        }
+
         Flickable {
+            id: flick
             anchors.fill: parent
             anchors.margins: 16
             boundsBehavior: Flickable.StopAtBounds
@@ -48,10 +94,10 @@ Surface {
                 id: sub
                 width: parent.width
                 active: root.page !== "main" || slide.value > 0.01
-                x: (1 - slide.value) * 48
-                opacity: slide.value
+                x: root.origin ? 0 : (1 - slide.value) * 48
+                opacity: root.origin ? Math.max(0, Math.min(1, slide.value * 2.2 - 1.1)) : slide.value
                 visible: opacity > 0.01
-                source: root.shownPage === "audio" ? "AudioPage.qml" : root.shownPage === "wifi" ? "WifiPage.qml" : root.shownPage === "bt" ? "BtPage.qml" : ""
+                source: ({ audio: "AudioPage.qml", wifi: "WifiPage.qml", bt: "BtPage.qml", privacy: "PrivacyPage.qml" })[root.shownPage] ?? ""
                 onLoaded: item.width = Qt.binding(() => sub.width)
 
                 Connections {
@@ -64,8 +110,9 @@ Surface {
                 id: content
                 width: parent.width
                 spacing: 12
-                x: -slide.value * 48
-                opacity: 1 - slide.value
+                x: root.origin ? 0 : -slide.value * 48
+                opacity: root.origin ? Math.max(0, 1 - slide.value * 1.8) : 1 - slide.value
+                scale: root.origin ? 1 - 0.04 * slide.value : 1
                 visible: opacity > 0.01
 
                 Item {
@@ -179,27 +226,29 @@ Surface {
                     readonly property real cell: (width - spacing) / 2
 
                     Tile {
+                        id: wifiTile
                         width: parent.cell
                         icon: Net.icon
                         label: "Wi-Fi"
                         sublabel: Net.label
                         checked: Net.enabled
                         details: true
-                        onDetailsClicked: root.page = "wifi"
+                        onDetailsClicked: root.openFrom(wifiTile, "wifi")
                         onClicked: Net.toggle()
-                        onSecondaryClicked: root.page = "wifi"
+                        onSecondaryClicked: root.openFrom(wifiTile, "wifi")
                     }
 
                     Tile {
+                        id: btTile
                         width: parent.cell
                         icon: Bt.enabled ? "bluetooth" : "bluetooth_disabled"
                         label: "Bluetooth"
                         sublabel: Bt.label
                         checked: Bt.enabled
                         details: true
-                        onDetailsClicked: root.page = "bt"
+                        onDetailsClicked: root.openFrom(btTile, "bt")
                         onClicked: Bt.toggle()
-                        onSecondaryClicked: root.page = "bt"
+                        onSecondaryClicked: root.openFrom(btTile, "bt")
                     }
 
                     Tile {
@@ -248,12 +297,53 @@ Surface {
                     }
 
                     Tile {
+                        id: privacyTile
+                        width: parent.cell
+                        icon: Privacy.active ? "shield_lock" : "shield_person"
+                        label: "Приватность"
+                        sublabel: Privacy.anyOn ? [Privacy.micOn ? "микрофон" : "", Privacy.camOn ? "камера" : "", Privacy.casting ? "экран" : ""].filter(Boolean).join(", ")
+                                : Privacy.active ? "Режим включён" : "Всё тихо"
+                        checked: Privacy.active
+                        details: true
+                        onDetailsClicked: root.openFrom(privacyTile, "privacy")
+                        onClicked: Config.o.privacy.mode = !Config.o.privacy.mode
+                        onSecondaryClicked: root.openFrom(privacyTile, "privacy")
+                    }
+
+                    Tile {
+                        id: audioTile
+                        width: parent.cell
+                        icon: Audio.muted ? "volume_off" : "speaker_group"
+                        label: "Звук"
+                        sublabel: Audio.label(Audio.sink)
+                        checked: false
+                        details: true
+                        onDetailsClicked: root.openFrom(audioTile, "audio")
+                        onClicked: root.openFrom(audioTile, "audio")
+                        onSecondaryClicked: root.openFrom(audioTile, "audio")
+                    }
+
+                    Tile {
                         width: parent.cell
                         icon: Toggles.dark ? "dark_mode" : "light_mode"
                         label: "Тёмная тема"
                         sublabel: Toggles.dark ? "Включена" : "Выключена"
                         checked: Toggles.dark
                         onClicked: Toggles.toggleDark()
+                    }
+                }
+
+                Column {
+                    width: parent.width
+                    spacing: 8
+                    visible: root.liveCards.length > 0
+                    Repeater {
+                        model: ScriptModel { values: root.liveCards; objectProp: "id" }
+                        ActivityCard {
+                            required property var modelData
+                            width: parent.width
+                            activity: modelData
+                        }
                     }
                 }
 
