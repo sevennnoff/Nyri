@@ -51,7 +51,11 @@ mv "$STATE/theme.json.tmp" "$STATE/theme.json"
 echo "$wall" > "$STATE/wallpaper"
 echo "$mode" > "$STATE/mode"
 echo "$scheme" > "$STATE/scheme"
-[[ -n $NESTED ]] && exit 0
+if [[ -n $NESTED ]]; then
+    [[ -n ${XDG_CONFIG_HOME:-} && ! -L $XDG_CONFIG_HOME/kitty/current-theme.conf ]] &&
+        NYRI_KITTY_THEME="$XDG_CONFIG_HOME/kitty/current-theme.conf" "$NYRI/bin/nyri-term-colors" "$STATE/theme.json" &>/dev/null &
+    exit 0
+fi
 
 gsettings set org.gnome.desktop.interface color-scheme "prefer-$mode" 2>/dev/null
 gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk3$([[ $mode == dark ]] && echo -dark)" 2>/dev/null

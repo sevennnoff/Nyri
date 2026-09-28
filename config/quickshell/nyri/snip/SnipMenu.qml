@@ -35,7 +35,7 @@ Surface {
         const s = Panels.screen;
         const geom = Math.round((s?.x ?? 0) + geomX) + "," + Math.round((s?.y ?? 0) + geomY)
                    + " " + Math.round(geomW) + "x" + Math.round(geomH);
-        go.cmd = [Quickshell.env("HOME") + "/nyri/bin/nyri", "region", actions[current].id, geom];
+        go.cmd = [Paths.bin + "/nyri", "region", actions[current].id, geom];
         root.hidden = true;
         Panels.close();
         go.restart();

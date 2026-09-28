@@ -12,7 +12,7 @@ Scope {
     readonly property bool open: Panels.studioOpen
     function toggle() { Panels.studioOpen = !Panels.studioOpen; }
 
-    readonly property string bin: Quickshell.env("HOME") + "/nyri/bin/nyri-wall"
+    readonly property string bin: Paths.bin + "/nyri-wall"
     readonly property string runtime: Quickshell.env("XDG_RUNTIME_DIR")
     readonly property string preview: runtime + "/nyri-wall-preview"
     readonly property string thumbDir: runtime + "/nyri-wall-thumbs"
@@ -613,7 +613,7 @@ Scope {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: Quickshell.execDetached([Quickshell.env("HOME") + "/nyri/bin/nyri-theme", pic.modelData])
+                                onClicked: Quickshell.execDetached([Paths.bin + "/nyri-theme", pic.modelData])
                             }
                         }
                     }

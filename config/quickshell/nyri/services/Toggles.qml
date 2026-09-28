@@ -16,7 +16,7 @@ Singleton {
     property bool capsReady: false
     Process {
         running: true
-        command: [Quickshell.env("HOME") + "/nyri/bin/nyri-capswatch"]
+        command: [Paths.bin + "/nyri-capswatch"]
         stdout: SplitParser {
             onRead: line => {
                 root.capsLock = line.trim() === "1";
@@ -42,6 +42,6 @@ Singleton {
     readonly property bool dark: Colors.mode !== "light"
     function toggleDark() {
         Quickshell.execDetached(["env", "NYRI_MODE=" + (dark ? "light" : "dark"),
-                                 Quickshell.env("HOME") + "/nyri/bin/nyri-theme"]);
+                                 Paths.bin + "/nyri-theme"]);
     }
 }

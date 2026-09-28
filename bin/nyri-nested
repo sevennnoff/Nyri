@@ -23,4 +23,4 @@ if [[ ${1:-} == --own-bus ]]; then
     shift
 fi
 
-exec "${wrap[@]}" env XDG_CONFIG_HOME="$OVERLAY" NYRI_NESTED=1 niri "$@"
+exec "${wrap[@]}" env XDG_CONFIG_HOME="$OVERLAY" NYRI_NESTED=1 NYRI_ROOT="$NYRI" niri "$@"

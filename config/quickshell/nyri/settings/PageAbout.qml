@@ -81,7 +81,7 @@ Column {
             icon: "folder_open"
             title: "Открыть папку Nyri"
             clickable: true
-            onClicked: Quickshell.execDetached(["nemo", Quickshell.env("HOME") + "/nyri"])
+            onClicked: Quickshell.execDetached(["nemo", Paths.root])
         }
     }
 }

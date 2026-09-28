@@ -58,6 +58,30 @@ def overlay(target: Path):
     for rel in repo_leaves:
         place(rel)
 
+    real_kitty = HOME_CFG / "kitty"
+    if real_kitty.is_dir() and (target / "kitty").is_symlink():
+        (target / "kitty").unlink()
+        (target / "kitty").mkdir()
+        for child in real_kitty.iterdir():
+            if child.name == "current-theme.conf":
+                shutil.copyfile(child.resolve(), target / "kitty" / child.name)
+            else:
+                (target / "kitty" / child.name).symlink_to(child)
+
+    if NYRI != Path.home() / "nyri":
+        niri = target / "niri"
+        niri.unlink()
+        niri.mkdir()
+        main = Path.home() / "nyri" / "config" / "niri"
+        for gen in ("colors.kdl",):
+            if not (REPO / "niri" / gen).exists() and (main / gen).exists():
+                (niri / gen).symlink_to(main / gen)
+        for f in sorted((REPO / "niri").iterdir()):
+            if f.name == "binds.kdl":
+                (niri / f.name).write_text(f.read_text().replace("~/nyri/bin/", f"{NYRI}/bin/"))
+            else:
+                (niri / f.name).symlink_to(f)
+
 def install():
     stamp = BACKUPS / time.strftime("%Y%m%d-%H%M%S")
     for rel in leaves():

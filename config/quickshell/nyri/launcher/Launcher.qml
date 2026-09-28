@@ -50,7 +50,7 @@ Surface {
         { label: Toggles.dark ? "Светлая тема" : "Тёмная тема", icon: Toggles.dark ? "light_mode" : "dark_mode", keys: ["тема", "тёмн", "темн", "светл", "theme", "dark", "light"], run: () => Toggles.toggleDark() },
         { label: Notifs.dnd ? "Выключить «Не беспокоить»" : "Не беспокоить", icon: "do_not_disturb_on", keys: ["не беспок", "dnd", "тихо"], run: () => Notifs.dnd = !Notifs.dnd },
         { label: "Не засыпать", icon: "coffee", keys: ["засып", "кофе", "caffeine", "awake"], run: () => Toggles.caffeine = !Toggles.caffeine },
-        { label: "Пипетка", icon: "colorize", keys: ["пипетк", "цвет", "color", "picker"], run: () => Quickshell.execDetached([Quickshell.env("HOME") + "/nyri/bin/nyri", "picker"]) },
+        { label: "Пипетка", icon: "colorize", keys: ["пипетк", "цвет", "color", "picker"], run: () => Quickshell.execDetached([Paths.bin + "/nyri", "picker"]) },
         { label: "Экранное время", icon: "hourglass_top", keys: ["время", "экранн", "screen time", "статист"], run: () => Panels.open("power", "usage") },
         { label: "Батарея", icon: "battery_full", keys: ["батар", "заряд", "battery"], run: () => Panels.open("power", "battery") }
     ]

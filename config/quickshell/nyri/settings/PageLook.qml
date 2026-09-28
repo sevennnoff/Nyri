@@ -11,7 +11,7 @@ Column {
 
     spacing: 24
 
-    readonly property string theme: Quickshell.env("HOME") + "/nyri/bin/nyri-theme"
+    readonly property string theme: Paths.bin + "/nyri-theme"
 
     property var schemes: ({})
     FileView {

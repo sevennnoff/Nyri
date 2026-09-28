@@ -7,7 +7,17 @@ CLIPS="$HOME/Videos/Recordings"
 
 todo() { notify-send -a nyri "Nyri" "$1 — ещё не сделано"; }
 
-shell() { qs -c nyri ipc call nyri "$@" &>/dev/null; }
+qspid() {
+    local p
+    for p in $(pgrep -x qs); do
+        if grep -qz '^NYRI_NESTED=1$' "/proc/$p/environ" 2>/dev/null; then
+            [[ -n ${NYRI_NESTED:-} ]] && { echo "$p"; return; }
+        else
+            [[ -z ${NYRI_NESTED:-} ]] && { echo "$p"; return; }
+        fi
+    done
+}
+shell() { local pid; pid=$(qspid); [[ -n $pid ]] || return 1; qs ipc --pid "$pid" call nyri "$@" &>/dev/null; }
 
 menu() { fuzzel --dmenu --prompt "$1  " "${@:2}"; }
 
