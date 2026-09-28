@@ -96,6 +96,19 @@ Surface {
                 model: root.shown
                 clip: true
                 spacing: 2
+                populate: Transition {
+                    id: cpop
+                    SequentialAnimation {
+                        PauseAnimation { duration: Math.min(8, cpop.ViewTransition.index) * 26 }
+                        ParallelAnimation {
+                            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Motion.effects.duration }
+                            NumberAnimation { property: "y"; from: cpop.ViewTransition.destination.y + 24; duration: Motion.fastSpatial.duration; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.fastSpatial.curve }
+                        }
+                    }
+                }
+                displaced: Transition {
+                    NumberAnimation { property: "y"; duration: Motion.defaultSpatial.duration; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.defaultSpatial.curve }
+                }
                 Overscroll { flick: list; step: 0.6 }
                 boundsBehavior: Flickable.StopAtBounds
                 highlightFollowsCurrentItem: false

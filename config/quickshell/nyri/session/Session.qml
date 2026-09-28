@@ -131,6 +131,7 @@ Surface {
                     radius: 8
                     color: Colors.m3surfaceContainerHigh
                     opacity: item.selected ? 1 : 0.6
+                    Behavior on opacity { EffectAnim {} }
 
                     MText {
                         anchors.centerIn: parent

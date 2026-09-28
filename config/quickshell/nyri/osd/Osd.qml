@@ -83,20 +83,23 @@ PanelWindow {
                 }
             }
 
+            Reveal {
+                shown: root.spec.value !== undefined
             MSlider {
-                anchors.verticalCenter: parent.verticalCenter
-                visible: root.spec.value !== undefined
+                implicitWidth: 220
+                implicitHeight: 40
                 width: 220
                 interactive: false
                 value: root.spec.value ?? 0
                 activeColor: root.spec.dim ? Colors.m3outline : Colors.m3primary
             }
+            }
 
+            Reveal {
+                shown: root.spec.value !== undefined
             Item {
-                anchors.verticalCenter: parent.verticalCenter
-                visible: root.spec.value !== undefined
-                width: 40
-                height: 24
+                implicitWidth: 40
+                implicitHeight: 24
 
                 RollingText {
                     anchors.right: parent.right
@@ -105,13 +108,15 @@ PanelWindow {
                     text: String(Math.round((root.spec.value ?? 0) * 100))
                 }
             }
+            }
 
+            Reveal {
+                shown: root.spec.text !== undefined
             FlowText {
-                anchors.verticalCenter: parent.verticalCenter
-                visible: root.spec.text !== undefined
                 rightPadding: 12
                 textStyle: Type.titleMediumEmph
                 text: root.spec.text ?? ""
+            }
             }
         }
     }
