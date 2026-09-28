@@ -60,6 +60,43 @@ Item {
 
     readonly property var desks: [dClock, dGlance, dBattery, dMedia, dForecast, dCalendar, dSystem, dUsage]
     readonly property DeskItem held: desks.find(d => d.dragging) ?? null
+
+    function freeSpot(it, x, y) {
+        const g = cfg.grid && cfg.gridSize > 0 ? cfg.gridSize : 8;
+        const w = it.width, h = it.height, m = 12;
+        const others = desks.filter(d => d !== it && d.on && d.width > 0 && d.height > 0);
+        const ok = (px, py) => others.every(o => px + w + m <= o.homeX || o.homeX + o.width + m <= px
+                                                 || py + h + m <= o.homeY || o.homeY + o.height + m <= py);
+        if (ok(x, y)) return Qt.point(x, y);
+        for (let r = 1; r < 80; r++) {
+            let best = null, bestD = Infinity;
+            for (let i = -r; i <= r; i++)
+                for (const [dx, dy] of [[i, -r], [i, r], [-r, i], [r, i]]) {
+                    const px = it.clampX(x + dx * g), py = it.clampY(y + dy * g);
+                    const d = (px - x) * (px - x) + (py - y) * (py - y);
+                    if (d < bestD && ok(px, py)) { best = Qt.point(px, py); bestD = d; }
+                }
+            if (best) return best;
+        }
+        return Qt.point(x, y);
+    }
+    function tidy() {
+        if (held || editing && sheet.dragging) return;
+        const pos = Object.assign({}, cfg.positions ?? {});
+        let moved = false;
+        for (const d of desks) {
+            if (!d.on || d.width <= 0) continue;
+            const p = freeSpot(d, d.homeX, d.homeY);
+            if (Math.abs(p.x - d.homeX) > 0.5 || Math.abs(p.y - d.homeY) > 0.5) {
+                pos[d.placeKey] = { x: p.x, y: p.y };
+                cfg.positions = Object.assign({}, pos);
+                moved = true;
+            }
+        }
+    }
+    readonly property string shapeKey: desks.map(d => d.on ? Math.round(d.width) + "x" + Math.round(d.height) : "-").join(",") + "|" + JSON.stringify(cfg.positions ?? {}).length
+    onShapeKeyChanged: tidyLater.restart()
+    Timer { id: tidyLater; interval: 700; onTriggered: root.tidy() }
     SpringValue { id: gridIn; target: (root.held || root.editing) && root.cfg.grid ? 1 : 0; damping: 0.9; stiffness: 400 }
 
     readonly property real zoomTarget: editing ? Math.max(0.6, (height - 236 - 24 - 32) / height) : 1

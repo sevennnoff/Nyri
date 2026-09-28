@@ -202,8 +202,10 @@ Surface {
                         x: 8 + 6 * lit.value
                         y: 4
                         wrapMode: Text.Wrap
-                        font.pixelSize: 17 + 3 * lit.value
-                        font.variableAxes: ({ "wght": 500 + 250 * lit.value })
+                        font.pixelSize: 18
+                        font.variableAxes: ({ "wght": line.now ? 720 : 500 })
+                        scale: 1 + 0.1 * lit.value
+                        transformOrigin: Item.Left
                         color: line.now ? Colors.m3primary : Colors.m3onSurface
                         opacity: !Lyrics.synced ? 0.9 : line.now ? 1 : line.past ? 0.35 : 0.6
                         textFormat: line.now ? Text.StyledText : Text.PlainText

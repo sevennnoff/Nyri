@@ -95,8 +95,9 @@ Item {
         Config.o.desktop.positions = p;
     }
 
-    readonly property real dropX: clampX(snap(heldX))
-    readonly property real dropY: clampY(snap(heldY))
+    readonly property point landing: dragging ? desk.freeSpot(root, clampX(snap(heldX)), clampY(snap(heldY))) : Qt.point(homeX, homeY)
+    readonly property real dropX: landing.x
+    readonly property real dropY: landing.y
 
     function snap(v) {
         const g = Config.o.desktop.gridSize;
