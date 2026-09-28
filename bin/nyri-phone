@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+import json, os, subprocess, sys
+from gi.repository import Gio, GLib
+
+BUS_NAME = "org.kde.kdeconnect"
+ROOT = "/modules/kdeconnect"
+bus = Gio.bus_get_sync(Gio.BusType.SESSION)
+pending = [0]
+
+def call(path, iface, method, args=None, sig=None):
+    try:
+        r = bus.call_sync(BUS_NAME, path, iface, method, args, GLib.VariantType(sig) if sig else None,
+                          Gio.DBusCallFlags.NO_AUTO_START, 3000, None)
+        return r.unpack() if r else None
+    except GLib.Error:
+        return None
+
+def props(path, iface):
+    r = call(path, "org.freedesktop.DBus.Properties", "GetAll", GLib.Variant("(s)", (iface,)), "(a{sv})")
+    return r[0] if r else {}
+
+def device(dev_id):
+    path = f"{ROOT}/devices/{dev_id}"
+    p = props(path, "org.kde.kdeconnect.device")
+    if not p:
+        return None
+    out = {"id": dev_id, "name": p.get("name", ""), "type": p.get("type", "phone"),
+           "reachable": bool(p.get("isReachable")), "paired": bool(p.get("isPaired")),
+           "pairRequested": bool(p.get("isPairRequestedByPeer")), "battery": None, "signal": None}
+    if out["reachable"]:
+        b = props(f"{path}/battery", "org.kde.kdeconnect.device.battery")
+        if "charge" in b and b["charge"] >= 0:
+            out["battery"] = {"charge": b["charge"], "charging": bool(b.get("isCharging"))}
+        c = props(f"{path}/connectivity_report", "org.kde.kdeconnect.device.connectivity_report")
+        if c.get("cellularNetworkType"):
+            out["signal"] = {"type": c["cellularNetworkType"], "strength": c.get("cellularNetworkStrength", -1)}
+    return out
+
+def state():
+    ids = call(ROOT, "org.kde.kdeconnect.daemon", "devices", GLib.Variant("(bb)", (False, False)), "(as)")
+    if ids is None:
+        return {"daemon": False, "devices": []}
+    devs = [d for d in (device(i) for i in ids[0]) if d]
+    devs.sort(key=lambda d: (not d["paired"], not d["reachable"], d["name"]))
+    return {"daemon": True, "devices": devs}
+
+last = [None]
+
+def publish():
+    pending[0] = 0
+    s = json.dumps(state(), ensure_ascii=False)
+    if s != last[0]:
+        last[0] = s
+        print(s, flush=True)
+    return False
+
+def soon(*_):
+    if not pending[0]:
+        pending[0] = GLib.timeout_add(250, publish)
+
+def plugin(dev_id, name, iface, method, args=None, sig=None):
+    return call(f"{ROOT}/devices/{dev_id}/{name}", iface, method, args, sig)
+
+def command(line):
+    parts = line.rstrip("\n").split(" ", 2)
+    what = parts[0] if parts else ""
+    dev = parts[1] if len(parts) > 1 else ""
+    arg = parts[2] if len(parts) > 2 else ""
+    if what == "share" and arg:
+        url = arg if "://" in arg else "file://" + os.path.abspath(os.path.expanduser(arg))
+        plugin(dev, "share", "org.kde.kdeconnect.device.share", "shareUrl", GLib.Variant("(s)", (url,)))
+    elif what == "text" and arg:
+        plugin(dev, "share", "org.kde.kdeconnect.device.share", "shareText", GLib.Variant("(s)", (arg,)))
+    elif what == "clip":
+        plugin(dev, "clipboard", "org.kde.kdeconnect.device.clipboard", "sendClipboard")
+    elif what == "ring":
+        plugin(dev, "findmyphone", "org.kde.kdeconnect.device.findmyphone", "ring")
+    elif what == "ping":
+        plugin(dev, "ping", "org.kde.kdeconnect.device.ping", "sendPing")
+    elif what in ("pair", "unpair", "accept"):
+        method = {"pair": "requestPairing", "unpair": "unpair", "accept": "acceptPairing"}[what]
+        call(f"{ROOT}/devices/{dev}", "org.kde.kdeconnect.device", method)
+    elif what == "browse":
+        path = f"{ROOT}/devices/{dev}/sftp"
+        call(path, "org.kde.kdeconnect.device.sftp", "mountAndWait", None, "(b)")
+        mp = call(path, "org.kde.kdeconnect.device.sftp", "mountPoint", None, "(s)")
+        if mp and mp[0]:
+            subprocess.Popen(["xdg-open", mp[0]], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    elif what == "app":
+        subprocess.Popen(["kdeconnect-app"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    soon()
+
+def stdin_ready(channel, cond):
+    line = channel.readline()
+    if not line:
+        GLib.MainLoop().quit()
+        sys.exit(0)
+    command(line)
+    return True
+
+bus.signal_subscribe(BUS_NAME, None, None, None, None, Gio.DBusSignalFlags.NONE, soon)
+Gio.bus_watch_name_on_connection(bus, BUS_NAME, Gio.BusNameWatcherFlags.NONE, soon, soon)
+GLib.io_add_watch(GLib.IOChannel.unix_new(sys.stdin.fileno()), GLib.IO_IN | GLib.IO_HUP, stdin_ready)
+publish()
+GLib.MainLoop().run()

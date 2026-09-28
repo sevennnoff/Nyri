@@ -25,9 +25,9 @@ Item {
         font.pixelSize: Math.round(root.size)
         font.variableAxes: ({ "FILL": 0, "wght": root.weight, "opsz": root.opsz })
     }
-    readonly property rect ink: fm.tightBoundingRect(icon)
-    readonly property real glyphX: ink.width > 0 ? (width - ink.width) / 2 - ink.x : (width - fm.advanceWidth(icon)) / 2
-    readonly property real glyphY: ink.height > 0 ? (height - ink.height) / 2 - fm.ascent - ink.y : (height - fm.height) / 2
+    readonly property real em: Math.round(root.size)
+    readonly property real glyphX: (width - fm.advanceWidth(icon)) / 2
+    readonly property real glyphY: (height - em) / 2 - (fm.ascent - em)
 
     component Glyph: Text {
         property real axisFill: 0

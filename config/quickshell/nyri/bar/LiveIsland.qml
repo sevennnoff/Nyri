@@ -56,14 +56,15 @@ Island {
         CircularProgress {
             anchors.fill: parent
             anchors.margins: -2
-            visible: (root.main?.progress ?? -1) >= 0 && root.main?.kind !== "media"
+            readonly property bool ring: (root.main?.progress ?? -1) >= 0 && ["media", "phone", "bt"].indexOf(root.main?.kind) < 0
+            visible: ring
             stroke: 3
             value: Math.max(0, root.main?.progress ?? 0)
             activeColor: root.loud ? Colors.m3error : Colors.m3primary
         }
         Rectangle {
             anchors.fill: parent
-            anchors.margins: (root.main?.progress ?? -1) >= 0 && root.main?.kind !== "media" ? 4 : 0
+            anchors.margins: (root.main?.progress ?? -1) >= 0 && ["media", "phone", "bt"].indexOf(root.main?.kind) < 0 ? 4 : 0
             radius: width / 2
             visible: !art.visible
             color: root.loud ? Colors.m3error : Colors.m3primaryContainer

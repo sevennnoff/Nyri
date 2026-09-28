@@ -52,7 +52,7 @@ PanelWindow {
 
     Card {
         id: card
-        readonly property real full: row.implicitWidth + 16
+        readonly property real full: row.implicitWidth + 8 + 20
         y: 16 + (1 - root.progress) * (root.where === "bottom" ? 24 : -24)
         width: 56 + (full - 56) * Math.max(0, root.progress)
         x: 16 + (full - width) / 2
@@ -98,12 +98,11 @@ PanelWindow {
             Reveal {
                 shown: root.spec.value !== undefined
             Item {
-                implicitWidth: 40
+                implicitWidth: 34
                 implicitHeight: 24
 
                 RollingText {
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.centerIn: parent
                     textStyle: Type.titleMediumEmph
                     text: String(Math.round((root.spec.value ?? 0) * 100))
                 }

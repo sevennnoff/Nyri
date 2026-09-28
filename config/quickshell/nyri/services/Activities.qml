@@ -40,6 +40,10 @@ Singleton {
         if (vpnNames.length)
             out.push({ id: "vpn", kind: "vpn", icon: "vpn_lock", tone: "primary", priority: 40, ambient: true,
                        title: "VPN", text: vpnNames.join(", "), progress: -1, actions: [] });
+        if (Phone.reachable && Phone.phone)
+            out.push({ id: "phone:" + Phone.phone.id, kind: "phone", icon: "smartphone", tone: "primary", priority: 32, ambient: !(Phone.battery && Phone.battery.charge <= 15 && !Phone.battery.charging),
+                       title: Phone.phone.name + (Phone.battery ? " · " + Phone.battery.charge + "%" : ""), text: Phone.battery ? "Заряд " + Phone.battery.charge + "%" + (Phone.battery.charging ? " · заряжается" : "") : "На связи",
+                       progress: Phone.battery ? Phone.battery.charge / 100 : -1, actions: [] });
         for (const d of btDevices)
             out.push({ id: "bt:" + d.address, kind: "bt", icon: Bt.deviceIcon(d), tone: "primary", priority: 30, ambient: true,
                        title: d.name, text: d.batteryAvailable ? "Заряд " + Math.round(d.battery * 100) + "%" : "Подключено",
@@ -75,6 +79,7 @@ Singleton {
         else if (a.kind === "download" || a.kind === "downloaded") Qt.openUrlExternally("file://" + (a.path ? a.path.replace(/\/[^/]*$/, "") : downloads));
         else if (a.kind === "mic" || a.kind === "camera" || a.kind === "cast") Panels.open("control", "privacy");
         else if (a.kind === "bt") Panels.open("control", "bt");
+        else if (a.kind === "phone") Panels.open("control", "phone");
         else if (a.kind === "vpn") Panels.open("control", "wifi");
         else Panels.toggle("live");
     }
@@ -95,6 +100,8 @@ Singleton {
         } else if (a.kind === "copy") {
             if (a.pid) Quickshell.execDetached(["kill", String(a.pid)]);
             end(id);
+        } else if (a.kind === "phone") {
+            Phone.ring();
         } else if (a.kind === "downloaded") {
             if (key === "open") Qt.openUrlExternally("file://" + a.path);
             flashes = flashes.filter(f => f.id !== id);

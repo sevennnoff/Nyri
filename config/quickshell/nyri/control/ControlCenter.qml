@@ -30,7 +30,7 @@ Surface {
 
     function tileOn(id) { return !(Array.isArray(Config.o.control.hidden) && Config.o.control.hidden.indexOf(id) >= 0); }
 
-    readonly property var liveCards: Activities.list.filter(a => a.kind !== "media")
+    readonly property var liveCards: Activities.list.filter(a => a.kind !== "media" && a.kind !== "phone")
 
     function duration(sec) {
         const total = Math.round(sec / 60), h = Math.floor(total / 60), m = total % 60;
@@ -86,7 +86,7 @@ Surface {
                 y: frame.o ? -frame.y : 0
                 opacity: frame.o ? Math.max(0, Math.min(1, (slide.value - 0.35) / 0.45)) : slide.value
                 visible: opacity > 0.01
-                source: ({ audio: "AudioPage.qml", wifi: "WifiPage.qml", bt: "BtPage.qml", privacy: "PrivacyPage.qml" })[root.shownPage] ?? ""
+                source: ({ audio: "AudioPage.qml", wifi: "WifiPage.qml", bt: "BtPage.qml", privacy: "PrivacyPage.qml", phone: "PhonePage.qml" })[root.shownPage] ?? ""
                 onLoaded: item.width = Qt.binding(() => sub.width)
 
                 Connections {
@@ -337,6 +337,16 @@ Surface {
                     MediaCard {
                         width: parent.width
                         active: root.open
+                    }
+                }
+
+                Collapse {
+                    width: parent.width
+                    shown: Phone.phone !== null
+                    PhoneCard {
+                        id: phoneCard
+                        width: parent.width
+                        onOpened: root.openFrom(phoneCard, "phone")
                     }
                 }
 
