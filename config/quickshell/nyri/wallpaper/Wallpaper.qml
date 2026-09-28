@@ -147,7 +147,6 @@ Variants {
         anchors { top: true; bottom: true; left: true; right: true }
         exclusionMode: ExclusionMode.Ignore
         color: "transparent"
-        visible: Config.o.desktop.enabled
 
         WlrLayershell.namespace: "nyri-desktop"
         WlrLayershell.layer: Panels.deskEdit ? WlrLayer.Top : WlrLayer.Bottom

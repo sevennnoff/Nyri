@@ -17,10 +17,12 @@ import qs.settings
 import qs.overlays
 import qs.snip
 import qs.polkit
+import qs.dock
 
 ShellRoot {
     Wallpaper {}
     Bar {}
+    Dock {}
     Osd {}
     Popups {}
     Launcher {}

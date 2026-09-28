@@ -26,7 +26,27 @@ Card {
     readonly property real pc: Math.min(1, p)
 
     x: fromX + (toX - fromX) * p
-    y: fromY + (toY - fromY) * p
+    y: fromY + (toY - fromY) * p + pull.value
+
+    readonly property real toward: Panels.barBottom ? 1 : -1
+    function shaped(t) {
+        const along = t * toward;
+        const v = along > 0 ? along * 0.92 : -48 * (1 - Math.exp(along / 140));
+        return v * toward;
+    }
+    SpringValue { id: pull; target: pullDrag.active ? root.shaped(pullDrag.activeTranslation.y) : 0; damping: 0.72; stiffness: pullDrag.active ? 1800 : 520; epsilon: 0.2 }
+    readonly property real pulled: Math.max(0, pull.value * toward)
+    scale: 1 - 0.06 * Math.min(1, pulled / 260)
+    transformOrigin: Panels.barBottom ? Item.Bottom : Item.Top
+    DragHandler {
+        id: pullDrag
+        target: null
+        xAxis.enabled: false
+        onActiveChanged: {
+            if (active) return;
+            if (root.pulled > 90 || pull.velocity * root.toward > 900) Panels.close();
+        }
+    }
     width: Math.max(0, fromW + (toW - fromW) * p)
     height: Math.max(0, fromH + (toH - fromH) * p)
     radius: fromH / 2 + (Shape.extraLarge - fromH / 2) * pc

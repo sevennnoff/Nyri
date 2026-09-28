@@ -86,6 +86,7 @@ Item {
     }
 
     Component.onCompleted: {
+        flick.interactive = Qt.binding(() => flick.contentHeight + flick.topMargin + flick.bottomMargin > flick.height + 1);
         flick.flickDeceleration = 2200;
         flick.maximumFlickVelocity = 9000;
         flick.boundsBehavior = Flickable.DragAndOvershootBounds;

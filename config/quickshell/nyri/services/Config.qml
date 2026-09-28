@@ -94,6 +94,16 @@ Singleton {
                 property bool usage: false
             }
 
+            property JsonObject dock: JsonObject {
+                property bool enabled: true
+                property bool autohide: true
+                property real size: 48
+                property bool magnify: true
+                property bool running: true
+                property var pinned: []
+                property bool seeded: false
+            }
+
             property JsonObject osd: JsonObject {
                 property string position: "bar"
             }

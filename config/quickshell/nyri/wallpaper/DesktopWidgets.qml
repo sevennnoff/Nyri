@@ -18,7 +18,6 @@ Item {
     readonly property bool editing: Panels.deskEdit
 
     readonly property var cfg: Config.o.desktop
-    visible: cfg.enabled
 
     property bool shown: false
     SpringValue { id: introSpring; target: root.shown ? 1 : 0; damping: 0.7; stiffness: 200 }
@@ -104,16 +103,20 @@ Item {
         Region { item: dCalendar }
         Region { item: dSystem }
         Region { item: dUsage }
-        Region { item: menu.open || root.editing ? catcher : null }
+        Region { item: catcher }
+        Region { item: deskMenu.visible ? deskMenu : null }
         Region { item: menu.visible ? menu : null }
     }
 
     MouseArea {
         id: catcher
         anchors.fill: parent
-        enabled: menu.open || root.editing
         acceptedButtons: Qt.LeftButton | Qt.RightButton
-        onClicked: if (menu.open) menu.close()
+        onClicked: m => {
+            if (menu.open) { menu.close(); return; }
+            if (deskMenu.shown) { deskMenu.shown = false; return; }
+            if (m.button === Qt.RightButton && !root.editing) deskMenu.openAt(m.x, m.y);
+        }
     }
 
     Rectangle {
@@ -141,6 +144,7 @@ Item {
     Item {
         id: col
         anchors.fill: parent
+        visible: root.cfg.enabled
         z: root.held ? 250 : 0
 
         DeskItem {
@@ -1345,6 +1349,52 @@ Item {
             shape: "cookie9Sided"
             color: Colors.m3primaryContainer
             MIcon { anchors.centerIn: parent; icon: "music_note"; size: 40; fill: 1; color: Colors.m3onPrimaryContainer }
+        }
+    }
+
+    Rectangle {
+        id: deskMenu
+        property bool shown: false
+        function openAt(px, py) {
+            x = Math.max(8, Math.min(root.width - width - 8, px));
+            y = Math.max(8, Math.min(root.height - height - 8, py));
+            shown = true;
+        }
+        SpringValue { id: dmIn; target: deskMenu.shown ? 1 : 0; damping: 0.68; stiffness: 560 }
+        z: 400
+        visible: dmIn.value > 0.01
+        width: 248
+        height: dmCol.implicitHeight + 16
+        radius: Shape.large
+        color: Colors.m3surfaceContainerHigh
+        opacity: Math.min(1, dmIn.value * 1.4)
+        scale: 0.8 + 0.2 * dmIn.value
+        transformOrigin: Item.TopLeft
+
+        Column {
+            id: dmCol
+            x: 8; y: 8
+            width: parent.width - 16
+            Repeater {
+                model: [
+                    { icon: "dashboard_customize", label: "Изменить стол", act: () => { root.cfg.enabled = true; Panels.deskEdit = true; } },
+                    { icon: root.cfg.enabled ? "visibility_off" : "visibility", label: root.cfg.enabled ? "Спрятать виджеты" : "Показать виджеты", act: () => root.cfg.enabled = !root.cfg.enabled },
+                    { icon: "wallpaper", label: "Обои", act: () => Panels.open("wallpaper") },
+                    { icon: "palette", label: "Оформление", act: () => Panels.openSettings("look") }
+                ]
+                Item {
+                    id: dmRow
+                    required property var modelData
+                    required property int index
+                    width: dmCol.width
+                    height: 44
+                    opacity: Math.max(0, Math.min(1, dmIn.value * 2 - index * 0.15))
+                    transform: Translate { y: (1 - Math.min(1, dmIn.value)) * (8 + dmRow.index * 4) }
+                    StateLayer { radius: Shape.medium; onClicked: { deskMenu.shown = false; dmRow.modelData.act(); } }
+                    MIcon { x: 12; anchors.verticalCenter: parent.verticalCenter; icon: dmRow.modelData.icon; size: 20; color: Colors.m3onSurfaceVariant }
+                    MText { x: 44; anchors.verticalCenter: parent.verticalCenter; textStyle: Type.labelLarge; text: dmRow.modelData.label }
+                }
+            }
         }
     }
 }

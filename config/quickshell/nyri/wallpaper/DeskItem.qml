@@ -114,8 +114,20 @@ Item {
     height: on ? (child?.height ?? 0) * kS.value : 0
     visible: on
 
-    SpringValue { id: sx; target: root.dragging ? root.heldX : root.homeX; damping: 0.62; stiffness: root.dragging ? 2400 : 300; epsilon: 0.1 }
-    SpringValue { id: sy; target: root.dragging ? root.heldY : root.homeY; damping: 0.62; stiffness: root.dragging ? 2400 : 300; epsilon: 0.1 }
+    readonly property point push: {
+        const h = desk.held;
+        if (!h || h === root || !on) return Qt.point(0, 0);
+        const ox = Math.min(h.dropX + h.width, homeX + width) - Math.max(h.dropX, homeX);
+        const oy = Math.min(h.dropY + h.height, homeY + height) - Math.max(h.dropY, homeY);
+        if (ox <= 0 || oy <= 0) return Qt.point(0, 0);
+        const dx = (homeX + width / 2) - (h.dropX + h.width / 2);
+        const dy = (homeY + height / 2) - (h.dropY + h.height / 2);
+        if (ox < oy) return Qt.point(Math.sign(dx || 1) * Math.min(56, ox + 12), 0);
+        return Qt.point(0, Math.sign(dy || 1) * Math.min(56, oy + 12));
+    }
+
+    SpringValue { id: sx; target: root.dragging ? root.heldX : root.homeX + root.push.x; damping: 0.62; stiffness: root.dragging ? 2400 : 300; epsilon: 0.1 }
+    SpringValue { id: sy; target: root.dragging ? root.heldY : root.homeY + root.push.y; damping: 0.62; stiffness: root.dragging ? 2400 : 300; epsilon: 0.1 }
     x: sx.value + desk.shiftX
     y: sy.value + desk.shiftY
     z: dragging ? 10 : 0
