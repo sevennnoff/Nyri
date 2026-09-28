@@ -47,8 +47,9 @@ Row {
             component Glyph: Text {
                 font.family: Type.family
                 font.pixelSize: root.pixelSize
-                font.variableAxes: ({ "wght": root.weight })
+                font.variableAxes: ({ "wght": root.weight, "ROND": root.textStyle.rond ?? 0 })
                 font.features: ({ "tnum": 1 })
+                font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.NativeRendering
                 color: root.color
             }

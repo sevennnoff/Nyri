@@ -49,25 +49,36 @@ Column {
     property point grab: Qt.point(0, 0)
     property string landing: ""
     property var zoneItems: ({})
+    property string landZone: ""
     function drop(id, zone, index, moved) {
         overZone = "";
         landing = id;
+        landZone = zone;
         held = "";
         if (moved) move(id, zone, index);
         Qt.callLater(() => ghostRef.land(slotIn(zone, id)));
     }
     property Item ghostRef: null
+
+    property var labelW: ({})
+    function chipWidth(id, zone) { return zone === "hidden" ? (labelW[id] ?? 60) + 16 + 20 + 8 + 16 : 40; }
+    function gapOf(zone) { return zone === "hidden" ? 8 : 6; }
+    function chipY(zone) { return zone === "hidden" ? 2 : 10; }
+    function rowTotal(zone, list, extra) {
+        let t = extra;
+        for (const i of list) t += chipWidth(i, zone);
+        const n = list.length + (extra > 0 ? 1 : 0);
+        return t + Math.max(0, n - 1) * gapOf(zone);
+    }
+    function rowStart(zone, total, width) { return zone === "center" ? (width - total) / 2 : zone === "right" ? width - total : 0; }
     function slotIn(zone, id) {
         const box = zoneItems[zone];
         if (!box) return Qt.point(0, 0);
         const list = ids(zone);
-        let x = 12;
-        for (const i of list) { if (i === id) break; x += chipWidth(i) + 8; }
-        return box.mapToItem(editor, x, 30);
+        let x = rowStart(zone, rowTotal(zone, list, 0), box.width);
+        for (const i of list) { if (i === id) break; x += chipWidth(i, zone) + gapOf(zone); }
+        return box.mapToItem(editor, x, chipY(zone));
     }
-
-    property var labelW: ({})
-    function chipWidth(id) { return (labelW[id] ?? 60) + 16 + 20 + 8 + 16; }
     Item {
         width: 0
         height: 0
@@ -83,85 +94,127 @@ Column {
         }
     }
 
-    Rectangle {
+    Item {
         id: editor
         width: parent.width
-        height: zones.implicitHeight + 32
-        radius: Shape.extraLarge
-        color: Colors.m3surfaceContainer
+        height: tray.y + tray.height
 
-        Column {
-            id: zones
-            x: 16
-            y: 16
-            width: parent.width - 32
-            spacing: 12
+        MText {
+            id: hint
+            width: parent.width
+            wrapMode: Text.Wrap
+            textStyle: Type.bodyMedium
+            color: Colors.m3onSurfaceVariant
+            text: "Перетаскивайте значки по панели или вниз, чтобы спрятать"
+        }
 
+        Rectangle {
+            id: bar
+            y: hint.height + 16
+            width: parent.width
+            height: 60
+            radius: height / 2
+            color: Colors.m3surfaceContainerHigh
+            readonly property real third: (width - 20) / 3
+        }
+
+        Repeater {
+            model: [{ zone: "left", label: "Слева" }, { zone: "center", label: "В центре" }, { zone: "right", label: "Справа" }]
             MText {
-                textStyle: Type.bodyMedium
-                color: Colors.m3onSurfaceVariant
-                text: "Перетаскивайте кусочки панели между местами"
+                required property var modelData
+                required property int index
+                readonly property bool hot: page.held !== "" && page.overZone === modelData.zone
+                x: bar.x + 10 + bar.third * index + (index === 0 ? 14 : index === 1 ? (bar.third - implicitWidth) / 2 : bar.third - implicitWidth - 14)
+                y: bar.y + bar.height + 8
+                textStyle: Type.labelMedium
+                color: hot ? Colors.m3primary : Colors.m3onSurfaceVariant
+                Behavior on color { ColorAnim {} }
+                text: modelData.label
             }
+        }
 
-            Repeater {
-                model: [{ zone: "left", label: "Слева" }, { zone: "center", label: "В центре" }, { zone: "right", label: "Справа" }, { zone: "hidden", label: "Спрятано" }]
+        MText {
+            id: trayLabel
+            y: bar.y + bar.height + 44
+            textStyle: Type.labelLargeEmph
+            color: page.overZone === "hidden" && page.held !== "" ? Colors.m3primary : Colors.m3onSurfaceVariant
+            Behavior on color { ColorAnim {} }
+            text: "Спрятано"
+        }
+        Item {
+            id: tray
+            y: trayLabel.y + trayLabel.height + 10
+            width: parent.width
+            height: 44
+            MText {
+                y: 12
+                visible: page.ids("hidden").length === 0
+                textStyle: Type.bodyMedium
+                color: Colors.m3outline
+                text: "Пусто: вся панель на месте"
+            }
+        }
 
+        Repeater {
+            model: ["left", "center", "right", "hidden"]
+
+            Item {
+                id: zoneBox
+                required property string modelData
+                required property int index
+                readonly property string zone: modelData
+                readonly property bool inBar: zone !== "hidden"
+                readonly property var list: page.ids(zone)
+                readonly property var vis: list.filter(i => i !== page.held)
+                readonly property bool hot: page.held !== "" && page.overZone === zone
+                x: inBar ? bar.x + 10 + bar.third * index : tray.x
+                y: inBar ? bar.y : tray.y
+                width: inBar ? bar.third : tray.width
+                height: inBar ? bar.height : tray.height
+                Component.onCompleted: { const m = Object.assign({}, page.zoneItems); m[zone] = zoneBox; page.zoneItems = m; }
+
+                SpringValue { id: swell; target: zoneBox.hot ? 1 : 0; damping: 0.6; stiffness: 520 }
                 Rectangle {
-                    id: zoneBox
-                    required property var modelData
-                    readonly property string zone: modelData.zone
-                    readonly property var list: page.ids(zone)
-                    readonly property var vis: list.filter(i => i !== page.held)
-                    readonly property bool hot: page.held !== "" && page.overZone === zone
-                    width: zones.width
-                    height: 76
-                    radius: Shape.large
-                    Component.onCompleted: { const m = Object.assign({}, page.zoneItems); m[zone] = zoneBox; page.zoneItems = m; }
-                    SpringValue { id: swell; target: zoneBox.hot ? 1 : 0; damping: 0.55; stiffness: 520 }
-                    scale: 1 + 0.015 * swell.value
-                    border.width: zone === "hidden" ? 2 : 2 * swell.value
-                    border.color: zoneBox.hot ? Colors.m3primary : Colors.m3outlineVariant
-                    color: hot ? Colors.m3secondaryContainer : zone === "hidden" ? "transparent" : Colors.m3surfaceContainerHigh
-                    Behavior on color { ColorAnim {} }
+                    visible: zoneBox.inBar && swell.value > 0.01
+                    anchors.centerIn: parent
+                    width: parent.width * (0.9 + 0.1 * swell.value)
+                    height: 48
+                    radius: 24
+                    color: Colors.m3secondaryContainer
+                    opacity: Math.max(0, Math.min(1, swell.value)) * 0.7
+                }
 
-                    MText {
-                        x: 16
-                        y: 8
-                        textStyle: Type.labelMedium
-                        color: zoneBox.hot ? Colors.m3onSecondaryContainer : Colors.m3onSurfaceVariant
-                        text: zoneBox.modelData.label
+                readonly property real extra: hot ? page.chipWidth(page.held, zone) : 0
+                readonly property real start: page.rowStart(zone, page.rowTotal(zone, vis, extra), width)
+                function indexAt(px) {
+                    let x = page.rowStart(zone, page.rowTotal(zone, vis, 0), width);
+                    for (let k = 0; k < vis.length; k++) {
+                        const w = page.chipWidth(vis[k], zone);
+                        if (px < x + w / 2) return k;
+                        x += w + page.gapOf(zone);
                     }
+                    return vis.length;
+                }
+                readonly property point local: mapFromItem(editor, page.pointer.x, page.pointer.y)
+                readonly property bool under: page.held !== "" && local.y >= -20 && local.y < height + (inBar ? 12 : 30) && local.x >= 0 && local.x < width
+                onUnderChanged: if (under) page.overZone = zone; else if (page.overZone === zone) page.overZone = "";
+                onLocalChanged: if (under) page.overIndex = indexAt(local.x)
 
-                    function indexAt(px) {
-                        let x = 12;
-                        for (let k = 0; k < vis.length; k++) {
-                            const w = page.chipWidth(vis[k]);
-                            if (px < x + w / 2) return k;
-                            x += w + 8;
+                Repeater {
+                    model: zoneBox.list
+                    BarChip {
+                        required property string modelData
+                        chipId: modelData
+                        zone: zoneBox.zone
+                        readonly property int visIndex: zoneBox.vis.indexOf(modelData)
+                        readonly property real slotX: {
+                            let x = zoneBox.start;
+                            for (let k = 0; k < visIndex; k++) x += page.chipWidth(zoneBox.vis[k], zoneBox.zone) + page.gapOf(zoneBox.zone);
+                            return x;
                         }
-                        return vis.length;
-                    }
-                    readonly property point local: mapFromItem(editor, page.pointer.x, page.pointer.y)
-                    readonly property bool under: page.held !== "" && local.y >= 0 && local.y < height && local.x >= 0 && local.x < width
-                    onUnderChanged: if (under) page.overZone = zone; else if (page.overZone === zone) page.overZone = "";
-                    onLocalChanged: if (under) page.overIndex = indexAt(local.x)
-
-                    Repeater {
-                        model: zoneBox.list
-                        BarChip {
-                            required property string modelData
-                            chipId: modelData
-                            zone: zoneBox.zone
-                            readonly property int visIndex: zoneBox.vis.indexOf(modelData)
-                            readonly property real slotX: {
-                                let x = 12;
-                                for (let k = 0; k < visIndex; k++) x += page.chipWidth(zoneBox.vis[k]) + 8;
-                                return x;
-                            }
-                            readonly property bool pushed: zoneBox.hot && visIndex >= page.overIndex
-                            homeX: slotX + (pushed ? page.heldW + 8 : 0)
-                            homeY: 30
-                        }
+                        readonly property bool pushed: zoneBox.hot && visIndex >= page.overIndex
+                        homeX: slotX + (pushed ? zoneBox.extra + page.gapOf(zoneBox.zone) : 0)
+                        homeY: page.chipY(zoneBox.zone)
                     }
                 }
             }
@@ -172,11 +225,12 @@ Column {
             z: 100
             readonly property string id_: page.held || page.landing
             visible: id_ !== ""
-            width: page.chipWidth(id_)
-            height: 36
+            SpringValue { id: gw; target: ghost.flying ? page.chipWidth(ghost.id_, page.landZone) : page.chipWidth(ghost.id_, "hidden"); damping: 0.7; stiffness: 700; epsilon: 0.2 }
+            width: gw.value
+            height: 40
             property bool flying: false
             property point dest: Qt.point(0, 0)
-            function snap(x, y) { gx.value = x; gy.value = y; gx.velocity = 0; gy.velocity = 0; flying = false; }
+            function snap(x, y, w) { gx.value = x; gy.value = y; gx.velocity = 0; gy.velocity = 0; gw.value = w; gw.velocity = 0; flying = false; }
             function land(p) { dest = p; flying = true; }
             SpringValue {
                 id: gx
@@ -226,8 +280,8 @@ Column {
         property real homeY: 0
         readonly property bool dragging: drag.active
 
-        width: page.chipWidth(chipId)
-        height: 36
+        width: page.chipWidth(chipId, zone)
+        height: 40
         opacity: dragging || page.landing === chipId ? 0 : 1
 
         SpringValue { id: sx; target: chip.homeX; damping: 0.62; stiffness: 420; epsilon: 0.1 }
@@ -240,17 +294,30 @@ Column {
 
         PieceFace { anchors.fill: parent; chipId: chip.chipId; lifted: false; dim: chip.zone === "hidden" }
 
-        HoverHandler { cursorShape: chip.dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor }
+        HoverHandler { id: hov; cursorShape: chip.dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor }
+        Rectangle {
+            visible: tipIn.value > 0.02 && chip.zone !== "hidden"
+            SpringValue { id: tipIn; target: hov.hovered && !chip.dragging ? 1 : 0; damping: 0.7; stiffness: 600 }
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: -height - 8 + (1 - tipIn.value) * 6
+            opacity: Math.max(0, Math.min(1, tipIn.value))
+            z: 50
+            width: tipText.implicitWidth + 16
+            height: 24
+            radius: 6
+            color: Colors.m3inverseSurface
+            MText { id: tipText; anchors.centerIn: parent; textStyle: Type.labelMedium; color: Colors.m3inverseOnSurface; text: page.info[chip.chipId]?.label ?? "" }
+        }
         DragHandler {
             id: drag
             target: null
             onCentroidChanged: if (active) page.pointer = chip.mapToItem(editor, centroid.position.x, centroid.position.y)
             onActiveChanged: {
                 if (active) {
-                    page.grab = Qt.point(centroid.pressPosition.x, centroid.pressPosition.y);
+                    page.grab = Qt.point(Math.min(centroid.pressPosition.x, 20), centroid.pressPosition.y);
                     page.pointer = chip.mapToItem(editor, centroid.position.x, centroid.position.y);
                     const at = chip.mapToItem(editor, 0, 0);
-                    ghost.snap(at.x, at.y);
+                    ghost.snap(at.x, at.y, chip.width);
                     page.heldW = chip.width;
                     page.held = chip.chipId;
                 } else {
@@ -261,17 +328,21 @@ Column {
     }
 
     component PieceFace: Rectangle {
+        id: pf
         property string chipId
         property bool lifted: false
         property bool dim: false
+        readonly property real open: Math.max(0, Math.min(1, (width - 48) / 40))
         radius: height / 2
         color: lifted ? Colors.m3primary : dim ? Colors.m3surfaceContainerHighest : Colors.m3secondaryContainer
         Behavior on color { ColorAnim {} }
+        clip: true
         Row {
-            anchors.centerIn: parent
+            x: pf.open > 0 ? 16 * pf.open + (pf.width - 20) / 2 * (1 - pf.open) : (pf.width - 20) / 2
+            anchors.verticalCenter: parent.verticalCenter
             spacing: 8
-            MIcon { anchors.verticalCenter: parent.verticalCenter; icon: page.info[parent.parent.chipId]?.icon ?? ""; size: 20; fill: 1; color: parent.parent.lifted ? Colors.m3onPrimary : Colors.m3onSecondaryContainer }
-            MText { anchors.verticalCenter: parent.verticalCenter; textStyle: Type.labelLargeEmph; color: parent.parent.lifted ? Colors.m3onPrimary : Colors.m3onSecondaryContainer; text: page.info[parent.parent.chipId]?.label ?? parent.parent.chipId }
+            MIcon { anchors.verticalCenter: parent.verticalCenter; icon: page.info[pf.chipId]?.icon ?? ""; size: 20; fill: 1; color: pf.lifted ? Colors.m3onPrimary : Colors.m3onSecondaryContainer }
+            MText { anchors.verticalCenter: parent.verticalCenter; opacity: pf.open; textStyle: Type.labelLargeEmph; color: pf.lifted ? Colors.m3onPrimary : Colors.m3onSecondaryContainer; text: page.info[pf.chipId]?.label ?? pf.chipId }
         }
     }
 
