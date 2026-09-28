@@ -28,6 +28,8 @@ Surface {
         page = pageId;
     }
 
+    function tileOn(id) { return !(Array.isArray(Config.o.control.hidden) && Config.o.control.hidden.indexOf(id) >= 0); }
+
     readonly property var liveCards: Activities.list.filter(a => a.kind !== "media")
 
     function duration(sec) {
@@ -230,6 +232,7 @@ Surface {
                         width: parent.cell
                         icon: Net.icon
                         label: "Wi-Fi"
+                        visible: root.tileOn("wifi")
                         sublabel: Net.label
                         checked: Net.enabled
                         details: true
@@ -243,6 +246,7 @@ Surface {
                         width: parent.cell
                         icon: Bt.enabled ? "bluetooth" : "bluetooth_disabled"
                         label: "Bluetooth"
+                        visible: root.tileOn("bt")
                         sublabel: Bt.label
                         checked: Bt.enabled
                         details: true
@@ -255,6 +259,7 @@ Surface {
                         width: parent.cell
                         icon: "do_not_disturb_on"
                         label: "Не беспокоить"
+                        visible: root.tileOn("dnd")
                         sublabel: Notifs.dnd ? "Включено" : "Выключено"
                         checked: Notifs.dnd
                         onClicked: Notifs.dnd = !Notifs.dnd
@@ -264,6 +269,7 @@ Surface {
                         width: parent.cell
                         icon: Power.icon
                         label: "Питание"
+                        visible: root.tileOn("power")
                         sublabel: Power.label
                         checked: Power.profile !== PowerProfile.Balanced
                         onClicked: Power.cycle()
@@ -273,6 +279,7 @@ Surface {
                         width: parent.cell
                         icon: "coffee"
                         label: "Не засыпать"
+                        visible: root.tileOn("caffeine")
                         sublabel: Toggles.caffeine ? "Экран не гаснет" : "Выключено"
                         checked: Toggles.caffeine
                         onClicked: Toggles.caffeine = !Toggles.caffeine
@@ -282,6 +289,7 @@ Surface {
                         width: parent.cell
                         icon: "nightlight"
                         label: "Ночной свет"
+                        visible: root.tileOn("night")
                         sublabel: Toggles.nightLight ? "Тёплый экран" : "Выключен"
                         checked: Toggles.nightLight
                         onClicked: Toggles.setNightLight(!Toggles.nightLight)
@@ -291,6 +299,7 @@ Surface {
                         width: parent.cell
                         icon: Audio.micMuted ? "mic_off" : "mic"
                         label: "Микрофон"
+                        visible: root.tileOn("mic")
                         sublabel: Audio.micMuted ? "Выключен" : "Включён"
                         checked: !Audio.micMuted
                         onClicked: Audio.toggleMic()
@@ -301,6 +310,7 @@ Surface {
                         width: parent.cell
                         icon: Privacy.active ? "shield_lock" : "shield_person"
                         label: "Приватность"
+                        visible: root.tileOn("privacy")
                         sublabel: Privacy.anyOn ? [Privacy.micOn ? "микрофон" : "", Privacy.camOn ? "камера" : "", Privacy.casting ? "экран" : ""].filter(Boolean).join(", ")
                                 : Privacy.active ? "Режим включён" : "Всё тихо"
                         checked: Privacy.active
@@ -315,6 +325,7 @@ Surface {
                         width: parent.cell
                         icon: Audio.muted ? "volume_off" : "speaker_group"
                         label: "Звук"
+                        visible: root.tileOn("audio")
                         sublabel: Audio.label(Audio.sink)
                         checked: false
                         details: true
@@ -327,6 +338,7 @@ Surface {
                         width: parent.cell
                         icon: Toggles.dark ? "dark_mode" : "light_mode"
                         label: "Тёмная тема"
+                        visible: root.tileOn("dark")
                         sublabel: Toggles.dark ? "Включена" : "Выключена"
                         checked: Toggles.dark
                         onClicked: Toggles.toggleDark()

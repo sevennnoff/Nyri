@@ -119,13 +119,22 @@ Item {
         }
     }
 
-    Rectangle {
+    Item {
         anchors.fill: parent
         z: -1
-        color: Colors.m3scrim
-        opacity: 0.45 * editS.value
-        visible: opacity > 0.01
+        visible: editS.value > 0.01
+        opacity: Math.min(1, editS.value)
         SpringValue { id: editS; target: root.editing ? 1 : 0; damping: 0.9; stiffness: 300 }
+        Rectangle { anchors.fill: parent; color: Colors.m3surface }
+        Image {
+            anchors.fill: parent
+            source: Colors.wallpaper ? "file://" + Colors.wallpaper : ""
+            fillMode: Image.PreserveAspectCrop
+            sourceSize: Qt.size(root.width, root.height)
+            asynchronous: true
+            scale: 1.04 - 0.04 * Math.min(1, editS.value)
+        }
+        Rectangle { anchors.fill: parent; color: Colors.m3scrim; opacity: 0.3 }
     }
 
     Connections {
@@ -170,8 +179,8 @@ Item {
                 Component {
                     id: clockCookie
                     Item {
-                        width: 260
-                        height: 284
+                        width: 276
+                        height: 276
 
                         SpringValue {
                             id: turn
@@ -182,6 +191,7 @@ Item {
                         }
                         MaterialShape {
                             id: cookie
+                            anchors.centerIn: parent
                             width: 260
                             height: 260
                             shape: "cookie12Sided"

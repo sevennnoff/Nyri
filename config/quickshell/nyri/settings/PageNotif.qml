@@ -29,6 +29,17 @@ Column {
         }
 
         SettingRow {
+            icon: "picture_in_picture"
+            title: "Где всплывают"
+            below: SegmentedButtons {
+                width: parent.width
+                value: Config.o.notifications.position
+                options: [{ value: "left", label: "Слева" }, { value: "center", label: "По центру" }, { value: "right", label: "Справа" }]
+                onSelected: v => Config.o.notifications.position = v
+            }
+        }
+
+        SettingRow {
             icon: "delete_sweep"
             title: "Очистить историю"
             subtitle: Notifs.count > 0 ? Notifs.count + " в центре управления" : "История пуста"

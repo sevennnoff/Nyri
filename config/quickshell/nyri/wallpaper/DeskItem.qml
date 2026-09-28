@@ -151,12 +151,12 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        anchors.margins: -2
-        radius: Math.min(height / 2, Shape.extraLarge)
-        color: "transparent"
+        anchors.margins: -8
+        radius: Math.min(height / 2, Shape.extraLarge + 8)
+        color: root.desk.editing ? Qt.alpha(Colors.m3primary, 0.06) : "transparent"
         border.width: 2
         border.color: Colors.m3primary
-        opacity: Math.max(0.6 * lift.value, root.desk.editing ? 0.8 : 0)
+        opacity: Math.max(0.6 * lift.value, root.desk.editing ? 0.85 : 0)
     }
 
     Item {

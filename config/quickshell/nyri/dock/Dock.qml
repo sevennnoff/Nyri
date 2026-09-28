@@ -22,7 +22,7 @@ Variants {
 
         screen: modelData
         anchors { bottom: true; left: true; right: true }
-        implicitHeight: dockH + sz * 0.6 + 140 + lift
+        implicitHeight: dockH + 12 + lift + Math.max(sz * 0.6 + 140, menuCard.height + 24)
         color: "transparent"
         exclusionMode: cfg.autohide ? ExclusionMode.Ignore : ExclusionMode.Normal
         exclusiveZone: cfg.autohide ? 0 : dockH + 12 + lift

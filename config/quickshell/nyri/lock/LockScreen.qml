@@ -133,7 +133,7 @@ Scope {
             MultiEffect {
                 anchors.fill: parent
                 source: wall
-                blurEnabled: true
+                blurEnabled: Config.o.lock.blur
                 blur: 1
                 blurMax: 64
                 autoPaddingEnabled: false
@@ -170,8 +170,10 @@ Scope {
                 readonly property real gapH: 70
                 readonly property real stackW: Math.max(hw, mw)
                 readonly property real rowW: hw + gapH + mw
-                readonly property real t: surface.w
+                readonly property bool row: Config.o.lock.clock === "row"
+                readonly property real t: row ? 1 : surface.w
                 readonly property real awakeScale: 0.5
+                readonly property real restScale: row ? 0.72 : 1
 
                 readonly property real groupH: height * scale + 12 + glance.height + (40 + auth.height) * surface.wc
 
@@ -179,7 +181,7 @@ Scope {
                 width: stackW + (rowW - stackW) * t
                 height: (2 * lh - overlap) + (lh - (2 * lh - overlap)) * t
                 y: (surface.height - groupH) / 2
-                scale: (1 - (1 - awakeScale) * t) * (1 + 0.35 * (1 - surface.e))
+                scale: (restScale + (awakeScale - restScale) * surface.w) * (1 + 0.35 * (1 - surface.e))
                 transformOrigin: Item.Top
                 opacity: surface.e * surface.dim
 
@@ -233,13 +235,13 @@ Scope {
                     }
                 }
                 Rectangle {
-                    visible: Weather.ready
+                    visible: Weather.ready && Config.o.lock.weather
                     anchors.verticalCenter: parent.verticalCenter
                     width: 5; height: 5; radius: 2.5
                     color: Colors.m3outline
                 }
                 MIcon {
-                    visible: Weather.ready
+                    visible: Weather.ready && Config.o.lock.weather
                     anchors.verticalCenter: parent.verticalCenter
                     icon: Weather.ready ? Weather.describe(Weather.current.code, Weather.current.day).icon : ""
                     size: 26
@@ -247,7 +249,7 @@ Scope {
                     color: Colors.m3primary
                 }
                 MText {
-                    visible: Weather.ready
+                    visible: Weather.ready && Config.o.lock.weather
                     anchors.verticalCenter: parent.verticalCenter
                     textStyle: Type.titleLarge
                     font.variableAxes: ({ "wght": 550 })
@@ -262,6 +264,7 @@ Scope {
                 y: 24 - (1 - surface.e) * 40
                 spacing: 8
                 opacity: surface.e
+                visible: Config.o.lock.live
 
                 property real now: Date.now()
                 Timer {
@@ -477,6 +480,7 @@ Scope {
                 anchors.bottomMargin: 32 + (1 - surface.e) * -40
                 spacing: 14
                 opacity: surface.e
+                visible: Config.o.lock.user
 
                 Item {
                     id: avatar

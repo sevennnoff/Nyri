@@ -411,4 +411,46 @@ Column {
             MSwitch { checked: Config.o.launcher.files; onToggled: c => Config.o.launcher.files = c }
         }
     }
+
+    ListGroup {
+        width: parent.width
+        title: "Шторка и подсказки"
+
+        SettingRow {
+            icon: "grid_view"
+            title: "Плитки в шторке"
+            subtitle: "Нажми, чтобы убрать или вернуть"
+            below: Flow {
+                width: parent.width
+                spacing: 8
+                Repeater {
+                    model: [
+                        { id: "wifi", label: "Wi-Fi" }, { id: "bt", label: "Bluetooth" }, { id: "dnd", label: "Не беспокоить" },
+                        { id: "power", label: "Питание" }, { id: "caffeine", label: "Не засыпать" }, { id: "night", label: "Ночной свет" },
+                        { id: "mic", label: "Микрофон" }, { id: "privacy", label: "Приватность" }, { id: "audio", label: "Звук" },
+                        { id: "dark", label: "Тёмная тема" }
+                    ]
+                    FilterChip {
+                        required property var modelData
+                        readonly property var hidden: Array.isArray(Config.o.control.hidden) ? Config.o.control.hidden : []
+                        text: modelData.label
+                        picked: hidden.indexOf(modelData.id) < 0
+                        onClicked: Config.o.control.hidden = picked ? hidden.concat([modelData.id]) : hidden.filter(h => h !== modelData.id)
+                    }
+                }
+            }
+        }
+
+        SettingRow {
+            icon: "volume_up"
+            title: "Громкость и яркость"
+            subtitle: "Где показывать подсказку при нажатии клавиш"
+            below: SegmentedButtons {
+                width: parent.width
+                value: Config.o.osd.position
+                options: [{ value: "bar", label: "У панели" }, { value: "opposite", label: "С другой стороны" }, { value: "center", label: "По центру" }]
+                onSelected: v => Config.o.osd.position = v
+            }
+        }
+    }
 }

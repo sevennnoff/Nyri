@@ -39,6 +39,19 @@ Singleton {
 
             property JsonObject notifications: JsonObject {
                 property int timeout: 7
+                property string position: "right"
+            }
+
+            property JsonObject lock: JsonObject {
+                property string clock: "stack"
+                property bool weather: true
+                property bool live: true
+                property bool user: true
+                property bool blur: true
+            }
+
+            property JsonObject control: JsonObject {
+                property var hidden: []
             }
 
             property JsonObject idle: JsonObject {

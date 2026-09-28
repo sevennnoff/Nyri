@@ -11,7 +11,8 @@ PanelWindow {
     screen: Panels.screen
     visible: Notifs.popups.count > 0 || exitTimer.running
     color: "transparent"
-    anchors { top: true; right: true }
+    readonly property string side: Config.o.notifications.position
+    anchors { top: true; right: side === "right"; left: side === "left" }
     margins { top: Panels.barBottom ? 4 : 12 + 40 + 4; right: 0 }
     exclusionMode: ExclusionMode.Ignore
     implicitWidth: 400 + 24
@@ -50,11 +51,11 @@ PanelWindow {
         model: Notifs.popups
 
         add: Transition {
-            NumberAnimation { property: "x"; from: 420; to: 0; duration: Motion.defaultSpatial.duration; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.defaultSpatial.curve }
+            NumberAnimation { property: "x"; from: root.side === "left" ? -420 : root.side === "center" ? 0 : 420; to: 0; duration: Motion.defaultSpatial.duration; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.defaultSpatial.curve }
             NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Motion.effects.duration }
         }
         remove: Transition {
-            NumberAnimation { property: "x"; to: 420; duration: Motion.emphasizedAccel.duration; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.emphasizedAccel.curve }
+            NumberAnimation { property: "x"; to: root.side === "left" ? -420 : 420; duration: Motion.emphasizedAccel.duration; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.emphasizedAccel.curve }
             NumberAnimation { property: "opacity"; to: 0; duration: Motion.emphasizedAccel.duration }
         }
         displaced: Transition {
@@ -87,7 +88,7 @@ PanelWindow {
                 popup: true
                 radius: height / 2 + (Shape.largeIncreased - height / 2) * Math.min(1, born)
                 scale: 0.88 + 0.12 * born
-                transformOrigin: Item.Right
+                transformOrigin: root.side === "left" ? Item.Left : root.side === "center" ? Item.Top : Item.Right
             }
             }
 
