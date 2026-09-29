@@ -5,6 +5,7 @@ import Quickshell.Widgets
 import qs.theme
 import qs.services
 import qs.widgets
+import "Keyboard.js" as Kb
 
 Surface {
     id: root
@@ -51,7 +52,9 @@ Surface {
             return filter === "all" || filter === "app" ? Apps.search("").map(e => ({ kind: "app", entry: e })) : [];
         }
         const answer = root.looksLikeMath && root.calcResult && filter === "all" ? [{ kind: "calc", text: root.calcResult }] : [];
-        const tm = query.trim().match(/^(таймер|timer|засеки)\s+(\S+(?:\s*(?:ч|час\S*|м|мин\S*|с|сек\S*|h|m|s|min)\b)?)\s*(.*)$/i);
+        const vs = Kb.variants(q);
+        const timerRe = /^(таймер|timer|засеки)\s+(\S+(?:\s*(?:ч|час\S*|м|мин\S*|с|сек\S*|h|m|s|min)\b)?)\s*(.*)$/i;
+        const tm = query.trim().match(timerRe) ?? Kb.swap(query.trim().toLowerCase()).match(timerRe);
         const secs = tm ? Activities.parseDuration(tm[2]) : 0;
         if (secs > 0 && wants("timer"))
             answer.push({ kind: "timer", secs, label: tm[3] ?? "", text: "Таймер на " + Activities.fmtDuration(secs * 1000) + (tm[3] ? " · " + tm[3] : "") });
@@ -59,20 +62,21 @@ Surface {
         const scored = [];
         for (const w of Object.values(Niri.windows)) {
             const t = (w.title ?? "").toLowerCase(), id = (w.app_id ?? "").toLowerCase();
-            const sc = t.startsWith(q) || id.startsWith(q) ? 92 : t.includes(q) || id.includes(q) ? 75 : 0;
-            if (sc) scored.push({ kind: "window", win: w, score: sc });
+            const hit = Kb.best(vs, v => t.startsWith(v) || id.startsWith(v) ? 92 : t.includes(v) || id.includes(v) ? 75 : Kb.typo(v, id));
+            if (hit.score) scored.push({ kind: "window", win: w, score: hit.score, from: hit.from });
         }
         for (const e of Apps.all) {
-            const sc = Apps.score(e, q);
-            if (sc) scored.push({ kind: "app", entry: e, score: sc + Apps.frecency(e) * 6 });
+            const name = e.name.toLowerCase();
+            const hit = Kb.best(vs, v => Apps.score(e, v) || Kb.typo(v, name) || Kb.typo(v, (e.id ?? "").toLowerCase().replace(/\.desktop$/, "")));
+            if (hit.score) scored.push({ kind: "app", entry: e, score: hit.score + Apps.frecency(e) * 6, from: hit.from });
         }
         for (const a of actions) {
-            const sc = a.keys.some(k => k.startsWith(q)) ? 96 : a.keys.some(k => k.includes(q)) ? 70 : 0;
-            if (sc) scored.push({ kind: "action", action: a, score: sc });
+            const hit = Kb.best(vs, v => a.keys.includes(v) || a.label.toLowerCase() === v ? 110 : a.keys.some(k => k.startsWith(v)) ? 96 : a.keys.some(k => k.includes(v)) ? 70 : Math.max(0, ...a.keys.map(k => Kb.typo(v, k))));
+            if (hit.score) scored.push({ kind: "action", action: a, score: hit.score, from: hit.from });
         }
         for (const p of settingsIndex) {
-            const sc = p.label.toLowerCase().startsWith(q) ? 72 : p.keys.some(k => k.startsWith(q) || q.startsWith(k)) ? 58 : 0;
-            if (sc) scored.push({ kind: "setting", page: p, score: sc });
+            const hit = Kb.best(vs, v => p.label.toLowerCase().startsWith(v) ? 72 : p.keys.some(k => k.startsWith(v) || v.startsWith(k)) ? 58 : 0);
+            if (hit.score) scored.push({ kind: "setting", page: p, score: hit.score, from: hit.from });
         }
         const topApps = scored.filter(x => x.kind === "app").sort((x, y) => y.score - x.score).slice(0, 2);
         for (const t of topApps)
@@ -82,7 +86,7 @@ Surface {
             scored.push({ kind: "file", path: f, score: 50 });
         const kept = scored.filter(x => wants(x.kind));
         kept.sort((x, y) => y.score - x.score);
-        if (filter === "all") kept.push({ kind: "web", text: query.trim() });
+        if (filter === "all") kept.push({ kind: "web", text: kept.length && kept[0].from ? vs[kept[0].from].text : query.trim() });
         return answer.concat(kept);
     }
 

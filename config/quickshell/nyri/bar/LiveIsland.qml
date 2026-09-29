@@ -16,7 +16,8 @@ Island {
     padding: has ? 6 : 0
     spacing: 8
     color: loud ? Colors.m3errorContainer : Colors.m3surfaceContainer
-    visible: grow.value > 0.02
+    readonly property bool present: grow.value > 0.02
+    visible: present
     opacity: Math.min(1, grow.value * 1.5) * Math.min(1, intro * 2)
     scale: 0.6 + 0.4 * Math.min(1, grow.value)
     SpringValue { id: grow; target: root.has ? 1 : 0; damping: 0.62; stiffness: 420 }

@@ -130,7 +130,7 @@ Variants {
                     required property int index
                     anchors.verticalCenter: parent?.verticalCenter
                     sourceComponent: bar.registry[modelData] ?? null
-                    visible: bar.wants(modelData)
+                    visible: bar.wants(modelData) && (item?.present ?? true)
                     onLoaded: if (item.introIndex !== undefined) item.introIndex = sec.base + index
                 }
             }
