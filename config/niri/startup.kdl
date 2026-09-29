@@ -2,6 +2,8 @@ spawn-at-startup "qs" "-c" "nyri"
 
 spawn-at-startup "wl-paste" "--watch" "cliphist" "store"
 
+spawn-at-startup "sh" "-c" "~/nyri/bin/nyri-session offer"
+
 spawn-at-startup "sh" "-c" "systemctl --user import-environment XDG_MENU_PREFIX && kbuildsycoca6"
 
 environment {

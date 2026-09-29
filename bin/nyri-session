@@ -1,0 +1,240 @@
+#!/usr/bin/env python3
+"""Save the open windows as profiles and bring them back later, as they were.
+
+    nyri-session save [NAME]     what is open, under NAME (without it: «Прошлый раз»)
+    nyri-session restore [NAME]  open it all again and put every window in its place
+    nyri-session list            the profiles as JSON, newest first
+    nyri-session delete NAME     forget a profile
+    nyri-session offer           after login, on an empty desk: a notification to restore
+"""
+import configparser, glob, json, os, re, subprocess, sys, time
+from pathlib import Path
+
+STATE = Path(os.environ.get("NYRI_STATE") or Path.home() / ".local/state/nyri")
+DIR = STATE / "sessions"
+LAST = "Прошлый раз"
+SKIP = {"org.quickshell"}
+
+
+def path(name):
+    return DIR / (re.sub(r"[/\\\0]", "_", name).strip() + ".json")
+
+
+def migrate():
+    old = STATE / "session.json"
+    if old.exists():
+        DIR.mkdir(parents=True, exist_ok=True)
+        data = json.loads(old.read_text())
+        data["name"] = LAST
+        path(LAST).write_text(json.dumps(data, ensure_ascii=False, indent=1))
+        old.unlink()
+
+
+def niri(*args, parse=True):
+    out = subprocess.run(["niri", "msg", *(["-j"] if parse else []), *args], capture_output=True, text=True, timeout=5).stdout
+    return json.loads(out) if parse and out.strip() else out
+
+
+def act(*args):
+    subprocess.run(["niri", "msg", "action", *args], capture_output=True, timeout=5)
+
+
+def entries():
+    dirs = [Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share")]
+    dirs += [Path(d) for d in (os.environ.get("XDG_DATA_DIRS") or "/usr/local/share:/usr/share").split(":")]
+    dirs += [Path("/var/lib/flatpak/exports/share"), Path.home() / ".local/share/flatpak/exports/share"]
+    seen = {}
+    for d in dirs:
+        for f in glob.glob(str(d / "applications" / "**" / "*.desktop"), recursive=True):
+            seen.setdefault(Path(f).name, f)
+    return list(seen.values())
+
+
+def entry_for(app_id):
+    a = app_id.lower()
+    files = entries()
+    for f in files:
+        if Path(f).stem.lower() == a:
+            return f
+    for f in files:
+        p = configparser.ConfigParser(interpolation=None, strict=False)
+        try:
+            p.read(f, encoding="utf-8")
+            wm = p.get("Desktop Entry", "StartupWMClass", fallback="").lower()
+        except Exception:
+            continue
+        if wm and wm == a:
+            return f
+    for f in files:
+        s = Path(f).stem.lower()
+        if a.split(".")[-1] == s.split(".")[-1]:
+            return f
+    return None
+
+
+def how_to_open(w):
+    pid = w.get("pid")
+    if w["app_id"] in ("kitty", "foot", "Alacritty", "org.wezfurlong.wezterm") and pid:
+        try:
+            cwd = os.readlink(f"/proc/{pid}/cwd")
+        except OSError:
+            cwd = str(Path.home())
+        flag = {"kitty": "--directory", "foot": "--working-directory", "Alacritty": "--working-directory",
+                "org.wezfurlong.wezterm": "start --cwd"}[w["app_id"]]
+        cmd = ({"org.wezfurlong.wezterm": "wezterm"}.get(w["app_id"], w["app_id"].lower())).split() + flag.split() + [cwd]
+        return {"cmd": cmd}
+    e = entry_for(w["app_id"])
+    if e:
+        return {"desktop": e}
+    if pid:
+        try:
+            exe = os.readlink(f"/proc/{pid}/exe")
+            return {"cmd": [exe]}
+        except OSError:
+            pass
+    return None
+
+
+def save(name=LAST):
+    wss = {w["id"]: w for w in niri("workspaces")}
+    out = []
+    for w in niri("windows"):
+        if w["app_id"] in SKIP or not w["app_id"]:
+            continue
+        ws = wss.get(w["workspace_id"])
+        if not ws:
+            continue
+        how = how_to_open(w)
+        if not how:
+            continue
+        lay = w.get("layout") or {}
+        col, tile = (lay.get("pos_in_scrolling_layout") or [0, 0])
+        out.append({"app": w["app_id"], "output": ws["output"], "ws": ws["idx"], "col": col, "tile": tile,
+                    "width": round((lay.get("tile_size") or [0, 0])[0]), "floating": w["is_floating"],
+                    "focused": w["is_focused"], **how})
+    out.sort(key=lambda x: (x["output"] or "", x["ws"], x["floating"], x["col"], x["tile"]))
+    DIR.mkdir(parents=True, exist_ok=True)
+    f = path(name)
+    tmp = f.with_suffix(".tmp")
+    tmp.write_text(json.dumps({"name": name, "saved": int(time.time()), "windows": out}, ensure_ascii=False, indent=1))
+    os.replace(tmp, f)
+    return len(out)
+
+
+def profiles():
+    out = []
+    for f in DIR.glob("*.json") if DIR.exists() else []:
+        try:
+            d = json.loads(f.read_text())
+        except Exception:
+            continue
+        out.append({"name": d.get("name", f.stem), "saved": d.get("saved", 0), "count": len(d.get("windows", [])),
+                    "workspaces": len({(w.get("output"), w.get("ws")) for w in d.get("windows", [])}), "last": d.get("name") == LAST})
+    return sorted(out, key=lambda p: (not p["last"], -p["saved"]))
+
+
+def launch(how):
+    if "desktop" in how:
+        subprocess.Popen(["gio", "launch", how["desktop"]], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    else:
+        subprocess.Popen(how["cmd"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+
+
+def restore(name=LAST):
+    f = path(name)
+    if not f.exists():
+        return 0, 0
+    saved = json.loads(f.read_text())["windows"]
+    claimed = set()
+    placed = 0
+    focus_after = None
+    for s in saved:
+        if s["output"]:
+            act("focus-monitor", s["output"])
+        act("focus-workspace", str(s["ws"]))
+        free = [w for w in niri("windows") if w["app_id"] == s["app"] and w["id"] not in claimed]
+        if free:
+            win = free[0]
+        else:
+            before = {w["id"] for w in niri("windows")}
+            launch(s)
+            win = None
+            end = time.time() + 20
+            while time.time() < end and not win:
+                time.sleep(0.25)
+                new = [w for w in niri("windows") if w["id"] not in before and w["id"] not in claimed]
+                win = next((w for w in new if w["app_id"] == s["app"]), None)
+        if not win:
+            continue
+        claimed.add(win["id"])
+        wid = str(win["id"])
+        act("move-window-to-workspace", "--window-id", wid, "--focus", "false", str(s["ws"]))
+        act("focus-window", "--id", wid)
+        if s["floating"] and not win["is_floating"]:
+            act("move-window-to-floating", "--id", wid)
+        elif not s["floating"]:
+            if win["is_floating"]:
+                act("move-window-to-tiling", "--id", wid)
+            act("move-column-to-index", str(max(1, s["col"])))
+            if s["width"]:
+                act("set-column-width", str(s["width"]))
+        if s.get("focused"):
+            focus_after = wid
+        placed += 1
+    if focus_after:
+        act("focus-window", "--id", focus_after)
+    return placed, len(saved)
+
+
+def notify(title, body, *actions):
+    args = ["notify-send", "-a", "Nyri", "-i", "view-restore"]
+    for a in actions:
+        args += ["-A", a]
+    return subprocess.run(args + [title, body], capture_output=True, text=True).stdout.strip()
+
+
+def plural(n, one, few, many):
+    m10, m100 = n % 10, n % 100
+    return f"{n} " + (one if m10 == 1 and m100 != 11 else few if 2 <= m10 <= 4 and not 12 <= m100 <= 14 else many)
+
+
+def main(argv):
+    migrate()
+    args = [a for a in argv[1:] if not a.startswith("--")]
+    cmd = args[0] if args else ""
+    name = " ".join(args[1:]).strip() or LAST
+    if cmd == "save":
+        n = save(name)
+        if "--quiet" not in argv:
+            notify("Окна сохранены", name + " · " + plural(n, "окно", "окна", "окон"))
+    elif cmd == "restore":
+        placed, total = restore(name)
+        if total:
+            notify("Всё как было", f"{name}: открыто {placed} из {plural(total, 'окна', 'окон', 'окон')}")
+    elif cmd == "list":
+        print(json.dumps(profiles(), ensure_ascii=False))
+    elif cmd == "delete":
+        path(name).unlink(missing_ok=True)
+    elif cmd == "offer":
+        f = path(LAST)
+        if os.environ.get("NYRI_NESTED") == "1" or not f.exists():
+            return 0
+        data = json.loads(f.read_text())
+        if not data["windows"] or time.time() - data["saved"] > 14 * 86400:
+            return 0
+        time.sleep(6)
+        if any(w["app_id"] not in SKIP for w in niri("windows")):
+            return 0
+        n = len(data["windows"])
+        wss = len({(w["output"], w["ws"]) for w in data["windows"]})
+        if notify("Открыть как было?", plural(n, "окно", "окна", "окон") + " на " + plural(wss, "столе", "столах", "столах"),
+                  "restore=Открыть") == "restore":
+            restore(LAST)
+    else:
+        print(__doc__)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

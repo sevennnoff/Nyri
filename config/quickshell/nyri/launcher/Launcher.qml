@@ -89,6 +89,9 @@ Surface {
     readonly property var actions: [
         { label: "Настройки", icon: "settings", keys: ["настройки", "settings", "параметры"], run: () => Panels.openSettings() },
         { label: "Заблокировать", icon: "lock", keys: ["блок", "заблокировать", "lock"], run: () => Lock.lock() },
+        { label: "Сохранить окна", icon: "save", keys: ["сессия", "сохранить окна", "запомнить", "session", "save"], run: () => Quickshell.execDetached([Paths.bin + "/nyri-session", "save"]) },
+        { label: "Открыть как было", icon: "restore_page", keys: ["сессия", "восстановить", "открыть как было", "session", "restore"], run: () => Quickshell.execDetached([Paths.bin + "/nyri-session", "restore"]) },
+        { label: "Профили окон", icon: "view_quilt", keys: ["профил", "сессии", "окна", "profiles", "sessions"], run: () => Panels.open("session") },
         { label: "Меню питания", icon: "power_settings_new", keys: ["выключ", "перезагр", "сон", "выйти", "power", "reboot", "shutdown", "logout", "sleep"], run: () => Panels.open("session") },
         { label: "Обои", icon: "wallpaper", keys: ["обои", "wallpaper"], run: () => Panels.open("wallpaper") },
         { label: "Найти телефон", icon: "ring_volume", keys: ["телефон", "найти телефон", "phone", "ring"], run: () => Phone.ring() },
