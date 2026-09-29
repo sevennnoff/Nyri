@@ -62,16 +62,16 @@ Surface {
         const scored = [];
         for (const w of Object.values(Niri.windows)) {
             const t = (w.title ?? "").toLowerCase(), id = (w.app_id ?? "").toLowerCase();
-            const hit = Kb.best(vs, v => t.startsWith(v) || id.startsWith(v) ? 92 : t.includes(v) || id.includes(v) ? 75 : Kb.typo(v, id));
+            const hit = Kb.best(vs, v => t.startsWith(v) || id.startsWith(v) ? 92 : t.includes(v) || id.includes(v) ? 75 : Kb.typo(v, Kb.terms(id)));
             if (hit.score) scored.push({ kind: "window", win: w, score: hit.score, from: hit.from });
         }
-        for (const e of Apps.all) {
-            const name = e.name.toLowerCase();
-            const hit = Kb.best(vs, v => Apps.score(e, v) || Kb.typo(v, name) || Kb.typo(v, (e.id ?? "").toLowerCase().replace(/\.desktop$/, "")));
-            if (hit.score) scored.push({ kind: "app", entry: e, score: hit.score + Apps.frecency(e) * 6, from: hit.from });
+        for (const x of Apps.index) {
+            let hit = Kb.best(vs, v => Apps.score(x, v));
+            if (!hit.score) hit = Kb.best(vs, v => Kb.typo(v, x.terms));
+            if (hit.score) scored.push({ kind: "app", entry: x.e, score: hit.score + Apps.rank(x) * 6, from: hit.from });
         }
-        for (const a of actions) {
-            const hit = Kb.best(vs, v => a.keys.includes(v) || a.label.toLowerCase() === v ? 110 : a.keys.some(k => k.startsWith(v)) ? 96 : a.keys.some(k => k.includes(v)) ? 70 : Math.max(0, ...a.keys.map(k => Kb.typo(v, k))));
+        for (const a of actionIndex) {
+            const hit = Kb.best(vs, v => a.keys.includes(v) || a.label.toLowerCase() === v ? 110 : a.keys.some(k => k.startsWith(v)) ? 96 : a.keys.some(k => k.includes(v)) ? 70 : Kb.typo(v, a.terms));
             if (hit.score) scored.push({ kind: "action", action: a, score: hit.score, from: hit.from });
         }
         for (const p of settingsIndex) {
@@ -111,6 +111,7 @@ Surface {
         { label: "Экранное время", icon: "hourglass_top", keys: ["время", "экранн", "screen time", "статист"], run: () => Panels.open("power", "usage") },
         { label: "Батарея", icon: "battery_full", keys: ["батар", "заряд", "battery"], run: () => Panels.open("power", "battery") }
     ]
+    readonly property var actionIndex: actions.map(a => Object.assign({}, a, { keys: Array.from(a.keys), terms: [].concat(...Array.from(a.keys).map(Kb.terms)) }))
     property string calcResult: ""
 
     property var fileHits: []

@@ -22,18 +22,24 @@ Singleton {
         return DesktopEntries.heuristicLookup(appId)?.name ?? appId ?? "";
     }
 
-    function frecency(entry) {
-        return Math.log((counts[entry.id] ?? 0) + 1);
+    readonly property var index: all.map(e => {
+        const name = e.name.toLowerCase();
+        const id = (e.id ?? "").toLowerCase().replace(/\.desktop$/, "");
+        return { e, key: e.id, name, id, words: name.split(/[\s\-_.]+/),
+                 extra: [e.genericName, e.comment, e.id, ...(e.keywords ?? [])].join(" ").toLowerCase(),
+                 terms: [...new Set([name, ...name.split(/[\s\-_.]+/), id, ...id.split(/[\s\-_.]+/)])].filter(t => t) };
+    })
+
+    function rank(x) {
+        return Math.log((counts[x.key] ?? 0) + 1);
     }
 
-    function score(entry, q) {
-        const name = entry.name.toLowerCase();
+    function score(x, q) {
+        const name = x.name;
         if (name.startsWith(q)) return 100;
-        if (name.split(/[\s\-_.]+/).some(w => w.startsWith(q))) return 80;
+        if (x.words.some(w => w.startsWith(q))) return 80;
         if (name.includes(q)) return 60;
-        const extra = [entry.genericName, entry.comment, entry.id, ...(entry.keywords ?? [])]
-            .join(" ").toLowerCase();
-        if (extra.includes(q)) return 40;
+        if (x.extra.includes(q)) return 40;
         let i = 0, gaps = 0, last = -1;
         for (const ch of q) {
             const at = name.indexOf(ch, i);
@@ -48,12 +54,12 @@ Singleton {
     function search(query) {
         const q = query.trim().toLowerCase();
         if (q === "")
-            return all.slice().sort((a, b) => frecency(b) - frecency(a) || a.name.localeCompare(b.name));
-        return all
-            .map(e => ({ e, s: score(e, q) }))
-            .filter(x => x.s > 0)
-            .sort((a, b) => (b.s + frecency(b.e) * 6) - (a.s + frecency(a.e) * 6) || a.e.name.localeCompare(b.e.name))
-            .map(x => x.e);
+            return index.slice().sort((a, b) => rank(b) - rank(a) || a.name.localeCompare(b.name)).map(x => x.e);
+        return index
+            .map(x => ({ x, s: score(x, q) + rank(x) * 6 }))
+            .filter(r => r.s > rank(r.x) * 6)
+            .sort((a, b) => b.s - a.s || a.x.name.localeCompare(b.x.name))
+            .map(r => r.x.e);
     }
 
     function launch(entry) {
