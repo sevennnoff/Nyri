@@ -8,6 +8,7 @@ Surface {
     id: root
 
     name: "snip"
+    open: Panels.snipping
 
     readonly property var actions: [
         { id: "screenshot", icon: "screenshot_region", label: "Снимок", hint: "Выделите область или нажмите — весь экран в буфер и в Картинки" },
@@ -57,7 +58,7 @@ Surface {
         if (!open) return;
         hidden = false;
         dragging = false;
-        const want = actions.findIndex(a => a.id === Panels.tab);
+        const want = actions.findIndex(a => a.id === Panels.snipTab);
         if (want >= 0) current = want;
         x0 = y0 = x1 = y1 = 0;
         keys.forceActiveFocus();

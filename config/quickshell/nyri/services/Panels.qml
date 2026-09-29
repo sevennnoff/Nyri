@@ -11,6 +11,8 @@ Singleton {
     property bool deskEdit: false
     property string prefill: ""
     property string tab: ""
+    property bool snipping: false
+    property string snipTab: ""
     property real anchorX: 0
     property real anchorW: 0
 
@@ -50,6 +52,7 @@ Singleton {
     property alias studioOpen: keptStudio.open
 
     function toggle(name, page) {
+        if (name === "snip") { snipTab = page ?? ""; snipping = !snipping; return; }
         if (name === "wallpaper") { current = ""; studioOpen = !studioOpen; return; }
         if (current === name && (page === undefined || tab === page)) {
             current = "";
@@ -60,12 +63,14 @@ Singleton {
     }
 
     function open(name, page) {
+        if (name === "snip") { snipTab = page ?? ""; snipping = true; return; }
         if (name === "wallpaper") { current = ""; studioOpen = true; return; }
         tab = page ?? "";
         current = name;
     }
 
     function close() {
+        if (snipping) { snipping = false; return; }
         current = "";
     }
 }

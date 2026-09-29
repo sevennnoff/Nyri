@@ -12,7 +12,7 @@ PanelWindow {
     property bool keyboard: true
     property real scrimOpacity: 0
 
-    readonly property bool open: Panels.current === name
+    property bool open: Panels.current === name
     readonly property real progress: spring.value
     readonly property real fade: Math.max(0, Math.min(1, progress))
 
