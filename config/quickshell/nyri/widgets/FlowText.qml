@@ -18,7 +18,8 @@ Item {
     readonly property Text previous: onA ? b : a
 
     SpringValue { id: t; target: 1; damping: 0.78; stiffness: 520; epsilon: 0.002 }
-    SpringValue { id: w; target: Math.min(root.maxWidth, root.current.implicitWidth + root.rightPadding); damping: 0.8; stiffness: 520; epsilon: 0.2 }
+    TextMetrics { id: natural; font: root.current.font; text: root.current.text }
+    SpringValue { id: w; target: Math.max(0, Math.min(root.maxWidth, Math.ceil(natural.advanceWidth) + root.rightPadding)); damping: 0.8; stiffness: 520; epsilon: 0.2 }
 
     implicitWidth: w.value
     implicitHeight: a.implicitHeight
@@ -39,7 +40,7 @@ Item {
 
     MText {
         id: a
-        width: root.sized ? root.width - root.rightPadding : implicitWidth
+        width: root.sized ? Math.max(0, root.width - root.rightPadding) : implicitWidth
         elide: root.elide
         horizontalAlignment: root.horizontalAlignment
         textStyle: root.textStyle
@@ -50,7 +51,7 @@ Item {
 
     MText {
         id: b
-        width: root.sized ? root.width - root.rightPadding : implicitWidth
+        width: root.sized ? Math.max(0, root.width - root.rightPadding) : implicitWidth
         elide: root.elide
         horizontalAlignment: root.horizontalAlignment
         textStyle: root.textStyle

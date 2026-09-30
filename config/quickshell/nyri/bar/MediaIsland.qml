@@ -8,6 +8,8 @@ Island {
     id: root
 
     readonly property var player: Media.player
+    property real room: Infinity
+    readonly property real textRoom: Math.min(200, room - padding * 2 - 28 * 2 - spacing * 2)
     visible: player !== null
     padding: 6
     spacing: 8
@@ -33,8 +35,8 @@ Island {
     }
     FlowText {
         anchors.verticalCenter: parent.verticalCenter
-        visible: Config.o.bar.mediaTitle
-        maxWidth: 200
+        visible: Config.o.bar.mediaTitle && root.textRoom >= 40
+        maxWidth: root.textRoom
         width: implicitWidth
         elide: Text.ElideRight
         textStyle: Type.labelLarge

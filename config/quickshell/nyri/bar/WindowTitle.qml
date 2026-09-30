@@ -9,6 +9,7 @@ Island {
     id: root
 
     property real maxTextWidth: 360
+    property real room: Infinity
     readonly property var win: Niri.focusedWindow
     readonly property var entry: win ? DesktopEntries.heuristicLookup(win.app_id) : null
 
@@ -41,7 +42,7 @@ Island {
     FlowText {
         anchors.verticalCenter: parent.verticalCenter
         rightPadding: 8
-        maxWidth: root.maxTextWidth
+        maxWidth: Math.max(0, Math.min(root.maxTextWidth, root.room - root.padding * 2 - 28 - root.spacing))
         width: implicitWidth
         elide: Text.ElideRight
         textStyle: Type.labelLarge

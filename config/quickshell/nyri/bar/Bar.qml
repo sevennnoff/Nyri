@@ -111,7 +111,7 @@ Variants {
         Component { id: workspacesC; Workspaces { output: bar.modelData.name } }
         Component { id: titleC; WindowTitle { maxTextWidth: 360 } }
         Component { id: clockC; Clock {} }
-        Component { id: liveC; LiveIsland {} }
+        Component { id: liveC; LiveIsland { media: bar.leftIds.concat(bar.centerIds, bar.rightIds).indexOf("media") < 0 } }
         Component { id: trayC; Tray { barWindow: bar } }
         Component { id: statusC; Status {} }
         Component { id: controlC; PanelButton {} }
@@ -122,16 +122,30 @@ Variants {
             id: sec
             property var ids: []
             property int base: 0
+            property real room: Infinity
+            function taken(skip) {
+                let w = 0;
+                for (const c of children)
+                    if (c !== skip && c.visible && c.item) w += c.width + spacing;
+                return w;
+            }
             spacing: 8
             Repeater {
                 model: sec.ids
                 Loader {
+                    id: slot
                     required property string modelData
                     required property int index
                     anchors.verticalCenter: parent?.verticalCenter
                     sourceComponent: bar.registry[modelData] ?? null
                     visible: bar.wants(modelData) && (item?.present ?? true)
                     onLoaded: if (item.introIndex !== undefined) item.introIndex = sec.base + index
+                    Binding {
+                        when: slot.item?.room !== undefined
+                        target: slot.item
+                        property: "room"
+                        value: sec.room - sec.taken(slot)
+                    }
                 }
             }
         }
@@ -149,6 +163,7 @@ Variants {
                 y: bar.islandY
                 ids: bar.leftIds
                 base: 0
+                room: (center.width > 1 ? center.x : (bar.width + x) / 2) - 12 - x
             }
 
             Section {
@@ -164,6 +179,7 @@ Variants {
                 x: bar.width - width - bar.gap
                 y: bar.islandY
                 ids: bar.rightIds
+                room: bar.width - bar.gap - (center.width > 1 ? center.x + center.width : bar.width / 2) - 12
                 base: bar.leftIds.length + bar.centerIds.length
             }
         }

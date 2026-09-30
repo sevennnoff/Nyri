@@ -7,7 +7,8 @@ import qs.widgets
 Island {
     id: root
 
-    readonly property var items: Activities.loud
+    property bool media: true
+    readonly property var items: media ? Activities.loud : Activities.loud.filter(a => a.kind !== "media")
     readonly property var main: items[0] ?? null
     readonly property var rest: items.slice(1, 4)
     readonly property bool loud: main?.tone === "error"
