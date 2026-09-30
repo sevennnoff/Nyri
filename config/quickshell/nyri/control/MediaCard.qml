@@ -5,7 +5,7 @@ import qs.theme
 import qs.services
 import qs.widgets
 
-ClippingRectangle {
+Rectangle {
     id: root
 
     required property bool active
@@ -30,11 +30,12 @@ ClippingRectangle {
         onTriggered: root.player.positionChanged()
     }
 
-    Item {
+    ClippingRectangle {
         id: cover
         anchors.right: parent.right
         width: parent.width * 0.62
         height: parent.height
+        radius: root.radius
 
         Image {
             id: art
@@ -160,7 +161,7 @@ ClippingRectangle {
             }
             StateLayer {
                 id: playArea
-                radius: width / 2
+                radius: root.playing ? width * 0.3 : width / 2
                 color: Colors.m3onPrimary
                 onClicked: root.player?.togglePlaying()
             }

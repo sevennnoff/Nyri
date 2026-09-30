@@ -347,7 +347,7 @@ Scope {
                     anchors.verticalCenter: parent.verticalCenter
                     textStyle: Type.labelLargeEmph
                     color: Colors.m3onSurfaceVariant
-                    text: Niri.layoutShort
+                    text: Compositor.layoutShort
                 }
                 Row {
                     anchors.verticalCenter: parent.verticalCenter

@@ -39,15 +39,15 @@ Variants {
 
         readonly property size texture: Qt.size(stage.width * modelData.devicePixelRatio * 1.1, stage.height * modelData.devicePixelRatio * 1.1)
 
-        readonly property var myWorkspaces: Niri.workspacesOn(modelData.name)
+        readonly property var myWorkspaces: Compositor.workspacesOn(modelData.name)
         readonly property var activeWs: myWorkspaces.find(w => w.is_active) ?? null
         readonly property real wsPos: myWorkspaces.length > 1 && activeWs
             ? (myWorkspaces.indexOf(activeWs)) / (myWorkspaces.length - 1) : 0.5
         readonly property var columns: {
             if (!activeWs) return { at: 0, count: 1 };
             let count = 1, at = 1;
-            for (const id in Niri.windows) {
-                const w = Niri.windows[id];
+            for (const id in Compositor.windows) {
+                const w = Compositor.windows[id];
                 const c = w.workspace_id === activeWs.id ? w.layout?.pos_in_scrolling_layout?.[0] ?? 0 : 0;
                 count = Math.max(count, c);
                 if (w.is_focused && c) at = c;
@@ -55,7 +55,8 @@ Variants {
             return { at, count };
         }
         readonly property real colPos: columns.count > 1 ? (columns.at - 1) / (columns.count - 1) : 0.5
-        readonly property real zoom: Niri.overviewOpen ? 1.12 : 1.08
+        readonly property bool fullPalette: /\/(waves|bands)-/.test(win.shown)
+        readonly property real zoom: fullPalette ? 1 : Compositor.overviewOpen ? 1.12 : 1.08
         readonly property real slackX: width * (zoom - 1) / 2
         readonly property real slackY: height * (zoom - 1) / 2
 
@@ -71,10 +72,10 @@ Variants {
 
         readonly property bool animated: Config.o.wallpaper.animated ?? false
         readonly property bool seen: {
-            if (Niri.overviewOpen || Panels.deskEdit || !activeWs) return true;
+            if (Compositor.overviewOpen || Panels.deskEdit || !activeWs) return true;
             const cols = {};
-            for (const id in Niri.windows) {
-                const w = Niri.windows[id];
+            for (const id in Compositor.windows) {
+                const w = Compositor.windows[id];
                 if (w.workspace_id !== activeWs.id || w.is_floating) continue;
                 const c = w.layout?.pos_in_scrolling_layout?.[0] ?? 0, tw = w.layout?.tile_size?.[0] ?? width;
                 cols[c] = Math.max(cols[c] ?? 0, tw);
@@ -181,7 +182,7 @@ Variants {
 
         WlrLayershell.namespace: "nyri-desktop"
         WlrLayershell.layer: Panels.deskEdit ? WlrLayer.Top : WlrLayer.Bottom
-        WlrLayershell.keyboardFocus: Panels.deskEdit && scope.modelData.name === Niri.focusedOutput ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        WlrLayershell.keyboardFocus: Panels.deskEdit && scope.modelData.name === Compositor.focusedOutput ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
         mask: widgets.mask
 
@@ -196,7 +197,7 @@ Variants {
             anchors.fill: parent
             output: scope.modelData.name
             wsIdx: win.activeWs?.idx ?? 0
-            bare: Panels.deskEdit || (win.activeWs ? !Object.values(Niri.windows).some(w => w.workspace_id === win.activeWs.id) : true)
+            bare: Panels.deskEdit || (win.activeWs ? !Object.values(Compositor.windows).some(w => w.workspace_id === win.activeWs.id) : true)
         }
     }
     }
