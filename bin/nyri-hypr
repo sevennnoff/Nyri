@@ -81,10 +81,9 @@ def install(start=False):
 
 
 def lua_option(name, value):
-    expression = json.dumps(bool(value) if name == "shadow" else value, ensure_ascii=False)
-    for part in reversed(OPTIONS[name][0].split(":")):
-        expression = "{ [" + json.dumps(part) + "] = " + expression + " }"
-    return "hl.config(" + expression + ")"
+    key = OPTIONS[name][0].replace(":", ".")
+    stored = bool(value) if name == "shadow" else value
+    return "hl.config({ [" + json.dumps(key) + "] = " + json.dumps(stored) + " })"
 
 
 def install_lua(start=False):
@@ -160,10 +159,15 @@ def uninstall():
 def option_value(name, obj):
     kind = OPTIONS[name][1]
     if kind is str:
-        return obj["str"]
+        return obj.get("str")
     if "int" in obj:
         return int(obj["int"])
-    parts = str(obj.get("custom", "")).split()
+    if "bool" in obj:
+        return 1 if obj["bool"] else 0
+    parts = str(obj.get("css") or "").split()
+    if parts and parts[0].lstrip("-").isdigit():
+        return int(float(parts[0]))
+    parts = str(obj.get("custom") or "").split()
     return int(parts[0]) if len(parts) == 4 and len(set(parts)) == 1 else None
 
 

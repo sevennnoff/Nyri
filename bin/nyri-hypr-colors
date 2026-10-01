@@ -10,8 +10,8 @@ palette = json.loads((state / "theme.json").read_text())["colors"]
 config = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "hypr"
 config.mkdir(parents=True, exist_ok=True)
 
-active = palette["primary"].removeprefix("#")
-inactive = palette["outline_variant"].removeprefix("#")
+active = (palette.get("primary_container") or palette["primary"]).removeprefix("#")
+inactive = (palette.get("outline") or palette["outline_variant"]).removeprefix("#")
 legacy = f"general:col.active_border = rgba({active}ff)\ngeneral:col.inactive_border = rgba({inactive}aa)\n"
 (config / "nyri-colors.conf").write_text(legacy)
 (config / "nyri-colors.lua").write_text(

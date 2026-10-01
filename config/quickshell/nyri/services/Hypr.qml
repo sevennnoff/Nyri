@@ -8,19 +8,21 @@ Singleton {
     id: root
 
     property var liveAddresses: null
+    property var workspaces: []
+    property var windows: ({})
     function normalizedAddress(value) {
         const hex = String(value ?? "").toLowerCase();
         return hex.startsWith("0x") ? hex : "0x" + hex;
     }
-
-    readonly property var workspaces: Hyprland.workspaces.values.map(w => ({
-        id: w.id, idx: w.id, name: w.name,
-        output: w.monitor?.name ?? "",
-        is_active: w.active, is_focused: w.focused, is_urgent: w.urgent,
-        active_window_id: w.toplevels.values.find(t => t.activated)?.address ?? null
-    })).filter(w => w.id > 0).sort((a, b) => a.idx - b.idx)
-
-    readonly property var windows: {
+    function rebuildWorkspaces() {
+        workspaces = Hyprland.workspaces.values.map(w => ({
+            id: w.id, idx: w.id, name: w.name,
+            output: w.monitor?.name ?? "",
+            is_active: w.active, is_focused: w.focused, is_urgent: w.urgent,
+            active_window_id: null
+        })).filter(w => w.id > 0).sort((a, b) => a.idx - b.idx);
+    }
+    function rebuildWindows() {
         const map = {};
         for (const t of Hyprland.toplevels.values) {
             if (!t.address) continue;
@@ -28,7 +30,7 @@ Singleton {
             const info = t.lastIpcObject ?? {};
             const history = Number(info.focusHistoryID ?? 999999);
             map[t.address] = {
-                id: t.address, app_id: info["class"] ?? info.initialClass ?? "",
+                id: t.address, app_id: info["class"] || info.initialClass || t.wayland?.appId || "",
                 title: t.title, pid: info.pid ?? 0,
                 workspace_id: t.workspace?.id ?? info.workspace?.id ?? 0,
                 is_focused: t.activated, is_floating: info.floating ?? false,
@@ -36,10 +38,23 @@ Singleton {
                 focus_timestamp: { secs: 1000000 - history, nanos: 0 }
             };
         }
-        return map;
+        windows = map;
     }
+    function noteStructure() { settle.restart(); }
+    Timer { id: settle; interval: 32; onTriggered: { root.rebuildWorkspaces(); root.rebuildWindows(); } }
+
     readonly property var focusedWindowId: Hyprland.activeToplevel?.address ?? null
-    readonly property var focusedWindow: focusedWindowId ? windows[focusedWindowId] ?? null : null
+    readonly property var focusedWindow: {
+        const t = Hyprland.activeToplevel;
+        if (!t || !t.address) return null;
+        const row = windows[t.address];
+        if (!row) return null;
+        const info = t.lastIpcObject ?? {};
+        const title = t.title || row.title;
+        const appId = info["class"] || info.initialClass || t.wayland?.appId || row.app_id;
+        if (title === row.title && appId === row.app_id && !!t.activated === row.is_focused) return row;
+        return Object.assign({}, row, { title, app_id: appId, is_focused: !!t.activated });
+    }
     readonly property string focusedOutput: Hyprland.focusedMonitor?.name ?? ""
     property var windowOptions: null
     property int windowRev: 0
@@ -141,6 +156,7 @@ Singleton {
                     const live = {};
                     for (const window of JSON.parse(text)) live[root.normalizedAddress(window.address)] = true;
                     root.liveAddresses = live;
+                    root.rebuildWindows();
                 } catch (e) { console.warn("Hyprland client list:", e); }
             }
         }
@@ -148,6 +164,8 @@ Singleton {
     Timer { id: scanClients; interval: 100; onTriggered: clients.running = true }
     Timer { interval: 4000; repeat: true; running: true; onTriggered: if (!clients.running) clients.running = true }
     Component.onCompleted: {
+        rebuildWorkspaces();
+        rebuildWindows();
         devices.running = true;
         clients.running = true;
         if (Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE")) reloadWindowOptions();
@@ -161,10 +179,13 @@ Singleton {
                 root.layoutNames = [parts[1] ?? ""];
                 root.layoutIndex = 0;
             }
-            if (["openwindow", "closewindow", "movewindow", "changefloatingmode", "fullscreen", "activewindowv2"].includes(event.name)) {
-                Hyprland.refreshToplevels();
-                if (event.name === "openwindow" || event.name === "closewindow") scanClients.restart();
-            }
+            if (event.name === "workspace" || event.name === "workspacev2"
+                    || event.name === "focusedmon" || event.name === "focusedmonv2"
+                    || event.name === "createworkspace" || event.name === "destroyworkspace"
+                    || event.name === "openwindow" || event.name === "closewindow"
+                    || event.name === "movewindow" || event.name === "activewindowv2")
+                root.noteStructure();
+            if (event.name === "openwindow" || event.name === "closewindow") scanClients.restart();
         }
     }
 }
