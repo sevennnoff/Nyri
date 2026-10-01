@@ -23,12 +23,17 @@ Singleton {
     function refreshArt() {
         const url = rawArt;
         if (!url) { art = ""; return; }
-        if (!url.startsWith("file:")) { art = url; return; }
-        let path = url.slice("file://".length);
-        try { path = decodeURIComponent(path); } catch (e) {}
-        if (/\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(path)) { art = "file://" + path; return; }
+        let src = url;
+        if (url.startsWith("file:")) {
+            src = url.slice("file://".length);
+            try { src = decodeURIComponent(src); } catch (e) {}
+            if (/\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(src)) { art = "file://" + src; return; }
+        } else if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            art = url;
+            return;
+        }
         artJob.running = false;
-        artJob.path = path;
+        artJob.path = src;
         artJob.rev++;
         artJob.running = true;
     }
@@ -38,24 +43,54 @@ Singleton {
         property string path: ""
         property int rev: 0
         command: ["python3", "-c", "
-import os, sys, shutil
+import os, sys, shutil, subprocess
 src, folder, rev = sys.argv[1], sys.argv[2], sys.argv[3]
-b = open(src, 'rb').read(16)
-ext = '.png' if b[:4] == bytes([137, 80, 78, 71]) else '.jpg' if b[:3] == bytes([255, 216, 255]) else '.webp' if b[8:12] == b'WEBP' else '.gif' if b[:4] == b'GIF8' else ''
-if not ext:
+
+def ext_of(b):
+    if b[:4] == bytes([137, 80, 78, 71]): return '.png'
+    if b[:3] == bytes([255, 216, 255]): return '.jpg'
+    if len(b) >= 12 and b[8:12] == b'WEBP': return '.webp'
+    if b[:4] == b'GIF8': return '.gif'
+    return ''
+
+def publish(data):
+    ext = ext_of(data[:16])
+    if not ext:
+        return False
+    os.makedirs(folder, exist_ok=True)
+    for old in os.listdir(folder):
+        if old.startswith('nyri-cover-') and not old.endswith(rev + ext):
+            try: os.remove(os.path.join(folder, old))
+            except OSError: pass
+    dest = os.path.join(folder, 'nyri-cover-' + rev + ext)
+    with open(dest, 'wb') as out:
+        out.write(data)
+    print(dest)
+    return True
+
+if src.startswith('http://') or src.startswith('https://'):
+    ident = src.split('?', 1)[0].rstrip('/').rsplit('/', 1)[-1]
+    urls = [src]
+    if len(ident) >= 16 and all(c in '0123456789abcdef' for c in ident.lower()):
+        alt = 'https://image-cdn-fa.spotifycdn.com/image/' + ident
+        urls = [alt, src] if 'i.scdn.co' in src else [src, alt]
+    for url in urls:
+        try:
+            data = subprocess.check_output(['curl', '-fsSL', '--connect-timeout', '3', '--max-time', '8', '-A', 'Nyri', url], stderr=subprocess.DEVNULL)
+        except (OSError, subprocess.CalledProcessError):
+            continue
+        if publish(data):
+            sys.exit(0)
     sys.exit(1)
-for old in os.listdir(folder):
-    if old.startswith('nyri-cover-') and not old.endswith(rev + ext):
-        try: os.remove(os.path.join(folder, old))
-        except OSError: pass
-dest = os.path.join(folder, 'nyri-cover-' + rev + ext)
-shutil.copyfile(src, dest)
-print(dest)
+
+data = open(src, 'rb').read()
+if not publish(data):
+    sys.exit(1)
 ", path, (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"), String(rev)]
         stdout: StdioCollector {
             onStreamFinished: {
                 const path = text.trim();
-                if (path) root.art = "file://" + path;
+                if (path.indexOf("/nyri-cover-" + artJob.rev) >= 0) root.art = "file://" + path;
             }
         }
     }
