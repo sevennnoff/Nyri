@@ -1,3 +1,5 @@
+spawn-at-startup "sh" "-c" "~/nyri/bin/nyri-splash"
+
 spawn-at-startup "qs" "-c" "nyri"
 
 spawn-at-startup "wl-paste" "--watch" "cliphist" "store"

@@ -8,13 +8,9 @@ if [[ ${1:-} == --hyprland ]]; then mode=hyprland; shift; fi
 
 if [[ ${1:-} == --undo ]]; then
     bold "Unlinking nyri, restoring the backup"
-    if [[ $mode == hyprland ]]; then
-        "$NYRI/bin/nyri-hypr" uninstall
-        "$NYRI/bin/nyri-link" uninstall
-        bold "Done. Log out and back in."
-        exit 0
-    fi
+    "$NYRI/bin/nyri-hypr" uninstall || true
     "$NYRI/bin/nyri-link" uninstall
+    undo_greeter
     systemctl --user enable inir.service 2>/dev/null && echo "iNiR will start again at login"
     bold "Done. Log out and back in."
     exit 0
@@ -28,12 +24,9 @@ arch_packages() {
         tesseract-data-rus curl libnotify glib2 wlsunset libqalculate resvg
         swappy python-gobject kitty plocate ttf-material-symbols-variable
         ttf-jetbrains-mono-nerd xdg-desktop-portal xdg-desktop-portal-gtk polkit
+        niri xdg-desktop-portal-gnome hyprland xdg-desktop-portal-hyprland
+        greetd cage
     )
-    if [[ $mode == hyprland ]]; then
-        pkgs+=(hyprland xdg-desktop-portal-hyprland)
-    else
-        pkgs+=(niri xdg-desktop-portal-gnome)
-    fi
     printf '%s\n' "${pkgs[@]}"
 }
 
@@ -79,6 +72,85 @@ if [ -z "\${WAYLAND_DISPLAY:-}" ] && [ "\$(tty)" = "/dev/tty1" ]; then
 fi
 EOF
     echo "  no display manager found: $cmd starts when you log in on tty1"
+}
+
+remove_tty_login() {
+    local profile="$HOME/.bash_profile"
+    [[ -f $profile ]] || return 0
+    grep -q 'nyri-tty-login' "$profile" || return 0
+    python3 - "$profile" <<'PY'
+import pathlib, sys
+path = pathlib.Path(sys.argv[1])
+text = path.read_text()
+start = text.find("# nyri-tty-login")
+if start < 0:
+    raise SystemExit(0)
+end = text.find("\nfi\n", start)
+if end < 0:
+    raise SystemExit(0)
+end += 4
+if start > 0 and text[start - 1] == "\n":
+    start -= 1
+path.write_text(text[:start] + text[end:])
+PY
+    echo "  removed the tty1 autostart from ~/.bash_profile"
+}
+
+undo_greeter() {
+    [[ -f /etc/greetd/config.toml ]] || return 0
+    grep -q 'nyri-greeter' /etc/greetd/config.toml || return 0
+    sudo systemctl disable greetd.service || true
+    sudo rm -f /etc/greetd/config.toml /usr/local/bin/nyri-greeter /usr/local/bin/nyri-greetd
+    sudo rm -rf /usr/local/share/nyri/greeter
+    echo "  Nyri greeter disabled. The saved Niri/Hyprland choice stays in /var/lib/nyri/login.json"
+}
+
+install_greeter() {
+    local qs_bin
+    qs_bin="$(command -v qs || true)"
+    if [[ -z $qs_bin || ! -x /usr/bin/greetd && ! -x $(command -v greetd || true) ]]; then
+        echo "  greetd or quickshell is missing, login screen was not installed"
+        return 1
+    fi
+    command -v cage >/dev/null || { echo "  cage is missing, login screen was not installed"; return 1; }
+    if display_manager_enabled && ! systemctl is-enabled greetd.service &>/dev/null; then
+        echo "  another display manager is already enabled, Nyri greeter was not switched on"
+        return 1
+    fi
+    if [[ -f /etc/greetd/config.toml ]] && ! grep -q 'nyri-greeter' /etc/greetd/config.toml; then
+        echo "  greetd already has its own config, Nyri greeter was not switched on"
+        return 1
+    fi
+    sudo install -d -o greeter -g greeter -m 0755 /var/lib/nyri
+    sudo install -d -m 0755 /usr/local/share/nyri/greeter /usr/local/bin
+    sudo install -m 0755 "$NYRI/bin/nyri-greeter" /usr/local/bin/nyri-greeter
+    sudo install -m 0755 "$NYRI/bin/nyri-greetd" /usr/local/bin/nyri-greetd
+    sudo cp -a "$NYRI/config/quickshell/nyri-greeter/." /usr/local/share/nyri/greeter/
+    local font="${XDG_DATA_HOME:-$HOME/.local/share}/fonts/nyri/Rubik[wght].ttf"
+    if [[ -f $font ]]; then
+        sudo install -d -m 0755 /usr/local/share/fonts/nyri
+        sudo install -m 0644 "$font" "/usr/local/share/fonts/nyri/Rubik[wght].ttf"
+        sudo fc-cache -f /usr/local/share/fonts/nyri >/dev/null || true
+    fi
+    if [[ ! -f /var/lib/nyri/login.json ]]; then
+        local session=niri
+        [[ $mode == hyprland ]] && session=hyprland
+        printf '{"user":"%s","session":"%s"}\n' "$(id -un)" "$session" | sudo tee /var/lib/nyri/login.json >/dev/null
+        sudo chown greeter:greeter /var/lib/nyri/login.json
+        sudo chmod 0644 /var/lib/nyri/login.json
+    fi
+    sudo tee /etc/greetd/config.toml >/dev/null <<EOF
+# nyri-greeter
+[terminal]
+vt = 1
+
+[default_session]
+command = "cage -s -- /usr/local/bin/nyri-greeter"
+user = "greeter"
+EOF
+    sudo systemctl enable greetd.service
+    remove_tty_login
+    echo "  Nyri greeter starts on tty1 after reboot. The Niri or Hyprland choice is kept."
 }
 
 bold "Checking dependencies"
@@ -132,13 +204,14 @@ bold "Linking configs (replaced files go to ~/.config-nyri-backup/)"
 if [[ $mode == hyprland ]]; then
     bold "Adding Nyri to Hyprland without changing personal shortcuts"
     "$NYRI/bin/nyri-hypr" install
-    ensure_tty_login
-    bold "Done. Log out and choose the Hyprland session to start Nyri."
-    exit 0
+else
+    bold "Stopping iNiR from starting with niri"
+    systemctl --user disable inir.service 2>/dev/null && echo "  inir.service disabled" || echo "  inir.service was not enabled"
 fi
 
-bold "Stopping iNiR from starting with niri"
-systemctl --user disable inir.service 2>/dev/null && echo "  inir.service disabled" || echo "  inir.service was not enabled"
-ensure_tty_login
-
-bold "Done. Log out and back in to start nyri. Undo any time: nyri-install --undo"
+if install_greeter; then
+    bold "Done. Reboot and sign in on the Nyri screen. Undo any time: nyri-install --undo"
+else
+    ensure_tty_login
+    bold "Done. Log out and back in to start nyri. Undo any time: nyri-install --undo"
+fi
