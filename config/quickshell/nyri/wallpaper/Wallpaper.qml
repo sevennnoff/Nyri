@@ -22,7 +22,7 @@ Variants {
         screen: modelData
         anchors { top: true; bottom: true; left: true; right: true }
         exclusionMode: ExclusionMode.Ignore
-        color: Colors.m3surface
+        color: "transparent"
 
         WlrLayershell.namespace: "nyri-wallpaper"
         WlrLayershell.layer: WlrLayer.Background
@@ -37,14 +37,14 @@ Variants {
             return Qt.rect(x0, y0, x1 - x0, y1 - y0);
         }
 
-        readonly property size texture: Qt.size(stage.width * modelData.devicePixelRatio * 1.1, stage.height * modelData.devicePixelRatio * 1.1)
+        readonly property size texture: Qt.size(Math.min(stage.width, 2880), Math.min(stage.height, 1800))
 
         readonly property var myWorkspaces: Compositor.workspacesOn(modelData.name)
         readonly property var activeWs: myWorkspaces.find(w => w.is_active) ?? null
-        readonly property real wsPos: myWorkspaces.length > 1 && activeWs
-            ? (myWorkspaces.indexOf(activeWs)) / (myWorkspaces.length - 1) : 0.5
+        readonly property real wsPos: Compositor.isHyprland || !(myWorkspaces.length > 1 && activeWs)
+            ? 0.5 : myWorkspaces.indexOf(activeWs) / (myWorkspaces.length - 1)
         readonly property var columns: {
-            if (!activeWs) return { at: 0, count: 1 };
+            if (Compositor.isHyprland || !activeWs) return { at: 0, count: 1 };
             let count = 1, at = 1;
             for (const id in Compositor.windows) {
                 const w = Compositor.windows[id];
@@ -65,14 +65,22 @@ Variants {
         SpringValue { id: pz; target: win.zoom; damping: 0.9; stiffness: 120; epsilon: 0.0005 }
         Connections {
             target: Lock
-            function onUnlocked() { pz.value = 1.0; pz.velocity = 0; pz.running = true; }
+            function onUnlocked() {
+                pz.value = 1.0;
+                pz.velocity = 0;
+                pz.running = true;
+            }
         }
         property string shown: ""
         property string incoming: ""
 
         readonly property bool animated: Config.o.wallpaper.animated ?? false
         readonly property bool seen: {
-            if (Compositor.overviewOpen || Panels.deskEdit || !activeWs) return true;
+            if (Panels.deskEdit) return true;
+            if (!activeWs) return false;
+            if (Compositor.isHyprland)
+                return !Object.values(Compositor.windows).some(w => w.workspace_id === activeWs.id && !w.is_floating);
+            if (Compositor.overviewOpen) return true;
             const cols = {};
             for (const id in Compositor.windows) {
                 const w = Compositor.windows[id];

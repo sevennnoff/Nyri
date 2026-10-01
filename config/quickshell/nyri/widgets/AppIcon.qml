@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell.Widgets
 import qs.theme
 
 Item {
@@ -21,10 +20,16 @@ Item {
             color: Colors.m3onSecondaryContainer
         }
     }
-    IconImage {
+    property real raster: 72
+    readonly property real dpr: Screen.devicePixelRatio > 0 ? Screen.devicePixelRatio : 1
+    Image {
         id: appImage
         anchors.fill: parent
         source: root.source
+        fillMode: Image.PreserveAspectFit
+        smooth: true
+        mipmap: true
         visible: status === Image.Ready
+        sourceSize: Qt.size(Math.max(1, Math.ceil(root.raster * root.dpr)), Math.max(1, Math.ceil(root.raster * root.dpr)))
     }
 }

@@ -349,9 +349,10 @@ Surface {
         Image {
             id: big
             anchors.fill: parent
-            source: root.player?.trackArtUrl ?? ""
+            source: Media.art
             fillMode: Image.PreserveAspectCrop
-            sourceSize: Qt.size(320, 320)
+            smooth: true
+            mipmap: true
             asynchronous: true
         }
         MaterialShape {

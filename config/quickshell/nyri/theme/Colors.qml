@@ -22,6 +22,8 @@ Singleton {
             root.wallpaper = data.wallpaper ?? "";
             root.mode = data.mode ?? "dark";
             root.scheme = data.scheme ?? "scheme-content";
+            const bin = (Quickshell.env("HOME") || "") + "/nyri/bin/nyri-greetd";
+            Quickshell.execDetached([bin, "publish"]);
         } catch (e) {
             console.warn("theme.json unreadable:", e);
         }

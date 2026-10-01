@@ -40,9 +40,10 @@ Rectangle {
         Image {
             id: art
             anchors.fill: parent
-            source: root.player?.trackArtUrl ?? ""
+            source: Media.art
             fillMode: Image.PreserveAspectCrop
-            sourceSize: Qt.size(width * 2, height * 2)
+            smooth: true
+            mipmap: true
             asynchronous: true
             opacity: status === Image.Ready ? 1 : 0
             Behavior on opacity { EffectAnim {} }

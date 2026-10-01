@@ -65,7 +65,7 @@ PanelWindow {
 
                 width: stack.width
                 height: phase === "collapse" ? box : full
-                clip: true
+                clip: phase === "collapse"
 
                 Behavior on height {
                     NumberAnimation {

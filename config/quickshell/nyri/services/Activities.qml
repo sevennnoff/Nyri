@@ -61,7 +61,7 @@ Singleton {
         const p = Media.player;
         if (p && p.isPlaying)
             out.push({ id: "media", kind: "media", icon: "music_note", tone: "primary", priority: 50, ambient: false,
-                       title: p.trackTitle || p.identity, text: p.trackArtist ?? "", cover: p.trackArtUrl ?? "",
+                       title: p.trackTitle || p.identity, text: p.trackArtist ?? "", cover: Media.art,
                        progress: -1, actions: [] });
         for (const f of flashes)
             out.push(f);

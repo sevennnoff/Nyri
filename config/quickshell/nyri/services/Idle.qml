@@ -44,7 +44,7 @@ Scope {
     }
 
     Process {
-        running: !Panels.nested && root.cfg.lockOnLogin
+        running: !Panels.nested && root.cfg.lockOnLogin && !Compositor.isHyprland
         command: ["sh", "-c", "m=\"$XDG_RUNTIME_DIR/nyri-locked-once\"; [ -e \"$m\" ] && exit 1; touch \"$m\""]
         onExited: code => { if (code === 0) Lock.lock() }
     }

@@ -21,10 +21,22 @@ Item {
 
     property bool shown: false
     SpringValue { id: introSpring; target: root.shown ? 1 : 0; damping: 0.7; stiffness: 200 }
-    Component.onCompleted: shown = true
+    function playIntro() {
+        introSpring.value = 0;
+        introSpring.velocity = 0;
+        if (shown) introSpring.running = true;
+        else shown = true;
+    }
+    function holdIntro() {
+        shown = false;
+        introSpring.value = 0;
+        introSpring.velocity = 0;
+        introSpring.running = false;
+    }
+    Component.onCompleted: if (!Lock.locked) shown = true
     Connections {
         target: Lock
-        function onUnlocked() { introSpring.value = 0; introSpring.running = true; }
+        function onLockedChanged() { if (Lock.locked) root.holdIntro(); else root.playIntro(); }
     }
     function stage(i) { return Math.max(0, Math.min(1.2, introSpring.value * 1.5 - i * 0.12)); }
 
@@ -244,6 +256,7 @@ Item {
         anchors.fill: parent
         transform: deskScale
         visible: root.cfg.enabled
+        opacity: 1
         z: root.held ? 250 : 0
 
         DeskItem {

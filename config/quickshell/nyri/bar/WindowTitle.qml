@@ -25,18 +25,11 @@ Island {
         onClicked: Panels.toggleFrom("window", root)
     }
 
-    Rectangle {
+    AppIcon {
         anchors.verticalCenter: parent.verticalCenter
         width: 28
         height: 28
-        radius: 14
-        color: Colors.m3surfaceContainerHighest
-
-        AppIcon {
-            anchors.centerIn: parent
-            implicitSize: 20
-            source: Apps.iconSourceFor(root.win?.app_id, root.win?.title)
-        }
+        source: Apps.iconSourceFor(root.win?.app_id, root.win?.title)
     }
 
     FlowText {

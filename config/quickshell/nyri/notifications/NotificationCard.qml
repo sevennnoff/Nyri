@@ -123,6 +123,12 @@ Card {
                     width: parent.width
                     elide: Text.ElideRight
                     verticalAlignment: Text.AlignTop
+                    font.family: "Liberation Sans"
+                    font.kerning: true
+                    renderType: Text.NativeRendering
+                    font.hintingPreference: Font.PreferDefaultHinting
+                    font.variableAxes: ({})
+                    font.weight: Font.Normal
                     textStyle: Type.labelMedium
                     color: root.critical ? Colors.m3onErrorContainer : Colors.m3onSurfaceVariant
                     text: [root.notif?.appName, Notifs.ago(root.notif?.id)].filter(Boolean).join(" · ")
@@ -134,8 +140,13 @@ Card {
                     maximumLineCount: 2
                     elide: Text.ElideRight
                     verticalAlignment: Text.AlignTop
+                    font.family: "Liberation Sans"
+                    font.kerning: true
+                    renderType: Text.NativeRendering
+                    font.hintingPreference: Font.PreferDefaultHinting
+                    font.variableAxes: ({})
+                    font.weight: Font.Bold
                     textStyle: Type.titleSmall
-                    font.variableAxes: ({ "wght": 600 })
                     color: root.critical ? Colors.m3onErrorContainer : Colors.m3onSurface
                     text: root.masked ? "Новое уведомление" : root.notif?.summary ?? ""
                 }
@@ -147,7 +158,13 @@ Card {
                     maximumLineCount: root.popup ? 4 : 6
                     elide: Text.ElideRight
                     verticalAlignment: Text.AlignTop
-                    textFormat: Text.StyledText
+                    font.family: "Liberation Sans"
+                    font.kerning: true
+                    renderType: Text.NativeRendering
+                    font.hintingPreference: Font.PreferDefaultHinting
+                    font.variableAxes: ({})
+                    font.weight: Font.Normal
+                    textFormat: text.indexOf("<") >= 0 ? Text.StyledText : Text.PlainText
                     textStyle: Type.bodyMedium
                     color: root.critical ? Colors.m3onErrorContainer : Colors.m3onSurfaceVariant
                     linkColor: Colors.m3primary
@@ -190,6 +207,12 @@ Card {
                     MText {
                         id: label
                         anchors.centerIn: parent
+                        font.family: "Liberation Sans"
+                        font.kerning: true
+                        renderType: Text.NativeRendering
+                        font.hintingPreference: Font.PreferDefaultHinting
+                        font.variableAxes: ({})
+                        font.weight: Font.Bold
                         textStyle: Type.labelLarge
                         color: Colors.m3onSecondaryContainer
                         text: chip.modelData.text

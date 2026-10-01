@@ -11,6 +11,28 @@ roots += [Path(p) for p in os.environ.get("XDG_DATA_DIRS", "").split(":") if p]
 icons = {}
 scores = {}
 
+def active_theme():
+    for cfg in (home / ".config/gtk-3.0/settings.ini", home / ".config/gtk-4.0/settings.ini"):
+        if not cfg.is_file():
+            continue
+        for line in cfg.read_text(errors="replace").splitlines():
+            if line.startswith("gtk-icon-theme-name="):
+                return line.split("=", 1)[1].strip()
+    return ""
+
+theme_name = active_theme()
+
+def sharp_score(file):
+    if file.suffix.lower() == ".svg" or "scalable" in file.parts:
+        return 400
+    best = 0
+    for part in file.parts:
+        token = part.lower().replace("@2x", "")
+        head = token.split("x", 1)[0]
+        if head.isdigit():
+            best = max(best, int(head))
+    return min(best, 256)
+
 for root in dict.fromkeys(roots):
     icon_root = root / "icons"
     if icon_root.is_dir():
@@ -27,11 +49,11 @@ for root in dict.fromkeys(roots):
                         if "symbolic" in file.parts or file.stem.endswith("-symbolic"):
                             continue
                         key = file.stem.lower()
-                        score = (100 if theme.name == "hicolor" else 0) + \
-                                (40 if root == roots[0] else 0) + \
-                                (30 if app_dir.name == "apps" else 0) + \
-                                (20 if file.suffix.lower() == ".svg" else 0) + \
-                                (10 if "scalable" in file.parts else 0)
+                        score = sharp_score(file) + \
+                                (180 if theme.name == theme_name else 0) + \
+                                (30 if theme.name == "hicolor" else 0) + \
+                                (20 if root == roots[0] else 0) + \
+                                (15 if app_dir.name == "apps" else 0)
                         if score > scores.get(key, -1):
                             scores[key] = score
                             icons[key] = str(file.resolve())

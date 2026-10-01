@@ -95,9 +95,14 @@ Island {
                 anchors.centerIn: parent
                 width: parent.width + 2
                 height: parent.height + 2
-                source: root.main?.kind === "media" ? root.main.cover : ""
+                source: root.main?.kind === "media" ? (root.main.cover || Media.art) : ""
                 fillMode: Image.PreserveAspectCrop
-                sourceSize: Qt.size(60, 60)
+                smooth: true
+                mipmap: true
+                asynchronous: true
+                layer.enabled: true
+                layer.smooth: true
+                layer.textureSize: Qt.size(Math.ceil(width * Screen.devicePixelRatio * 2), Math.ceil(height * Screen.devicePixelRatio * 2))
                 transformOrigin: Item.Center
                 RotationAnimation on rotation {
                     running: art.visible && root.visible
