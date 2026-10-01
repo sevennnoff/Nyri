@@ -33,6 +33,15 @@ Card {
     signal closeRequested
     property bool animateClose: false
 
+    function readable(s) {
+        if (!s || s.indexOf("&") < 0 || s.indexOf("<") >= 0) return s || "";
+        return s.replace(/&quot;|&#34;|&#x22;/gi, "\"")
+            .replace(/&apos;|&#39;|&#x27;/gi, "'")
+            .replace(/&lt;/gi, "<")
+            .replace(/&gt;/gi, ">")
+            .replace(/&amp;/gi, "&");
+    }
+
     implicitHeight: body.implicitHeight + 28
     radius: Shape.largeIncreased
     color: critical ? Colors.m3errorContainer : popup ? Colors.m3surfaceContainerHigh : Colors.m3surfaceContainerHighest
@@ -164,12 +173,12 @@ Card {
                     font.hintingPreference: Font.PreferDefaultHinting
                     font.variableAxes: ({})
                     font.weight: Font.Normal
-                    textFormat: text.indexOf("<") >= 0 ? Text.StyledText : Text.PlainText
+                    textFormat: (root.notif?.body ?? "").indexOf("<") >= 0 ? Text.StyledText : Text.PlainText
                     textStyle: Type.bodyMedium
                     color: root.critical ? Colors.m3onErrorContainer : Colors.m3onSurfaceVariant
                     linkColor: Colors.m3primary
                     onLinkActivated: link => Qt.openUrlExternally(link)
-                    text: root.masked ? "" : root.notif?.body ?? ""
+                    text: root.masked ? "" : root.readable(root.notif?.body ?? "")
                 }
             }
 
